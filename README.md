@@ -35,3 +35,22 @@ Build for production:
 npm run build
 npm run preview
 ```
+
+## Versions
+
+The repo keeps two versions side by side:
+
+- **Latest** — the repo root (`src/`). Compact layered layout, open barrel with visible
+  mainspring, hands raised to the top of the staff, demo/real time modes. Runs on **port 5173**.
+- **Init** — [`init-version/`](init-version/). An earlier snapshot with the original
+  spread-out arc layout (balance mounted separately, solid barrel). Runs on **port 5174**.
+
+Run the early version:
+
+```bash
+cd init-version
+npm install
+npm run dev   # http://localhost:5174
+```
+
+Both can run at the same time (different ports).

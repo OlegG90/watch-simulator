@@ -1,0 +1,22 @@
+<!DOCTYPE html>
+<html lang="uk">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>SimWatch — симулятор годинникового механізму</title>
+  <style>
+    html, body { margin: 0; height: 100%; overflow: hidden; background: #1a1c20; }
+    #app { width: 100vw; height: 100vh; display: block; }
+    #hint {
+      position: fixed; left: 12px; bottom: 12px;
+      font: 12px/1.4 system-ui, sans-serif; color: #8a8f98;
+      pointer-events: none; user-select: none;
+    }
+  </style>
+</head>
+<body>
+  <canvas id="app"></canvas>
+  <div id="hint">ЛКМ — обертання · колесо — зум · ПКМ — панорама</div>
+  <script type="module" src="/src/main.js"></script>
+</body>
+</html>

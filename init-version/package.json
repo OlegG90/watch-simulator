@@ -1,0 +1,21 @@
+{
+  "name": "simwatch-init",
+  "version": "0.1.0",
+  "description": "3D-симулятор простого годинникового механізму — рання версія (init)",
+  "type": "module",
+  "scripts": {
+    "dev": "vite --port 5174 --strictPort",
+    "build": "vite build",
+    "preview": "vite preview --port 5174 --strictPort"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "lil-gui": "^0.21.0",
+    "three": "^0.185.1"
+  },
+  "devDependencies": {
+    "vite": "^8.1.3"
+  }
+}
