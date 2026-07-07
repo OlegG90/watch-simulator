@@ -1,0 +1,22 @@
+# Залежності
+node_modules/
+
+# Збірка
+dist/
+
+# Логи
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+
+# Кеш редакторів / ОС
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# Локальні env
+.env
+.env.local
+.env.*.local
