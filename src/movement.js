@@ -131,6 +131,7 @@ export function buildMovement({ brass, steel, axleMat, ruby, springMat, plateMat
   const size = { w: maxX - minX, h: maxY - minY };
 
   // ── Меші ──
+  let mainspring = null, mainspringOuterR = 0; // пружина барабана + її зовн. радіус у розслабленому стані
   arbors.forEach((a, k) => {
     const g = new THREE.Group();
     g.position.set(a.pos.x, a.pos.y, 0);
@@ -189,13 +190,13 @@ export function buildMovement({ brass, steel, axleMat, ruby, springMat, plateMat
       core.position.z = zC;
       core.castShadow = true;
       g.add(core);
-      // Мейнспринг — спіральна стрічка від втулки до стінки.
-      const spring = makeSpiralRibbon(
-        { innerR: 1.1, outerR: R - 0.4, turns: 4.5, height: drumH - 0.5 },
-        springSteel
-      );
+      // Мейнспринг — спіральна стрічка від втулки до стінки (стан задає setShape).
+      mainspringOuterR = R - 0.4;
+      const spring = makeSpiralRibbon({ height: drumH - 0.5, segments: 600 }, springSteel);
       spring.position.z = zC;
+      spring.userData.setShape({ innerR: 1.05, outerR: mainspringOuterR, turns: 3.4 }); // розслаблена
       g.add(spring);
+      mainspring = spring;
     }
 
     // Вісь: від нижньої до верхньої деталі вузла.
@@ -431,8 +432,19 @@ export function buildMovement({ brass, steel, axleMat, ruby, springMat, plateMat
   root.add(winderGroup);
 
   // Анімація заведення: головка і храповик крутяться, барабанне колесо — ні
-  // (в реальності заводиться вісь барабана відносно його корпуса).
+  // (в реальності заводиться вісь барабана відносно його корпуса), а пружина
+  // стискається — витки ущільнюються й трохи відходять від стінки барабана.
+  const WIND_FULL = Math.PI * 12; // ~3 кліки до повного заводу
   let windPending = 0, windAngle = 0, crownSpin = 0;
+  function applySpring() {
+    if (!mainspring) return;
+    const w = Math.min(1, windAngle / WIND_FULL); // 0 розслаблена … 1 заведена
+    mainspring.userData.setShape({
+      innerR: 1.05,
+      outerR: mainspringOuterR - 1.2 * w, // тугіша пружина відходить від стінки
+      turns: 3.4 + 3.6 * w,               // більше витків = щільніший пакет
+    });
+  }
   const winder = {
     group: winderGroup,
     wind() { windPending += Math.PI * 4; },
@@ -445,6 +457,7 @@ export function buildMovement({ brass, steel, axleMat, ruby, springMat, plateMat
       ratchetG.rotation.z = windAngle;
       cwG.rotation.z = phiCW - windAngle * (28 / 18);
       crown.rotation.y = crownSpin;
+      applySpring();
     },
   };
 

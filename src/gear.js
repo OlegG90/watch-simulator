@@ -160,30 +160,40 @@ export function makeHand({ length, tail = 0.25, width = 0.55, thickness = 0.14 }
  * вздовж архімедової спіралі, висота якої йде вздовж осі Z. Двобічний матеріал
  * показує обидві грані. Центр у (0,0), у площині XY.
  */
-export function makeSpiralRibbon({ innerR, outerR, turns, height, segments }, material) {
-  const seg = segments || Math.ceil(turns * 90);
-  const thetaMax = turns * Math.PI * 2;
+export function makeSpiralRibbon({ height, segments = 600 }, material) {
+  const seg = segments;
   const zT = height / 2, zB = -height / 2;
-  const verts = [];
-  let prev = null;
-  for (let i = 0; i <= seg; i++) {
-    const t = i / seg;
-    const th = t * thetaMax;
-    const r = innerR + (outerR - innerR) * t;
-    const p = [Math.cos(th) * r, Math.sin(th) * r];
-    if (prev) {
-      const [ax, ay] = prev, [bx, by] = p;
-      verts.push(ax, ay, zB, bx, by, zB, bx, by, zT); // квад як два трикутники
-      verts.push(ax, ay, zB, bx, by, zT, ax, ay, zT);
-    }
-    prev = p;
-  }
   const geo = new THREE.BufferGeometry();
-  geo.setAttribute('position', new THREE.Float32BufferAttribute(verts, 3));
-  geo.computeVertexNormals();
+  geo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(seg * 18), 3));
   const mesh = new THREE.Mesh(geo, material);
   mesh.castShadow = true;
   mesh.receiveShadow = true;
+
+  // Перерахунок форми під заданий стан (той самий буфер — можна щокадру).
+  // Архімедова спіраль; крок витків = (outerR − innerR) / turns: більше turns → тугіше.
+  mesh.userData.setShape = ({ innerR, outerR, turns }) => {
+    const thetaMax = turns * Math.PI * 2;
+    const pos = geo.attributes.position.array;
+    let k = 0, px = 0, py = 0;
+    for (let i = 0; i <= seg; i++) {
+      const t = i / seg;
+      const th = t * thetaMax;
+      const r = innerR + (outerR - innerR) * t;
+      const x = Math.cos(th) * r, y = Math.sin(th) * r;
+      if (i > 0) {
+        pos[k++] = px; pos[k++] = py; pos[k++] = zB;
+        pos[k++] = x;  pos[k++] = y;  pos[k++] = zB;
+        pos[k++] = x;  pos[k++] = y;  pos[k++] = zT;
+        pos[k++] = px; pos[k++] = py; pos[k++] = zB;
+        pos[k++] = x;  pos[k++] = y;  pos[k++] = zT;
+        pos[k++] = px; pos[k++] = py; pos[k++] = zT;
+      }
+      px = x; py = y;
+    }
+    geo.attributes.position.needsUpdate = true;
+    geo.computeVertexNormals();
+    geo.computeBoundingSphere();
+  };
   return mesh;
 }
 
