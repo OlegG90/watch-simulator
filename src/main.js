@@ -113,6 +113,8 @@ gui.add(params, 'wireframe').name('Каркас').onChange((v) => {
   steel.wireframe = v;
 });
 gui.add({ wind: () => movement.winder.wind() }, 'wind').name('⟳ Завести пружину');
+const powerUI = { power: 75 };
+gui.add(powerUI, 'power', 0, 100, 1).name('Завод, %').listen().disable();
 gui.add(labels, 'visible').name('Підписи');
 const nodes = gui.addFolder('Вузли');
 for (const a of movement.arbors) nodes.add(a.group, 'visible').name(a.name);
@@ -169,12 +171,16 @@ function tick() {
     if (params.timeMode === 'real') {
       simT += dt; // хід балансу в реальному темпі (beatHz), незалежно від «Швидкість»
       movement.setClockTime(new Date(), simT, params);
-    } else {
-      simT += dt * params.speed;
+    } else if (movement.winder.charge > 0) {
+      // Демо-хід можливий лише поки є завод; крок ходу витрачає пружину.
+      const step = dt * params.speed;
+      simT += step;
       movement.setTime(simT, params);
+      movement.winder.drain(step);
     }
   }
   movement.winder.update(dt);
+  powerUI.power = Math.round(movement.winder.charge * 100);
   fly.update();
   controls.update();
   renderer.render(scene, camera);

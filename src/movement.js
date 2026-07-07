@@ -434,20 +434,32 @@ export function buildMovement({ brass, steel, axleMat, ruby, springMat, plateMat
   // Анімація заведення: головка і храповик крутяться, барабанне колесо — ні
   // (в реальності заводиться вісь барабана відносно його корпуса), а пружина
   // стискається — витки ущільнюються й трохи відходять від стінки барабана.
-  const WIND_FULL = Math.PI * 12; // ~3 кліки до повного заводу
+  // Стан заводу: charge 0 (розслаблена пружина) … 1 (повний завод).
+  // Докручування підіймає charge, хід годинника його витрачає; на нулі
+  // механізм зупиняється (нема енергії) — доки знову не підкрутити.
+  const WIND_PER_CLICK = 0.34;                            // частка заводу за клік
+  const CHARGE_PER_RAD = WIND_PER_CLICK / (Math.PI * 4);  // 4π храповика = один клік
+  const FULL_RUN_SEC = 120;                               // повного заводу вистачає ~120 c демо-часу
   let windPending = 0, windAngle = 0, crownSpin = 0;
+  let charge = 0.75;                                       // початковий рівень заводу
   function applySpring() {
     if (!mainspring) return;
-    const w = Math.min(1, windAngle / WIND_FULL); // 0 розслаблена … 1 заведена
     mainspring.userData.setShape({
       innerR: 1.05,
-      outerR: mainspringOuterR - 1.2 * w, // тугіша пружина відходить від стінки
-      turns: 3.4 + 3.6 * w,               // більше витків = щільніший пакет
+      outerR: mainspringOuterR - 1.2 * charge, // тугіша пружина відходить від стінки
+      turns: 3.4 + 3.6 * charge,               // більше витків = щільніший пакет
     });
   }
   const winder = {
     group: winderGroup,
-    wind() { windPending += Math.PI * 4; },
+    get charge() { return charge; },
+    wind() { windPending += Math.PI * 4; },   // докрутити ще один «клік»
+    // Витрата заводу за час ходу (demo); seconds — крок simT.
+    drain(seconds) {
+      if (charge <= 0) return;
+      charge = Math.max(0, charge - seconds / FULL_RUN_SEC);
+      applySpring();
+    },
     update(dt) {
       if (windPending <= 0) return;
       const d = Math.min(dt * 5, windPending);
@@ -457,9 +469,11 @@ export function buildMovement({ brass, steel, axleMat, ruby, springMat, plateMat
       ratchetG.rotation.z = windAngle;
       cwG.rotation.z = phiCW - windAngle * (28 / 18);
       crown.rotation.y = crownSpin;
+      charge = Math.min(1, charge + d * CHARGE_PER_RAD);
       applySpring();
     },
   };
+  applySpring(); // початковий стан пружини під charge
 
   // ── Точки фокуса (для підписів і пресетів камери) ──
   const focusPoints = [
