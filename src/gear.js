@@ -225,3 +225,34 @@ export function makeGear(o, material) {
   };
   return mesh;
 }
+
+/**
+ * Конічна (bevel) шестерня — той самий профіль зубців, але звужений до вершини,
+ * тож колесо стає конусним. Для передачі обертання під кутом (заводний вал ↔
+ * коронне колесо). Вісь — уздовж +Z: широка основа при z≈−thickness/2,
+ * вузька вершина при z≈+thickness/2.
+ * @returns {THREE.Mesh} з mesh.userData.gear.pitchR (по основі)
+ */
+export function makeBevelGear({ teeth, module, thickness, bore, taper = 0.45 }, material) {
+  const shape = gearShape({ teeth, module, bore });
+  const geo = new THREE.ExtrudeGeometry(shape, {
+    depth: thickness,
+    bevelEnabled: false,
+    curveSegments: 6,
+  });
+  // Звуження XY до вершини → конус.
+  const pos = geo.attributes.position;
+  for (let i = 0; i < pos.count; i++) {
+    const z = pos.getZ(i);
+    const s = 1 - (1 - taper) * (z / thickness); // z=0 → ×1, z=thickness → ×taper
+    pos.setX(i, pos.getX(i) * s);
+    pos.setY(i, pos.getY(i) * s);
+  }
+  geo.translate(0, 0, -thickness / 2);
+  geo.computeVertexNormals();
+  const mesh = new THREE.Mesh(geo, material);
+  mesh.castShadow = true;
+  mesh.receiveShadow = true;
+  mesh.userData.gear = { teeth, pitchR: (module * teeth) / 2 };
+  return mesh;
+}

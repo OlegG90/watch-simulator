@@ -1,5 +1,5 @@
 import * as THREE from 'three';
-import { makeGear, makeEscapeWheel, makeHand, makeSpiralRibbon } from './gear.js';
+import { makeGear, makeEscapeWheel, makeHand, makeSpiralRibbon, makeBevelGear } from './gear.js';
 import { buildEscapement } from './escapement.js';
 
 // ── Параметри механізму ───────────────────────────────────────────
@@ -107,7 +107,8 @@ export function buildMovement({ brass, steel, axleMat, ruby, springMat, plateMat
   const RATCH_M = 0.33;
   const CW_ANGLE = (225 * Math.PI) / 180;
   const cwPos = arbors[0].pos.clone().add(dir2(CW_ANGLE).multiplyScalar(((28 + 18) / 2) * RATCH_M));
-  const crownPos = cwPos.clone().add(dir2(CW_ANGLE).multiplyScalar(2.0)); // головку підтягнуто до краю барабана
+  const bevelPinionPos = cwPos.clone().add(dir2(CW_ANGLE).multiplyScalar(3.3)); // конічний триб на валу
+  const crownPos = cwPos.clone().add(dir2(CW_ANGLE).multiplyScalar(5.6));        // головка на периферії, поза барабаном
 
   // ── Центрування механізму навколо початку координат ──
   const outerR = (s) => (s.escapeTeeth ? ESC_R + 0.3 : pitchR(s.wheel) + M * 1.3);
@@ -120,8 +121,9 @@ export function buildMovement({ brass, steel, axleMat, ruby, springMat, plateMat
     { pos: mwPos, r: 5.6 },     // хвилинне колесо
     { pos: csFrom, r: (CS_DRIVE * CS_M) / 2 + CS_M * 1.3 }, // ведуче колесо центральної секунди
     { pos: csIdlerPos, r: (CS_IDLER * CS_M) / 2 + CS_M * 1.3 },
-    { pos: cwPos, r: 3.4 },     // коронне колесо
-    { pos: crownPos, r: 1.8 },  // заводна головка
+    { pos: cwPos, r: 3.4 },          // коронне + конічне колесо
+    { pos: bevelPinionPos, r: 1.3 }, // конічний триб на валу
+    { pos: crownPos, r: 1.5 },       // заводна головка
   ];
   for (const e of extents) {
     minX = Math.min(minX, e.pos.x - e.r); maxX = Math.max(maxX, e.pos.x + e.r);
@@ -380,20 +382,32 @@ export function buildMovement({ brass, steel, axleMat, ruby, springMat, plateMat
   const phiCSIdler = meshPhase(csTheta1, CS_DRIVE, CS_IDLER, arbors[3].phi);
   const phiCSCenter = meshPhase(csTheta2, CS_IDLER, CS_PINION, phiCSIdler);
 
-  // ── Заведення: храповик на осі барабана → коронне колесо → головка ──
+  // ── Заведення: храповик → коронне колесо → КОНІЧНА пара → горизонтальний вал → головка ──
   const winderGroup = new THREE.Group();
+  const WIND_Z = 2.0;
+
+  // Храповик на осі барабана (тримається собачкою).
   const ratchetG = new THREE.Group();
   ratchetG.position.set(arbors[0].pos.x, arbors[0].pos.y, 0);
   const ratchet = makeGear({ teeth: 28, module: RATCH_M, thickness: 0.5, bore: AXLE_R * 0.9, crossings: 4 }, steel);
-  ratchet.position.z = 2.0;
+  ratchet.position.z = WIND_Z;
   ratchetG.add(ratchet);
   winderGroup.add(ratchetG);
 
+  // Коронний вузол: плоске коронне колесо (зчеплене з храповиком) + конічне
+  // колесо коаксіально зверху (приймає обертання від заводного вала під 90°).
   const cwG = new THREE.Group();
   cwG.position.set(cwPos.x, cwPos.y, 0);
   const crownWheel = makeGear({ teeth: 18, module: RATCH_M, thickness: 0.5, bore: 0.2 }, steel);
-  crownWheel.position.z = 2.0;
+  crownWheel.position.z = WIND_Z;
   cwG.add(crownWheel);
+  const bevelWheel = makeBevelGear({ teeth: 16, module: RATCH_M, thickness: 0.8, bore: 0.2, taper: 0.5 }, steel);
+  bevelWheel.position.z = WIND_Z + 0.6; // конус розкритий догори
+  cwG.add(bevelWheel);
+  const cwAxle = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 2.6, 12), axleMat);
+  cwAxle.rotation.x = Math.PI / 2;
+  cwAxle.position.z = WIND_Z + 0.2;
+  cwG.add(cwAxle);
   const phiCW = meshPhase(CW_ANGLE, 28, 18, 0);
   cwG.rotation.z = phiCW;
   winderGroup.add(cwG);
@@ -403,25 +417,37 @@ export function buildMovement({ brass, steel, axleMat, ruby, springMat, plateMat
     const clickPivot = arbors[0].pos.clone().add(dir2((120 * Math.PI) / 180).multiplyScalar(6.0));
     const post = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 1.4, 12), axleMat);
     post.rotation.x = Math.PI / 2;
-    post.position.set(clickPivot.x, clickPivot.y, 1.6);
+    post.position.set(clickPivot.x, clickPivot.y, WIND_Z - 0.4);
     winderGroup.add(post);
     const tip = arbors[0].pos.clone().add(dir2((104 * Math.PI) / 180).multiplyScalar(4.45));
     const d = tip.clone().sub(clickPivot);
     const clickBar = new THREE.Mesh(new THREE.BoxGeometry(d.length(), 0.32, 0.3), steel);
-    clickBar.position.set((clickPivot.x + tip.x) / 2, (clickPivot.y + tip.y) / 2, 2.0);
+    clickBar.position.set((clickPivot.x + tip.x) / 2, (clickPivot.y + tip.y) / 2, WIND_Z);
     clickBar.rotation.z = Math.atan2(d.y, d.x);
     winderGroup.add(clickBar);
   }
 
-  // Вал і заводна головка.
-  const stemLen = crownPos.clone().sub(cwPos).length() + 1.0;
-  const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, stemLen, 12), axleMat);
+  // Конічний триб на валу — зачіплює bevelWheel; вісь горизонтальна (радіальна),
+  // вершина конуса дивиться всередину-вниз, до коронного вузла.
+  const STEM_Z = WIND_Z + 0.6;
+  const pinionG = new THREE.Group();
+  pinionG.position.set(bevelPinionPos.x, bevelPinionPos.y, STEM_Z);
+  const inwardTilt = new THREE.Vector3(-Math.cos(CW_ANGLE), -Math.sin(CW_ANGLE), -0.55).normalize();
+  pinionG.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), inwardTilt);
+  const bevelPinion = makeBevelGear({ teeth: 8, module: RATCH_M, thickness: 0.9, bore: 0.15, taper: 0.5 }, steel);
+  pinionG.add(bevelPinion);
+  winderGroup.add(pinionG);
+
+  // Горизонтальний вал від триба до головки + сама головка (на периферії).
+  const stemMid = bevelPinionPos.clone().add(crownPos).multiplyScalar(0.5);
+  const stemLen = crownPos.clone().sub(bevelPinionPos).length() + 0.6;
+  const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, stemLen, 12), axleMat);
   stem.rotation.z = CW_ANGLE - Math.PI / 2;
-  stem.position.set((cwPos.x + crownPos.x) / 2, (cwPos.y + crownPos.y) / 2, 2.0);
+  stem.position.set(stemMid.x, stemMid.y, STEM_Z);
   winderGroup.add(stem);
 
   const crownOrient = new THREE.Group();
-  crownOrient.position.set(crownPos.x, crownPos.y, 2.0);
+  crownOrient.position.set(crownPos.x, crownPos.y, STEM_Z);
   crownOrient.rotation.z = CW_ANGLE - Math.PI / 2;
   const knurl = steel.clone();
   knurl.flatShading = true;
@@ -465,10 +491,11 @@ export function buildMovement({ brass, steel, axleMat, ruby, springMat, plateMat
       const d = Math.min(dt * 5, windPending);
       windPending -= d;
       windAngle += d;
-      crownSpin += d * (28 / 18) * 2.3;
       ratchetG.rotation.z = windAngle;
-      cwG.rotation.z = phiCW - windAngle * (28 / 18);
-      crown.rotation.y = crownSpin;
+      cwG.rotation.z = phiCW - windAngle * (28 / 18);       // коронне + конічне колесо
+      crownSpin += d * (28 / 18) * (16 / 8);                // вал: bevelWheel(16) → pinion(8) = ×2
+      bevelPinion.rotation.z = crownSpin;                    // конічний триб на валу
+      crown.rotation.y = crownSpin;                          // головка на тій самій осі
       charge = Math.min(1, charge + d * CHARGE_PER_RAD);
       applySpring();
     },
