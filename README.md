@@ -1,5 +1,7 @@
 # watch-simulator
 
+[![tests](https://github.com/OlegG90/watch-simulator/actions/workflows/test.yml/badge.svg)](https://github.com/OlegG90/watch-simulator/actions/workflows/test.yml)
+
 A simple visual model of watch gears that can work together — a 3D simulation of a
 mechanical watch movement (no dial), focused on the minimal set of modules and wheels.
 
