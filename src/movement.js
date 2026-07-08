@@ -107,7 +107,7 @@ export function buildMovement({ brass, steel, axleMat, ruby, springMat, plateMat
   const RATCH_M = 0.33;
   const CW_ANGLE = (225 * Math.PI) / 180;
   const cwPos = arbors[0].pos.clone().add(dir2(CW_ANGLE).multiplyScalar(((28 + 18) / 2) * RATCH_M));
-  const bevelPinionPos = cwPos.clone().add(dir2(CW_ANGLE).multiplyScalar(3.3)); // конічний триб на валу
+  const bevelPinionPos = cwPos.clone().add(dir2(CW_ANGLE).multiplyScalar(2.64)); // центр вінця конічного триба (для меж)
   const crownPos = cwPos.clone().add(dir2(CW_ANGLE).multiplyScalar(5.6));        // головка на периферії, поза барабаном
 
   // ── Центрування механізму навколо початку координат ──
@@ -396,19 +396,35 @@ export function buildMovement({ brass, steel, axleMat, ruby, springMat, plateMat
 
   // Коронний вузол: плоске коронне колесо (зчеплене з храповиком) + конічне
   // колесо коаксіально зверху (приймає обертання від заводного вала під 90°).
+  //
+  // Конічна пара 90°, як у реальному заведенні: кути ділильних конусів
+  // доповнюють один одного (δ_w + δ_p = 90°, tan δ_w = Zw/Zp), а вершини обох
+  // конусів сходяться в одній точці на перетині осей (Z_APEX на осі коронного
+  // вузла) — тоді конуси дотикаються вздовж спільної твірної і «обіймають»
+  // один одного, а не торкаються краями.
+  const BEVEL_W = 16, BEVEL_P = 8; // 2:1
+  const DELTA_W = Math.atan(BEVEL_W / BEVEL_P); // ≈63.4° — конічне колесо
+  const DELTA_P = Math.atan(BEVEL_P / BEVEL_W); // ≈26.6° — триб на валу
+  const Z_APEX = WIND_Z + 0.35;                 // спільна вершина конусів
+  const stepBW = (2 * Math.PI) / BEVEL_W, stepBP = (2 * Math.PI) / BEVEL_P;
+
   const cwG = new THREE.Group();
   cwG.position.set(cwPos.x, cwPos.y, 0);
   const crownWheel = makeGear({ teeth: 18, module: RATCH_M, thickness: 0.5, bore: 0.2 }, steel);
   crownWheel.position.z = WIND_Z;
   cwG.add(crownWheel);
-  const bevelWheel = makeBevelGear({ teeth: 16, module: RATCH_M, thickness: 0.8, bore: 0.2, taper: 0.5 }, steel);
-  bevelWheel.position.z = WIND_Z + 0.6; // конус розкритий догори
-  cwG.add(bevelWheel);
-  const cwAxle = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 2.6, 12), axleMat);
-  cwAxle.rotation.x = Math.PI / 2;
-  cwAxle.position.z = WIND_Z + 0.2;
-  cwG.add(cwAxle);
   const phiCW = meshPhase(CW_ANGLE, 28, 18, 0);
+  const bevelWheel = makeBevelGear(
+    { teeth: BEVEL_W, module: RATCH_M, thickness: 0.45, bore: 0.2, pitchAngleDeg: (DELTA_W * 180) / Math.PI },
+    steel
+  );
+  bevelWheel.position.z = Z_APEX;
+  bevelWheel.rotation.z = mod(CW_ANGLE - phiCW, stepBW); // западина — проти лінії контакту
+  cwG.add(bevelWheel);
+  const cwAxle = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 3.0, 12), axleMat);
+  cwAxle.rotation.x = Math.PI / 2;
+  cwAxle.position.z = WIND_Z + 0.5;
+  cwG.add(cwAxle);
   cwG.rotation.z = phiCW;
   winderGroup.add(cwG);
 
@@ -427,27 +443,33 @@ export function buildMovement({ brass, steel, axleMat, ruby, springMat, plateMat
     winderGroup.add(clickBar);
   }
 
-  // Конічний триб на валу — зачіплює bevelWheel; вісь горизонтальна (радіальна),
-  // вершина конуса дивиться всередину-вниз, до коронного вузла.
-  const STEM_Z = WIND_Z + 0.6;
+  // Конічний триб на валу: вершина його конуса — у ТІЙ САМІЙ точці Z_APEX на осі
+  // коронного вузла (спільний апекс пари), вісь горизонтальна, дивиться назовні
+  // до головки. Вінець триба сам стає на своє місце: axial = R_p/tan(δ_p) = 2.64.
+  const stemDir = new THREE.Vector3(Math.cos(CW_ANGLE), Math.sin(CW_ANGLE), 0);
   const pinionG = new THREE.Group();
-  pinionG.position.set(bevelPinionPos.x, bevelPinionPos.y, STEM_Z);
-  const inwardTilt = new THREE.Vector3(-Math.cos(CW_ANGLE), -Math.sin(CW_ANGLE), -0.55).normalize();
-  pinionG.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), inwardTilt);
-  const bevelPinion = makeBevelGear({ teeth: 8, module: RATCH_M, thickness: 0.9, bore: 0.15, taper: 0.5 }, steel);
+  pinionG.position.set(cwPos.x, cwPos.y, Z_APEX);
+  pinionG.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), stemDir);
+  const bevelPinion = makeBevelGear(
+    { teeth: BEVEL_P, module: RATCH_M, thickness: 0.6, bore: 0.15, pitchAngleDeg: (DELTA_P * 180) / Math.PI },
+    steel
+  );
+  const PSI_P = mod(CW_ANGLE + Math.PI - stepBP / 2, stepBP); // зубець триба — у западину колеса
+  bevelPinion.rotation.z = PSI_P;
   pinionG.add(bevelPinion);
   winderGroup.add(pinionG);
 
   // Горизонтальний вал від триба до головки + сама головка (на периферії).
-  const stemMid = bevelPinionPos.clone().add(crownPos).multiplyScalar(0.5);
-  const stemLen = crownPos.clone().sub(bevelPinionPos).length() + 0.6;
+  const stemStart = cwPos.clone().add(dir2(CW_ANGLE).multiplyScalar(2.2));
+  const stemMid = stemStart.clone().add(crownPos).multiplyScalar(0.5);
+  const stemLen = crownPos.clone().sub(stemStart).length() + 0.6;
   const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, stemLen, 12), axleMat);
   stem.rotation.z = CW_ANGLE - Math.PI / 2;
-  stem.position.set(stemMid.x, stemMid.y, STEM_Z);
+  stem.position.set(stemMid.x, stemMid.y, Z_APEX);
   winderGroup.add(stem);
 
   const crownOrient = new THREE.Group();
-  crownOrient.position.set(crownPos.x, crownPos.y, STEM_Z);
+  crownOrient.position.set(crownPos.x, crownPos.y, Z_APEX);
   crownOrient.rotation.z = CW_ANGLE - Math.PI / 2;
   const knurl = steel.clone();
   knurl.flatShading = true;
@@ -493,8 +515,8 @@ export function buildMovement({ brass, steel, axleMat, ruby, springMat, plateMat
       windAngle += d;
       ratchetG.rotation.z = windAngle;
       cwG.rotation.z = phiCW - windAngle * (28 / 18);       // коронне + конічне колесо
-      crownSpin += d * (28 / 18) * (16 / 8);                // вал: bevelWheel(16) → pinion(8) = ×2
-      bevelPinion.rotation.z = crownSpin;                    // конічний триб на валу
+      crownSpin += d * (28 / 18) * (BEVEL_W / BEVEL_P);     // вал: конічне колесо (16) → триб (8) = ×2
+      bevelPinion.rotation.z = PSI_P + crownSpin;            // конічний триб на валу
       crown.rotation.y = crownSpin;                          // головка на тій самій осі
       charge = Math.min(1, charge + d * CHARGE_PER_RAD);
       applySpring();

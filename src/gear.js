@@ -233,22 +233,22 @@ export function makeGear(o, material) {
  * вузька вершина при z≈+thickness/2.
  * @returns {THREE.Mesh} з mesh.userData.gear.pitchR (по основі)
  */
-export function makeBevelGear({ teeth, module, thickness, bore, taper = 0.45 }, material) {
+export function makeBevelGear({ teeth, module, thickness = 0.4, bore, pitchAngleDeg = 45 }, material) {
   const shape = gearShape({ teeth, module, bore });
   const geo = new THREE.ExtrudeGeometry(shape, {
     depth: thickness,
     bevelEnabled: false,
     curveSegments: 6,
   });
-  // Звуження XY до вершини → конус.
+  // Згин плоскої шестерні на ділильний конус: вершина в (0,0,0), вісь +Z,
+  // кут конуса від осі = pitchAngleDeg. Точку на радіусі r піднімаємо по осі на
+  // r / tan(кут) — так кут між твірною конуса й віссю точно дорівнює pitchAngleDeg.
+  const g = 1 / Math.tan((pitchAngleDeg * Math.PI) / 180);
   const pos = geo.attributes.position;
   for (let i = 0; i < pos.count; i++) {
-    const z = pos.getZ(i);
-    const s = 1 - (1 - taper) * (z / thickness); // z=0 → ×1, z=thickness → ×taper
-    pos.setX(i, pos.getX(i) * s);
-    pos.setY(i, pos.getY(i) * s);
+    const r = Math.hypot(pos.getX(i), pos.getY(i));
+    pos.setZ(i, pos.getZ(i) + r * g);
   }
-  geo.translate(0, 0, -thickness / 2);
   geo.computeVertexNormals();
   const mesh = new THREE.Mesh(geo, material);
   mesh.castShadow = true;
