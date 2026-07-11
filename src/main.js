@@ -126,6 +126,7 @@ nodes.add(mwVis, 'hands').name('Стрілки + моторний мех.').onCh
   for (const g of Object.values(movement.motionWorks)) g.visible = v;
 });
 nodes.add(mwVis, 'winding').name('Заведення').onChange((v) => (movement.winder.group.visible = v));
+nodes.add(movement.powerReserve.group, 'visible').name('Запас ходу');
 
 // Пресети камери.
 const worldOf = (name) => {
@@ -146,6 +147,7 @@ const cams = {
   'Баланс': () => goto(worldOf('Баланс'), 16, 1),
   'Стрілки': () => goto(worldOf('Стрілки'), 22, 4),
   'Заведення': () => goto(worldOf('Заведення'), 18),
+  'Запас ходу': () => goto(worldOf('Запас ходу'), 13, 1),
 };
 const camF = gui.addFolder('Камера');
 for (const k of Object.keys(cams)) camF.add(cams, k);

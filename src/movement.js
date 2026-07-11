@@ -109,6 +109,8 @@ export function buildMovement({ brass, steel, axleMat, ruby, springMat, plateMat
   const cwPos = arbors[0].pos.clone().add(dir2(CW_ANGLE).multiplyScalar(((28 + 18) / 2) * RATCH_M));
   const bevelPinionPos = cwPos.clone().add(dir2(CW_ANGLE).multiplyScalar(2.64)); // центр вінця конічного триба (для меж)
   const crownPos = cwPos.clone().add(dir2(CW_ANGLE).multiplyScalar(5.6));        // головка на периферії, поза барабаном
+  // Індикатор запасу ходу: окремий малий циферблат зі стрілкою біля барабана.
+  const prPos = arbors[0].pos.clone().add(dir2((170 * Math.PI) / 180).multiplyScalar(7.4));
 
   // ── Центрування механізму навколо початку координат ──
   const outerR = (s) => (s.escapeTeeth ? ESC_R + 0.3 : pitchR(s.wheel) + M * 1.3);
@@ -124,6 +126,7 @@ export function buildMovement({ brass, steel, axleMat, ruby, springMat, plateMat
     { pos: cwPos, r: 3.4 },          // коронне + конічне колесо
     { pos: bevelPinionPos, r: 1.3 }, // конічний триб на валу
     { pos: crownPos, r: 1.5 },       // заводна головка
+    { pos: prPos, r: 3.3 },          // індикатор запасу ходу
   ];
   for (const e of extents) {
     minX = Math.min(minX, e.pos.x - e.r); maxX = Math.max(maxX, e.pos.x + e.r);
@@ -479,6 +482,54 @@ export function buildMovement({ brass, steel, axleMat, ruby, springMat, plateMat
   winderGroup.add(crownOrient);
   root.add(winderGroup);
 
+  // ── Індикатор запасу ходу (power reserve indicator) ──
+  // Малий циферблат-сектор зі стрілкою: кут стрілки лінійно від заряду,
+  // α(c) = α₀ + (α₁ − α₀)·c; сектор 120° (порожньо 150° → повний 30°).
+  const PR_EMPTY = (150 * Math.PI) / 180;
+  const PR_FULL = (30 * Math.PI) / 180;
+  const PR_Z = 3.2;
+  const powerReserveGroup = new THREE.Group();
+  powerReserveGroup.position.set(prPos.x, prPos.y, 0);
+  {
+    // Диск-основа + дуга-сектор шкали.
+    const dial = new THREE.Mesh(new THREE.CircleGeometry(3.0, 48), plateMat);
+    dial.position.z = PR_Z;
+    dial.receiveShadow = true;
+    powerReserveGroup.add(dial);
+    const arc = new THREE.Mesh(
+      new THREE.RingGeometry(2.35, 2.85, 48, 1, PR_FULL, PR_EMPTY - PR_FULL),
+      brass
+    );
+    arc.position.z = PR_Z + 0.02;
+    powerReserveGroup.add(arc);
+    // Поділки 0/25/50/75/100%; нульова — рубінова (порожньо).
+    for (const f of [0, 0.25, 0.5, 0.75, 1]) {
+      const a = PR_EMPTY + (PR_FULL - PR_EMPTY) * f;
+      const tick = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.09, 0.06), f === 0 ? ruby : steel);
+      tick.position.set(Math.cos(a) * 2.6, Math.sin(a) * 2.6, PR_Z + 0.06);
+      tick.rotation.z = a;
+      powerReserveGroup.add(tick);
+    }
+    // Вісь від платини до стрілки.
+    const axle = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, PR_Z + 2.8, 12), axleMat);
+    axle.rotation.x = Math.PI / 2;
+    axle.position.z = (PR_Z + 0.4 - 2.4) / 2;
+    powerReserveGroup.add(axle);
+  }
+  // Стрілка — окрема підгрупа, обертається за зарядом.
+  const prHand = new THREE.Group();
+  {
+    const hand = makeHand({ length: 2.5, width: 0.32, tail: 0.3 }, bluedMat);
+    hand.position.z = PR_Z + 0.25;
+    prHand.add(hand);
+    const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.22, 14), bluedMat);
+    hub.rotation.x = Math.PI / 2;
+    hub.position.z = PR_Z + 0.25;
+    prHand.add(hub);
+  }
+  powerReserveGroup.add(prHand);
+  root.add(powerReserveGroup);
+
   // Анімація заведення: головка і храповик крутяться, барабанне колесо — ні
   // (в реальності заводиться вісь барабана відносно його корпуса), а пружина
   // стискається — витки ущільнюються й трохи відходять від стінки барабана.
@@ -491,12 +542,15 @@ export function buildMovement({ brass, steel, axleMat, ruby, springMat, plateMat
   let windPending = 0, windAngle = 0, crownSpin = 0;
   let charge = 0.75;                                       // початковий рівень заводу
   function applySpring() {
-    if (!mainspring) return;
-    mainspring.userData.setShape({
-      innerR: 1.05,
-      outerR: mainspringOuterR - 1.2 * charge, // тугіша пружина відходить від стінки
-      turns: 3.4 + 3.6 * charge,               // більше витків = щільніший пакет
-    });
+    if (mainspring) {
+      mainspring.userData.setShape({
+        innerR: 1.05,
+        outerR: mainspringOuterR - 1.2 * charge, // тугіша пружина відходить від стінки
+        turns: 3.4 + 3.6 * charge,               // більше витків = щільніший пакет
+      });
+    }
+    // Індикатор запасу ходу: α(c) = α₀ + (α₁ − α₀)·c.
+    prHand.rotation.z = PR_EMPTY + (PR_FULL - PR_EMPTY) * charge;
   }
   const winder = {
     group: winderGroup,
@@ -531,6 +585,7 @@ export function buildMovement({ brass, steel, axleMat, ruby, springMat, plateMat
     { name: 'Баланс', pos: balancePos, z: arbors[4].wheelZ + 1.3, r: 3.6 },
     { name: 'Стрілки', pos: P1, z: 10.0, r: 4.5 },
     { name: 'Заведення', pos: cwPos, z: 2.0, r: 4.5 },
+    { name: 'Запас ходу', pos: prPos, z: 3.2, r: 3.2 },
   ];
 
   // ── Кінематика: кут кожного вузла з кута барабана ──
@@ -592,5 +647,6 @@ export function buildMovement({ brass, steel, axleMat, ruby, springMat, plateMat
     bounds: { minX, maxX, minY, maxY, cx, cy, plateR },
     centralSeconds: { drive: csDriveGear, idler: csIdlerGroup, center: centralSecondsGroup },
     motionWorks: { cannonSub, mwArbor, hourGroup, csDriveGear, csIdlerGroup, centralSecondsGroup },
+    powerReserve: { group: powerReserveGroup, hand: prHand, emptyAngle: PR_EMPTY, fullAngle: PR_FULL },
   };
 }

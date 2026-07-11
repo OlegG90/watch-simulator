@@ -206,6 +206,28 @@ describe('заведення (winding)', () => {
   });
 });
 
+// ── Індикатор запасу ходу ─────────────────────────────────────────
+describe('запас ходу (power reserve indicator)', () => {
+  it('кут стрілки: α(c) = α₀ + (α₁−α₀)·c для c = 0.75 / 0 / 0.34', () => {
+    const f = buildFresh();
+    const { hand, emptyAngle, fullAngle } = f.powerReserve;
+    const expectAt = (c) => emptyAngle + (fullAngle - emptyAngle) * c;
+    expect(hand.rotation.z).toBeCloseTo(expectAt(0.75), 9); // початковий заряд
+    f.winder.drain(1e6);
+    expect(hand.rotation.z).toBeCloseTo(expectAt(0), 9);    // порожньо
+    f.winder.wind();
+    for (let i = 0; i < 300; i++) f.winder.update(0.05);
+    expect(hand.rotation.z).toBeCloseTo(expectAt(0.34), 9); // один клік
+  });
+
+  it('стрілка монотонно падає під час витрати ходом', () => {
+    const f = buildFresh();
+    const angles = [];
+    for (let i = 0; i < 5; i++) { angles.push(f.powerReserve.hand.rotation.z); f.winder.drain(15); }
+    for (let i = 1; i < angles.length; i++) expect(angles[i]).toBeGreaterThan(angles[i - 1]); // до PR_EMPTY (150°)
+  });
+});
+
 // ── Компоновка ────────────────────────────────────────────────────
 describe('компоновка (layout)', () => {
   it('усі точки фокуса всередині платини', () => {

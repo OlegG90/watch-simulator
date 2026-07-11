@@ -14,6 +14,7 @@ Built with **Three.js** + **Vite**. All geometry is generated procedurally in co
 - **Motion works & hands** — hour, minute and central seconds hands (12:1), raised to the top of the central staff.
 - **Winding** — ratchet, crown wheel and winding crown; "wind the mainspring" animation.
 - **Open barrel** — the drum is open so the coiled mainspring is visible inside.
+- **Power reserve indicator** — a sub-dial hand next to the barrel shows the remaining wind (120° sector).
 - **Time modes** — demo time (runs from the escapement) and real time (hands follow the system clock while the escapement stays visually coupled).
 - **Compact layered layout** — the train is coiled into a tight loop; balance, motion works and central seconds sit on higher Z-layers above it.
 
@@ -104,7 +105,14 @@ Polyline of 200 points: $\alpha(f) = \theta_b(1-f) + f\Phi - \Phi + \lambda$, $r
 - Winding kinematics: ratchet $+\omega$; crown-wheel assembly $-\omega\cdot\frac{28}{18}$; stem/pinion/crown $+\omega\cdot\frac{28}{18}\cdot\frac{16}{8}$.
 - Verified: distance between the bevel pitch circles = **0.0000** (tangent); apex distance = 0; the barrel wheel stays still while winding.
 
-### 12. Main plate & jewels
+### 12. Power reserve indicator
+
+- Small sub-dial next to the barrel: base disc, brass 120° sector scale, ticks at 0–100% (the zero tick is ruby), blued hand.
+- Hand angle is linear in the mainspring charge: $\alpha(c) = \alpha_0 + (\alpha_1-\alpha_0)\,c$ with $\alpha_0 = 150°$ (empty), $\alpha_1 = 30°$ (fully wound).
+- Updated by the same hook that reshapes the mainspring — any charge change moves both.
+- Verified: exact angle for $c = 0.75/0/0.34$; monotonic motion toward "empty" while running.
+
+### 13. Main plate & jewels
 
 - Plate radius: $R_{plate} = \max\Big(\tfrac{\sqrt{W^2+H^2}}{2},\ \max_i\big(|p_i-c| + r_i\big)\Big) + 1.8$ over all nodes (train, escapement, hands, motion works, winding).
 - Ruby jewels under every arbor; `movement.bounds` exposes $minX/maxX/minY/maxY$, center and $R_{plate}$ for checks.
@@ -120,7 +128,8 @@ Polyline of 200 points: $\alpha(f) = \theta_b(1-f) + f\Phi - \Phi + \lambda$, $r
 7. **Hairspring** "breathes" in a simplified way (linear angle interpolation along the coils), without length conservation.
 8. **Winding** moves only during the button animation; the click is static (does not ratchet over the teeth).
 9. **No bearings/bridges:** arbors float visually; the plate is decorative.
-10. **Verification precision:** mesh invariants, gear ratios, hand angles and cone tangency are exact to machine precision (<1e−6); layout collisions are checked by bounding-sphere scans (threshold: XY overlap > 1.3 units with Z intersection).
+10. **Power reserve indicator is scripted:** the hand reads `charge` directly; real calibers take the reserve off the barrel arbor through a differential, which is not modeled here.
+11. **Verification precision:** mesh invariants, gear ratios, hand angles and cone tangency are exact to machine precision (<1e−6); layout collisions are checked by bounding-sphere scans (threshold: XY overlap > 1.3 units with Z intersection).
 
 ## Controls
 
