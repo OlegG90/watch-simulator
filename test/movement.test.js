@@ -151,13 +151,25 @@ describe('реальний час (setClockTime)', () => {
 
 // ── Заведення ─────────────────────────────────────────────────────
 describe('заведення (winding)', () => {
-  it('charge: витрата ходом, докрутка кліком, кламп у [0,1]', () => {
-    const w = buildFresh().winder; // свіжий стан (charge 0.75)
-    expect(w.charge).toBeCloseTo(0.75, 9);
-    w.drain(30); expect(w.charge).toBeCloseTo(0.5, 9);   // 30 c / 120 c
-    w.drain(1e6); expect(w.charge).toBe(0);
-    w.wind(); for (let i = 0; i < 300; i++) w.update(0.05);
-    expect(w.charge).toBeCloseTo(0.34, 9);               // один клік
+  const params = { beatHz: 2.5, amplitude: 220 };
+
+  it('charge похідний від диференціала: хід витрачає, клік докручує, кламп на упорі', () => {
+    const f = buildFresh(); // c₀ = 0.75
+    expect(f.winder.charge).toBeCloseTo(0.75, 9);
+    // Хід до зупинки (емуляція демо-гейта charge>0): 0.75·2·SWEEP/RB = π/6 рад
+    // барабана ≈ 106.7 c при 2.5 уд/с.
+    let t = 0;
+    while (f.winder.charge > 0 && t < 200) { t += 0.1; f.setTime(t, params); }
+    expect(f.winder.charge).toBe(0);
+    expect(t).toBeGreaterThan(100);
+    expect(t).toBeLessThan(115);
+    // Клік = 2π храповика → +RA·2π/(2·SWEEP) = 0.375 заряду.
+    f.winder.wind();
+    for (let i = 0; i < 300; i++) f.winder.update(0.05);
+    expect(f.winder.charge).toBeCloseTo(0.375, 2);
+    // Кламп на упорі: багато кліків → рівно 1 (головка перестає крутитись).
+    for (let k = 0; k < 5; k++) { f.winder.wind(); for (let i = 0; i < 300; i++) f.winder.update(0.05); }
+    expect(f.winder.charge).toBe(1);
   });
 
   it('барабанне колесо нерухоме під час заведення', () => {
@@ -206,25 +218,80 @@ describe('заведення (winding)', () => {
   });
 });
 
-// ── Індикатор запасу ходу ─────────────────────────────────────────
-describe('запас ходу (power reserve indicator)', () => {
-  it('кут стрілки: α(c) = α₀ + (α₁−α₀)·c для c = 0.75 / 0 / 0.34', () => {
+// ── Індикатор запасу ходу (диференціал) ───────────────────────────
+describe('запас ходу (power reserve differential)', () => {
+  const params = { beatHz: 2.5, amplitude: 220 };
+
+  it('кут водила-стрілки: α(c) = α₀ + (α₁−α₀)·c', () => {
     const f = buildFresh();
     const { hand, emptyAngle, fullAngle } = f.powerReserve;
     const expectAt = (c) => emptyAngle + (fullAngle - emptyAngle) * c;
     expect(hand.rotation.z).toBeCloseTo(expectAt(0.75), 9); // початковий заряд
-    f.winder.drain(1e6);
-    expect(hand.rotation.z).toBeCloseTo(expectAt(0), 9);    // порожньо
-    f.winder.wind();
+    f.winder.wind(); // 0.75 + 0.375 → кламп на 1 (упор)
     for (let i = 0; i < 300; i++) f.winder.update(0.05);
-    expect(hand.rotation.z).toBeCloseTo(expectAt(0.34), 9); // один клік
+    expect(hand.rotation.z).toBeCloseTo(expectAt(1), 9);
   });
 
-  it('стрілка монотонно падає під час витрати ходом', () => {
+  it('стрілка монотонно йде до «порожньо» під час ходу', () => {
     const f = buildFresh();
     const angles = [];
-    for (let i = 0; i < 5; i++) { angles.push(f.powerReserve.hand.rotation.z); f.winder.drain(15); }
+    for (let i = 0; i < 5; i++) { angles.push(f.powerReserve.hand.rotation.z); f.setTime(15 * (i + 1), params); }
     for (let i = 1; i < angles.length; i++) expect(angles[i]).toBeGreaterThan(angles[i - 1]); // до PR_EMPTY (150°)
+  });
+
+  it('умова диференціала: Δводило = (ΔS_up + ΔS_low)/2 при заведенні й ході', () => {
+    const f = buildFresh();
+    const pr = f.powerReserve;
+    const snap = () => ({ u: pr.sunUp.rotation.z, l: pr.sunLow.rotation.z, c: pr.hand.rotation.z });
+    const s0 = snap();
+    f.winder.wind(); for (let i = 0; i < 100; i++) f.winder.update(0.02); // часткове заведення
+    const s1 = snap();
+    expect(s1.c - s0.c).toBeCloseTo(((s1.u - s0.u) + (s1.l - s0.l)) / 2, 12);
+    f.setTime(20, params); // хід
+    const s2 = snap();
+    expect(s2.c - s1.c).toBeCloseTo(((s2.u - s1.u) + (s2.l - s1.l)) / 2, 12);
+  });
+
+  it('нижнє сонце нерухоме при заведенні; верхнє — при ході', () => {
+    const f = buildFresh();
+    const pr = f.powerReserve;
+    const low0 = pr.sunLow.rotation.z;
+    f.winder.wind(); for (let i = 0; i < 100; i++) f.winder.update(0.02);
+    expect(pr.sunLow.rotation.z).toBe(low0);          // барабан тримає передача
+    const up1 = pr.sunUp.rotation.z;
+    f.setTime(10, params);
+    expect(pr.sunUp.rotation.z).toBe(up1);            // храповик тримає собачка
+    expect(pr.sunLow.rotation.z).not.toBe(low0);      // а нижнє рухається
+  });
+
+  it('інваріанти зачеплень шляхів диференціала = 0 (A1→A2, барабан→проміжне→B)', () => {
+    const f = buildFresh();
+    const pr = f.powerReserve;
+    const A0 = f.arbors[0].pos;
+    const D = { x: pr.group.position.x, y: pr.group.position.y };
+    const I = { x: pr.group.position.x + pr.idler.position.x, y: pr.group.position.y + pr.idler.position.y };
+    // Кілька станів: заведення + хід.
+    f.winder.wind(); for (let i = 0; i < 60; i++) f.winder.update(0.02);
+    for (const t of [0, 7.3]) {
+      f.setTime(t, params);
+      const eA = meshInvariant(A0, D, 14, 56, f.winder.ratchet.rotation.z, pr.sunUp.rotation.z);
+      const eBI = meshInvariant(A0, I, 48, 14, f.arbors[0].group.rotation.z, pr.idler.rotation.z);
+      const eIB = meshInvariant(I, D, 14, 8, pr.idler.rotation.z, pr.sunLow.rotation.z);
+      expect(eA).toBeLessThan(1e-9);
+      expect(eBI).toBeLessThan(1e-9);
+      expect(eIB).toBeLessThan(1e-9);
+    }
+  });
+
+  it('реальний час = автопідзавод: стрілка запасу ходу стоїть, храповик докручується', () => {
+    const f = buildFresh();
+    const pr = f.powerReserve;
+    const hand0 = pr.hand.rotation.z;
+    const ratchet0 = f.winder.ratchet.rotation.z;
+    f.setClockTime(new Date(2026, 0, 1, 3, 0, 0), 0.5, params);
+    f.setClockTime(new Date(2026, 0, 1, 3, 0, 30), 30.5, params);
+    expect(pr.hand.rotation.z).toBeCloseTo(hand0, 9);            // запас не падає
+    expect(f.winder.ratchet.rotation.z).toBeGreaterThan(ratchet0); // автопідзавод крутить храповик
   });
 });
 

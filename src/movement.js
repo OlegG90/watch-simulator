@@ -15,7 +15,7 @@ const AXLE_R = 0.3;    // радіус осей
  * анкерний вузол — тріб + анкерне колесо (поки заглушка, спуск у Фазі 3).
  */
 const TRAIN = [
-  { name: 'Барабан',           wheel: 48, axleTop: 2.6, crossings: 5 },    // спиці — видно пружину крізь колесо
+  { name: 'Барабан',           wheel: 48, axleTop: 6.0, crossings: 5 },    // вісь довга: храповик (2.0) + тріб заведення A1 (5.65)
   { name: 'Центральне колесо', pinion: 12, wheel: 40, crossings: 4, axleTop: 7.4 }, // вісь до канонного триба
   { name: 'Проміжне колесо',   pinion: 12, wheel: 36, crossings: 4 },
   { name: 'Секундне колесо',   pinion: 12, wheel: 32, crossings: 3, axleTop: 5.15 }, // вісь під секундну стрілку
@@ -109,8 +109,27 @@ export function buildMovement({ brass, steel, axleMat, ruby, springMat, plateMat
   const cwPos = arbors[0].pos.clone().add(dir2(CW_ANGLE).multiplyScalar(((28 + 18) / 2) * RATCH_M));
   const bevelPinionPos = cwPos.clone().add(dir2(CW_ANGLE).multiplyScalar(2.64)); // центр вінця конічного триба (для меж)
   const crownPos = cwPos.clone().add(dir2(CW_ANGLE).multiplyScalar(5.6));        // головка на периферії, поза барабаном
-  // Індикатор запасу ходу: окремий малий циферблат зі стрілкою біля барабана.
-  const prPos = arbors[0].pos.clone().add(dir2((170 * Math.PI) / 180).multiplyScalar(7.4));
+  // Індикатор запасу ходу з ДИФЕРЕНЦІАЛОМ: вісь диференціала D на відстані
+  // міжосьової пари заведення A1(14)→A2(56); вхід ходу — від барабанного
+  // колеса через проміжне до триба B(8) на нижньому сонці.
+  const PR_DIR = (310 * Math.PI) / 180; // сектор без колізій: далеко від триба анкера (98°) і конуса заведення (225°)
+  const DIFF_A_M = 0.27;  // модуль пари A1→A2
+  const RA = 14 / 56;     // передавальне заведення → верхнє сонце
+  const RB = 48 / 8;      // передавальне барабан → нижнє сонце (проміжне не впливає)
+  const prPos = arbors[0].pos.clone().add(dir2(PR_DIR).multiplyScalar(((14 + 56) / 2) * DIFF_A_M)); // 9.45
+  // Проміжне колесо шляху ходу (14T, m=M): перетин кіл навколо барабана й D.
+  const prIdlerPos = (() => {
+    const r0 = pitchR(48) + pitchR(14); // барабан ↔ проміжне
+    const r1 = pitchR(14) + pitchR(8);  // проміжне ↔ триб B
+    const d = prPos.clone().sub(arbors[0].pos);
+    const L = d.length();
+    const a = (r0 * r0 - r1 * r1 + L * L) / (2 * L);
+    const h = Math.sqrt(Math.max(0, r0 * r0 - a * a));
+    const u = d.clone().divideScalar(L);
+    return arbors[0].pos.clone()
+      .add(u.clone().multiplyScalar(a))
+      .add(new THREE.Vector2(u.y, -u.x).multiplyScalar(-h)); // верхня гілка (усередину плати)
+  })();
 
   // ── Центрування механізму навколо початку координат ──
   const outerR = (s) => (s.escapeTeeth ? ESC_R + 0.3 : pitchR(s.wheel) + M * 1.3);
@@ -126,7 +145,8 @@ export function buildMovement({ brass, steel, axleMat, ruby, springMat, plateMat
     { pos: cwPos, r: 3.4 },          // коронне + конічне колесо
     { pos: bevelPinionPos, r: 1.3 }, // конічний триб на валу
     { pos: crownPos, r: 1.5 },       // заводна головка
-    { pos: prPos, r: 3.3 },          // індикатор запасу ходу
+    { pos: prPos, r: ((56 * DIFF_A_M) / 2) + 1.0 }, // диференціал: колесо A2 — найбільший елемент
+    { pos: prIdlerPos, r: pitchR(14) + M * 1.3 },   // проміжне шляху ходу
   ];
   for (const e of extents) {
     minX = Math.min(minX, e.pos.x - e.r); maxX = Math.max(maxX, e.pos.x + e.r);
@@ -482,101 +502,194 @@ export function buildMovement({ brass, steel, axleMat, ruby, springMat, plateMat
   winderGroup.add(crownOrient);
   root.add(winderGroup);
 
-  // ── Індикатор запасу ходу (power reserve indicator) ──
-  // Малий циферблат-сектор зі стрілкою: кут стрілки лінійно від заряду,
-  // α(c) = α₀ + (α₁ − α₀)·c; сектор 120° (порожньо 150° → повний 30°).
+  // ── Індикатор запасу ходу: КОНІЧНИЙ ДИФЕРЕНЦІАЛ ──
+  // Класика: S_up + S_low = 2·водило. Верхнє сонце живиться від заведення
+  // (A1 на осі храповика → A2), нижнє — від барабанного колеса (через проміжне
+  // → триб B). Стрілка на водилі показує різницю = запас ходу. Заряд ПОХІДНИЙ:
+  //   c(w, β) = c₀ + (RA·w − RB·β) / (2·SWEEP)
   const PR_EMPTY = (150 * Math.PI) / 180;
   const PR_FULL = (30 * Math.PI) / 180;
-  const PR_Z = 3.2;
+  const SWEEP = PR_EMPTY - PR_FULL; // 120°
+  const DIFF_M = 0.28;              // модуль конічних коліс диференціала
+  const SUN_T = 16, PLANET_T = 10;  // δ_сонця = atan(16/10) ≈ 58°, δ_планети ≈ 32°
+  const DELTA_SUN = Math.atan(SUN_T / PLANET_T);
+  const DELTA_PL = Math.atan(PLANET_T / SUN_T);
+  const Z_DIFF = 3.7;               // спільний апекс сонць і планет (вище центрального колеса)
+
   const powerReserveGroup = new THREE.Group();
   powerReserveGroup.position.set(prPos.x, prPos.y, 0);
+
+  // Верхнє сонце + колесо заведення A2 (одна жорстка збірка, вільна на осі).
+  const supG = new THREE.Group();
   {
-    // Диск-основа + дуга-сектор шкали.
-    const dial = new THREE.Mesh(new THREE.CircleGeometry(3.0, 48), plateMat);
-    dial.position.z = PR_Z;
-    dial.receiveShadow = true;
-    powerReserveGroup.add(dial);
-    const arc = new THREE.Mesh(
-      new THREE.RingGeometry(2.35, 2.85, 48, 1, PR_FULL, PR_EMPTY - PR_FULL),
-      brass
+    const sun = makeBevelGear(
+      { teeth: SUN_T, module: DIFF_M, thickness: 0.4, bore: 0.3, pitchAngleDeg: (DELTA_SUN * 180) / Math.PI },
+      steel
     );
-    arc.position.z = PR_Z + 0.02;
+    sun.position.z = Z_DIFF; // апекс у центрі диференціала, вінець зверху (z≈5.1)
+    supG.add(sun);
+    const a2 = makeGear({ teeth: 56, module: DIFF_A_M, thickness: 0.5, bore: 0.3, crossings: 6 }, brass);
+    a2.position.z = Z_DIFF + 1.95; // 5.65 — між анкерним колесом (4.4) і балансом (5.7 віддалік)
+    supG.add(a2);
+    const sleeve = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 1.9, 12), steel);
+    sleeve.rotation.x = Math.PI / 2;
+    sleeve.position.z = Z_DIFF + 1.05;
+    supG.add(sleeve);
+  }
+  powerReserveGroup.add(supG);
+
+  // Нижнє сонце + триб B (вхід від барабанного колеса через проміжне).
+  const slowG = new THREE.Group();
+  {
+    const sun = makeBevelGear(
+      { teeth: SUN_T, module: DIFF_M, thickness: 0.4, bore: 0.3, pitchAngleDeg: (DELTA_SUN * 180) / Math.PI },
+      steel
+    );
+    sun.position.z = Z_DIFF;
+    sun.rotation.x = Math.PI; // перевернуте: вінець знизу (z≈0.6), зубці до планет
+    slowG.add(sun);
+    const pinB = makeGear({ teeth: 8, module: M, thickness: 0.6, bore: 0.3 }, steel);
+    pinB.position.z = -1.2; // нижче площини барабанного колеса
+    slowG.add(pinB);
+    const sleeve = new THREE.Mesh(new THREE.CylinderGeometry(0.3, 0.3, 3.2, 12), steel);
+    sleeve.rotation.x = Math.PI / 2;
+    sleeve.position.z = 0.5;
+    slowG.add(sleeve);
+  }
+  powerReserveGroup.add(slowG);
+
+  // Водило: вал, планетарна вісь, 2 планети, стрілка на верхівці.
+  const carrierG = new THREE.Group();
+  const planetMeshes = [];
+  {
+    const shaft = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 4.2, 12), axleMat);
+    shaft.rotation.x = Math.PI / 2;
+    shaft.position.z = 4.5;
+    carrierG.add(shaft);
+    const pAxle = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 5.2, 10), axleMat);
+    pAxle.rotation.z = Math.PI / 2; // горизонтально, вздовж локальної X
+    pAxle.position.z = Z_DIFF;
+    carrierG.add(pAxle);
+    for (const s of [+1, -1]) {
+      const pg = new THREE.Group();
+      pg.position.z = Z_DIFF;
+      pg.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), new THREE.Vector3(s, 0, 0));
+      const planet = makeBevelGear(
+        { teeth: PLANET_T, module: DIFF_M, thickness: 0.38, bore: 0.15, pitchAngleDeg: (DELTA_PL * 180) / Math.PI },
+        brass
+      );
+      planet.userData.dir = s;
+      pg.add(planet);
+      planetMeshes.push(planet);
+      carrierG.add(pg);
+    }
+    const hand = makeHand({ length: 2.5, width: 0.32, tail: 0.3 }, bluedMat);
+    hand.position.z = 6.45;
+    carrierG.add(hand);
+    const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.22, 14), bluedMat);
+    hub.rotation.x = Math.PI / 2;
+    hub.position.z = 6.45;
+    carrierG.add(hub);
+  }
+  powerReserveGroup.add(carrierG);
+
+  // Кільцева шкала над механізмом (кільце — щоб диференціал було видно).
+  {
+    const ring = new THREE.Mesh(new THREE.RingGeometry(1.55, 3.05, 48), plateMat);
+    ring.position.z = 6.2;
+    powerReserveGroup.add(ring);
+    const arc = new THREE.Mesh(new THREE.RingGeometry(2.35, 2.85, 48, 1, PR_FULL, SWEEP), brass);
+    arc.position.z = 6.22;
     powerReserveGroup.add(arc);
-    // Поділки 0/25/50/75/100%; нульова — рубінова (порожньо).
     for (const f of [0, 0.25, 0.5, 0.75, 1]) {
-      const a = PR_EMPTY + (PR_FULL - PR_EMPTY) * f;
+      const a = PR_EMPTY - SWEEP * f;
       const tick = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.09, 0.06), f === 0 ? ruby : steel);
-      tick.position.set(Math.cos(a) * 2.6, Math.sin(a) * 2.6, PR_Z + 0.06);
+      tick.position.set(Math.cos(a) * 2.6, Math.sin(a) * 2.6, 6.26);
       tick.rotation.z = a;
       powerReserveGroup.add(tick);
     }
-    // Вісь від платини до стрілки.
-    const axle = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, PR_Z + 2.8, 12), axleMat);
-    axle.rotation.x = Math.PI / 2;
-    axle.position.z = (PR_Z + 0.4 - 2.4) / 2;
-    powerReserveGroup.add(axle);
   }
-  // Стрілка — окрема підгрупа, обертається за зарядом.
-  const prHand = new THREE.Group();
+
+  // Проміжне колесо шляху ходу: товсте (зачіплює барабан при z≈0 і триб B при z≈−1.2).
+  const prIdlerG = new THREE.Group();
+  prIdlerG.position.set(prIdlerPos.x - prPos.x, prIdlerPos.y - prPos.y, 0); // локально до групи диференціала
   {
-    const hand = makeHand({ length: 2.5, width: 0.32, tail: 0.3 }, bluedMat);
-    hand.position.z = PR_Z + 0.25;
-    prHand.add(hand);
-    const hub = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.22, 14), bluedMat);
-    hub.rotation.x = Math.PI / 2;
-    hub.position.z = PR_Z + 0.25;
-    prHand.add(hub);
+    const idler = makeGear({ teeth: 14, module: M, thickness: 1.9, bore: 0.16 }, steel);
+    idler.position.z = -0.6;
+    prIdlerG.add(idler);
+    const post = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 3.4, 10), axleMat);
+    post.rotation.x = Math.PI / 2;
+    post.position.z = -1.1;
+    prIdlerG.add(post);
   }
-  powerReserveGroup.add(prHand);
+  powerReserveGroup.add(prIdlerG);
   root.add(powerReserveGroup);
+
+  // A1 — тріб заведення на осі храповика (обертається з windAngle).
+  const a1 = makeGear({ teeth: 14, module: DIFF_A_M, thickness: 0.5, bore: AXLE_R * 0.9 }, steel);
+  a1.position.z = 5.65; // площина A2
+  ratchetG.add(a1);
+
+  // Фазування зубчастих пар диференціала (та сама умова «зубець у западину»).
+  const thAI = PR_DIR; // барабан → D (A1 → A2)
+  const phiA2 = meshPhase(thAI, 14, 56, 0);
+  const thBI = Math.atan2(prIdlerPos.y - arbors[0].pos.y, prIdlerPos.x - arbors[0].pos.x);
+  const phiPrIdler = meshPhase(thBI, 48, 14, arbors[0].phi);
+  const thIB = Math.atan2(prPos.y - prIdlerPos.y, prPos.x - prIdlerPos.x);
+  const phiB = meshPhase(thIB, 14, 8, phiPrIdler);
+  // Водило: стала обрана так, щоб початковий заряд = 0.75 (стрілка на 60°).
+  const KC = (PR_EMPTY - 0.75 * SWEEP) - (phiA2 + phiB) / 2;
 
   // Анімація заведення: головка і храповик крутяться, барабанне колесо — ні
   // (в реальності заводиться вісь барабана відносно його корпуса), а пружина
   // стискається — витки ущільнюються й трохи відходять від стінки барабана.
-  // Стан заводу: charge 0 (розслаблена пружина) … 1 (повний завод).
-  // Докручування підіймає charge, хід годинника його витрачає; на нулі
-  // механізм зупиняється (нема енергії) — доки знову не підкрутити.
-  const WIND_PER_CLICK = 0.34;                            // частка заводу за клік
-  const CHARGE_PER_RAD = WIND_PER_CLICK / (Math.PI * 4);  // 4π храповика = один клік
-  const FULL_RUN_SEC = 120;                               // повного заводу вистачає ~120 c демо-часу
-  let windPending = 0, windAngle = 0, crownSpin = 0;
-  let charge = 0.75;                                       // початковий рівень заводу
-  function applySpring() {
+  // Завод — ПОХІДНИЙ від диференціала (жодної окремої змінної стану):
+  //   c(w, β) = c₀ + (RA·w − RB·β) / (2·SWEEP),
+  // де w — кут храповика (заведення), β — кут барабанного колеса (хід).
+  // Заведення крутить верхнє сонце (нижнє тримає передача), хід — нижнє
+  // (верхнє тримає собачка); водило-стрілка показує різницю.
+  let windPending = 0, windAngle = 0, crownSpin = 0, lastDrive = 0;
+  const chargeOf = () => 0.75 + (RA * windAngle - RB * lastDrive) / (2 * SWEEP);
+
+  // Синхронізація диференціала, стрілки та пружини зі станом (w, β).
+  function syncDiff() {
+    supG.rotation.z = phiA2 - RA * windAngle;
+    prIdlerG.rotation.z = phiPrIdler - (48 / 14) * lastDrive;
+    slowG.rotation.z = phiB + RB * lastDrive;
+    carrierG.rotation.z = (supG.rotation.z + slowG.rotation.z) / 2 + KC; // умова диференціала
+    const spin = ((supG.rotation.z - slowG.rotation.z) / 2) * (SUN_T / PLANET_T);
+    for (const p of planetMeshes) p.rotation.z = spin * p.userData.dir;
+    const c = Math.min(1, Math.max(0, chargeOf()));
     if (mainspring) {
       mainspring.userData.setShape({
         innerR: 1.05,
-        outerR: mainspringOuterR - 1.2 * charge, // тугіша пружина відходить від стінки
-        turns: 3.4 + 3.6 * charge,               // більше витків = щільніший пакет
+        outerR: mainspringOuterR - 1.2 * c, // тугіша пружина відходить від стінки
+        turns: 3.4 + 3.6 * c,               // більше витків = щільніший пакет
       });
     }
-    // Індикатор запасу ходу: α(c) = α₀ + (α₁ − α₀)·c.
-    prHand.rotation.z = PR_EMPTY + (PR_FULL - PR_EMPTY) * charge;
   }
+
   const winder = {
     group: winderGroup,
-    get charge() { return charge; },
-    wind() { windPending += Math.PI * 4; },   // докрутити ще один «клік»
-    // Витрата заводу за час ходу (demo); seconds — крок simT.
-    drain(seconds) {
-      if (charge <= 0) return;
-      charge = Math.max(0, charge - seconds / FULL_RUN_SEC);
-      applySpring();
-    },
+    ratchet: ratchetG,
+    get charge() { return Math.min(1, Math.max(0, chargeOf())); },
+    wind() { windPending += Math.PI * 2; }, // один «клік» = 2π храповика (+0.375 заряду)
     update(dt) {
       if (windPending <= 0) return;
-      const d = Math.min(dt * 5, windPending);
-      windPending -= d;
+      let d = Math.min(dt * 5, windPending);
+      // Упор повного заводу: головка перестає споживати оберти при c = 1.
+      const maxDw = Math.max(0, ((1 - chargeOf()) * 2 * SWEEP) / RA);
+      if (d >= maxDw) { d = maxDw; windPending = 0; } else windPending -= d;
+      if (d <= 0) return;
       windAngle += d;
       ratchetG.rotation.z = windAngle;
       cwG.rotation.z = phiCW - windAngle * (28 / 18);       // коронне + конічне колесо
       crownSpin += d * (28 / 18) * (BEVEL_W / BEVEL_P);     // вал: конічне колесо (16) → триб (8) = ×2
       bevelPinion.rotation.z = PSI_P + crownSpin;            // конічний триб на валу
       crown.rotation.y = crownSpin;                          // головка на тій самій осі
-      charge = Math.min(1, charge + d * CHARGE_PER_RAD);
-      applySpring();
+      syncDiff();
     },
   };
-  applySpring(); // початковий стан пружини під charge
 
   // ── Точки фокуса (для підписів і пресетів камери) ──
   const focusPoints = [
@@ -585,11 +698,12 @@ export function buildMovement({ brass, steel, axleMat, ruby, springMat, plateMat
     { name: 'Баланс', pos: balancePos, z: arbors[4].wheelZ + 1.3, r: 3.6 },
     { name: 'Стрілки', pos: P1, z: 10.0, r: 4.5 },
     { name: 'Заведення', pos: cwPos, z: 2.0, r: 4.5 },
-    { name: 'Запас ходу', pos: prPos, z: 3.2, r: 3.2 },
+    { name: 'Запас ходу', pos: prPos, z: 6.3, r: 3.2 },
   ];
 
   // ── Кінематика: кут кожного вузла з кута барабана ──
   function update(driveAngle) {
+    lastDrive = driveAngle; // β для диференціала запасу ходу
     for (const a of arbors) a.group.rotation.z = a.phi + a.omega * driveAngle;
     handRefs.hour.rotation.z = 0;
     handRefs.minute.rotation.z = 0;
@@ -604,6 +718,8 @@ export function buildMovement({ brass, steel, axleMat, ruby, springMat, plateMat
     const dR3 = arbors[3].omega * driveAngle;
     csIdlerGroup.rotation.z = phiCSIdler - (CS_DRIVE / CS_IDLER) * dR3;
     centralSecondsGroup.rotation.z = phiCSCenter + csRatio * dR3;
+
+    syncDiff(); // диференціал запасу ходу (нижнє сонце живиться від β)
   }
   update(0);
 
@@ -625,7 +741,14 @@ export function buildMovement({ brass, steel, axleMat, ruby, springMat, plateMat
   function setClockTime(date, beatT, { beatHz, amplitude }) {
     // 1) Спуск веде передачу — точно тим самим шляхом, що й демо-режим.
     const E = escapement.update(beatT, beatHz, amplitude);
-    update(E / arbors[4].omega);
+    // Автопідзавод: докручуємо храповик рівно так, щоб водило диференціала
+    // (стрілка запасу ходу) стояло: dθ_C = 0 ⇔ dw = (RB/RA)·dβ.
+    const nd = E / arbors[4].omega;
+    if (nd > lastDrive) {
+      windAngle += (RB / RA) * (nd - lastDrive);
+      ratchetG.rotation.z = windAngle;
+    }
+    update(nd);
 
     // 2) Стрілки накладаємо на істинний час (передача під ними «проковзує»).
     const h = date.getHours() % 12;
@@ -647,6 +770,10 @@ export function buildMovement({ brass, steel, axleMat, ruby, springMat, plateMat
     bounds: { minX, maxX, minY, maxY, cx, cy, plateR },
     centralSeconds: { drive: csDriveGear, idler: csIdlerGroup, center: centralSecondsGroup },
     motionWorks: { cannonSub, mwArbor, hourGroup, csDriveGear, csIdlerGroup, centralSecondsGroup },
-    powerReserve: { group: powerReserveGroup, hand: prHand, emptyAngle: PR_EMPTY, fullAngle: PR_FULL },
+    powerReserve: {
+      group: powerReserveGroup, hand: carrierG, carrier: carrierG,
+      sunUp: supG, sunLow: slowG, idler: prIdlerG,
+      emptyAngle: PR_EMPTY, fullAngle: PR_FULL,
+    },
   };
 }

@@ -14,7 +14,7 @@ Built with **Three.js** + **Vite**. All geometry is generated procedurally in co
 - **Motion works & hands** — hour, minute and central seconds hands (12:1), raised to the top of the central staff.
 - **Winding** — ratchet, crown wheel and winding crown; "wind the mainspring" animation.
 - **Open barrel** — the drum is open so the coiled mainspring is visible inside.
-- **Power reserve indicator** — a sub-dial hand next to the barrel shows the remaining wind (120° sector).
+- **Power reserve differential** — a real bevel differential (two suns, two planets, hand on the carrier) computes the remaining wind as the difference between winding and running; real-time mode behaves like an auto-winder.
 - **Time modes** — demo time (runs from the escapement) and real time (hands follow the system clock while the escapement stays visually coupled).
 - **Compact layered layout** — the train is coiled into a tight loop; balance, motion works and central seconds sit on higher Z-layers above it.
 
@@ -44,8 +44,8 @@ Barrel wheel 48 teeth ($m=0.35$, $r=8.4$), 5 spoke windows; open drum (wall + fl
 
 - Archimedean spiral: $r(t) = r_{in} + (r_{out}-r_{in})\,t$, $\theta(t) = 2\pi N t$, $t\in[0,1]$, $r_{in}=1.05$.
 - Wind state $c\in[0,1]$: $r_{out}(c) = 6.8 - 1.2c$, $N(c) = 3.4 + 3.6c$ (tighter = more coils, smaller radius).
-- Drain while running (demo): $\dot c = -1/T_{full}$, $T_{full}=120$ s; winding: $\Delta c = +0.34$ per click; at $c=0$ the movement stops.
-- Verified: radius is monotonic in charge — $c=0.75/0.5/0/0.34 \Rightarrow r_{out}=5.91/6.11/6.87/6.45$.
+- Winding and drain are computed by the **differential** (see §12): the charge is derived from the ratchet and barrel-wheel angles; one click $= +0.375$, a full wind ≈ 142 s of demo running (2.5 beats/s); at $c=0$ the movement stops.
+- Verified: the coil radius is monotonic in charge (the spring shape always agrees with the reserve hand).
 
 ### 3. Going train
 
@@ -105,12 +105,16 @@ Polyline of 200 points: $\alpha(f) = \theta_b(1-f) + f\Phi - \Phi + \lambda$, $r
 - Winding kinematics: ratchet $+\omega$; crown-wheel assembly $-\omega\cdot\frac{28}{18}$; stem/pinion/crown $+\omega\cdot\frac{28}{18}\cdot\frac{16}{8}$.
 - Verified: distance between the bevel pitch circles = **0.0000** (tangent); apex distance = 0; the barrel wheel stays still while winding.
 
-### 12. Power reserve indicator
+### 12. Power reserve differential
 
-- Small sub-dial next to the barrel: base disc, brass 120° sector scale, ticks at 0–100% (the zero tick is ruby), blued hand.
-- Hand angle is linear in the mainspring charge: $\alpha(c) = \alpha_0 + (\alpha_1-\alpha_0)\,c$ with $\alpha_0 = 150°$ (empty), $\alpha_1 = 30°$ (fully wound).
-- Updated by the same hook that reshapes the mainspring — any charge change moves both.
-- Verified: exact angle for $c = 0.75/0/0.34$; monotonic motion toward "empty" while running.
+- **A real bevel differential.** Winding input: pinion A1 (14) on the ratchet arbor → wheel A2 (56) → **upper sun** (16). Running input: barrel wheel (48) → idler (14) → pinion B (8) → **lower sun** (16). Two planets (10) on the carrier; **the hand sits on the carrier**, under an open-center 120° sector ring so the gearing stays visible.
+- Differential condition: $\theta_C = \dfrac{\theta_{up} + \theta_{low}}{2} + const$. Cones: $\delta_s = \arctan\frac{16}{10} \approx 58°$, $\delta_{pl} \approx 32°$ (90° total), common apex.
+- **The charge is derived, not a separate state:** $c(w,\beta) = c_0 + \dfrac{R_A w - R_B \beta}{2\,\Delta}$ with $w$ the ratchet angle, $\beta$ the barrel-wheel angle, $R_A = \frac{14}{56}$, $R_B = \frac{48}{8} = 6$, $\Delta = 120°$.
+- While winding the lower sun stands still (the train holds the barrel); while running the upper sun stands still (the click holds the ratchet).
+- **Real-time mode acts as an auto-winder:** $dw = (R_B/R_A)\,d\beta = 24\,d\beta$ — the ratchet creeps, the reserve hand holds steady while both suns turn.
+- Stops: at $c = 1$ the crown stops taking turns (full-wind stop); at $c = 0$ demo mode halts the movement.
+- Numbers: one click (2π of the ratchet) = $+0.375$ charge; a full wind runs ≈ 142 s of demo time at 2.5 beats/s.
+- Verified: the differential condition holds to 12 digits; sun immobility per mode; mesh invariants of all three gear paths = 0; auto-winder behaviour in real time.
 
 ### 13. Main plate & jewels
 
@@ -128,7 +132,7 @@ Polyline of 200 points: $\alpha(f) = \theta_b(1-f) + f\Phi - \Phi + \lambda$, $r
 7. **Hairspring** "breathes" in a simplified way (linear angle interpolation along the coils), without length conservation.
 8. **Winding** moves only during the button animation; the click is static (does not ratchet over the teeth).
 9. **No bearings/bridges:** arbors float visually; the plate is decorative.
-10. **Power reserve indicator is scripted:** the hand reads `charge` directly; real calibers take the reserve off the barrel arbor through a differential, which is not modeled here.
+10. **Power reserve differential:** the kinematics are exact (carrier condition, sun immobility, mesh invariants), but sun↔planet bevel tooth phasing is approximate (profiles are not conjugate), the scale ring floats without bridges, and the winding input is taken off the ratchet rather than the barrel arbor (equivalent — they are rigidly coupled).
 11. **Verification precision:** mesh invariants, gear ratios, hand angles and cone tangency are exact to machine precision (<1e−6); layout collisions are checked by bounding-sphere scans (threshold: XY overlap > 1.3 units with Z intersection).
 
 ## Controls

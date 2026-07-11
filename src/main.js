@@ -174,11 +174,10 @@ function tick() {
       simT += dt; // хід балансу в реальному темпі (beatHz), незалежно від «Швидкість»
       movement.setClockTime(new Date(), simT, params);
     } else if (movement.winder.charge > 0) {
-      // Демо-хід можливий лише поки є завод; крок ходу витрачає пружину.
-      const step = dt * params.speed;
-      simT += step;
+      // Демо-хід можливий лише поки є завод; витрату рахує сам диференціал
+      // (нижнє сонце живиться від обертання барабанного колеса).
+      simT += dt * params.speed;
       movement.setTime(simT, params);
-      movement.winder.drain(step);
     }
   }
   movement.winder.update(dt);
