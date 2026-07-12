@@ -156,14 +156,14 @@ describe('заведення (winding)', () => {
   it('charge похідний від диференціала: хід витрачає, клік докручує, кламп на упорі', () => {
     const f = buildFresh(); // c₀ = 0.75
     expect(f.winder.charge).toBeCloseTo(0.75, 9);
-    // Хід до зупинки (емуляція демо-гейта charge>0): 0.75·2·SWEEP/RB = π/6 рад
-    // барабана ≈ 106.7 c при 2.5 уд/с.
+    // Хід до зупинки (емуляція демо-гейта charge>0): 0.75·2·SWEEP/RB = π/4 рад
+    // барабана ≈ 160 c при 2.5 уд/с (RA=1, RB=4).
     let t = 0;
-    while (f.winder.charge > 0 && t < 200) { t += 0.1; f.setTime(t, params); }
+    while (f.winder.charge > 0 && t < 250) { t += 0.1; f.setTime(t, params); }
     expect(f.winder.charge).toBe(0);
-    expect(t).toBeGreaterThan(100);
-    expect(t).toBeLessThan(115);
-    // Клік = 2π храповика → +RA·2π/(2·SWEEP) = 0.375 заряду.
+    expect(t).toBeGreaterThan(150);
+    expect(t).toBeLessThan(172);
+    // Клік = π/2 храповика → +RA·(π/2)/(2·SWEEP) = 0.375 заряду.
     f.winder.wind();
     for (let i = 0; i < 300; i++) f.winder.update(0.05);
     expect(f.winder.charge).toBeCloseTo(0.375, 2);
@@ -264,22 +264,21 @@ describe('запас ходу (power reserve differential)', () => {
     expect(pr.sunLow.rotation.z).not.toBe(low0);      // а нижнє рухається
   });
 
-  it('інваріанти зачеплень шляхів диференціала = 0 (A1→A2, барабан→проміжне→B)', () => {
+  it('інваріанти зачеплень шляху ходу = 0 (маточинне→компаунд→трубка сонця)', () => {
     const f = buildFresh();
     const pr = f.powerReserve;
-    const A0 = f.arbors[0].pos;
-    const D = { x: pr.group.position.x, y: pr.group.position.y };
+    const A0 = f.arbors[0].pos; // диференціал коаксіальний з барабаном
     const I = { x: pr.group.position.x + pr.idler.position.x, y: pr.group.position.y + pr.idler.position.y };
     // Кілька станів: заведення + хід.
     f.winder.wind(); for (let i = 0; i < 60; i++) f.winder.update(0.02);
     for (const t of [0, 7.3]) {
       f.setTime(t, params);
-      const eA = meshInvariant(A0, D, 14, 56, f.winder.ratchet.rotation.z, pr.sunUp.rotation.z);
-      const eBI = meshInvariant(A0, I, 48, 14, f.arbors[0].group.rotation.z, pr.idler.rotation.z);
-      const eIB = meshInvariant(I, D, 14, 8, pr.idler.rotation.z, pr.sunLow.rotation.z);
-      expect(eA).toBeLessThan(1e-9);
-      expect(eBI).toBeLessThan(1e-9);
-      expect(eIB).toBeLessThan(1e-9);
+      // маточинне колесо (32, кероване барабанним колесом) → тріб компаунда (8)
+      const eHI = meshInvariant(A0, I, 32, 8, f.arbors[0].group.rotation.z, pr.idler.rotation.z);
+      // колесо компаунда (20) → колесо трубки нижнього сонця (20)
+      const eIG = meshInvariant(I, A0, 20, 20, pr.idler.rotation.z, pr.sunLow.rotation.z);
+      expect(eHI).toBeLessThan(1e-9);
+      expect(eIG).toBeLessThan(1e-9);
     }
   });
 
@@ -290,8 +289,8 @@ describe('запас ходу (power reserve differential)', () => {
     const ratchet0 = f.winder.ratchet.rotation.z;
     f.setClockTime(new Date(2026, 0, 1, 3, 0, 0), 0.5, params);
     f.setClockTime(new Date(2026, 0, 1, 3, 0, 30), 30.5, params);
-    expect(pr.hand.rotation.z).toBeCloseTo(hand0, 9);            // запас не падає
-    expect(f.winder.ratchet.rotation.z).toBeGreaterThan(ratchet0); // автопідзавод крутить храповик
+    expect(pr.hand.rotation.z).toBeCloseTo(hand0, 9);          // запас не падає
+    expect(f.winder.ratchet.rotation.z).toBeLessThan(ratchet0); // автопідзавод крутить храповик (контр-обертання)
   });
 });
 

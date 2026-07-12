@@ -107,14 +107,17 @@ Polyline of 200 points: $\alpha(f) = \theta_b(1-f) + f\Phi - \Phi + \lambda$, $r
 
 ### 12. Power reserve differential
 
-- **A real bevel differential.** Winding input: pinion A1 (14) on the ratchet arbor → wheel A2 (56) → **upper sun** (16). Running input: barrel wheel (48) → idler (14) → pinion B (8) → **lower sun** (16). Two planets (10) on the carrier; **the hand sits on the carrier**, under an open-center 120° sector ring so the gearing stays visible.
-- Differential condition: $\theta_C = \dfrac{\theta_{up} + \theta_{low}}{2} + const$. Cones: $\delta_s = \arctan\frac{16}{10} \approx 58°$, $\delta_{pl} \approx 32°$ (90° total), common apex.
-- **The charge is derived, not a separate state:** $c(w,\beta) = c_0 + \dfrac{R_A w - R_B \beta}{2\,\Delta}$ with $w$ the ratchet angle, $\beta$ the barrel-wheel angle, $R_A = \frac{14}{56}$, $R_B = \frac{48}{8} = 6$, $\Delta = 120°$.
+- **A real bevel differential, COAXIAL with the barrel** — the whole module sits on the barrel axis with its open-center 120° scale ring floating right above the barrel (both inputs are already on that axis, so no long transfer trains).
+- Winding input: ratchet → straight pipe → **upper sun** (16), $R_A = 1$. Running input: barrel wheel → hub wheel (32) → compound idler (pinion 8 + wheel 20) → sun-pipe wheel (20) → **lower sun** (16), $R_B = \frac{32}{8}\cdot\frac{20}{20} = 4$; both pairs share one center distance $\frac{(32+8)m}{2} = \frac{(20+20)m}{2} = 6.0$.
+- Two planets (10) on a **cage carrier** (a ring around the suns with inward stub axles — the planet axle cannot cross the center, the pipes live there); the hand sits on the carrier bridge above the upper sun.
+- Differential condition: $\theta_C = \dfrac{\theta_{up} + \theta_{low}}{2} + const$. Cones: $\delta_s \approx 58°$, $\delta_{pl} \approx 32°$, common apex.
+- **The charge is derived, not a separate state:** $c(w,\beta) = c_0 + \dfrac{R_A w - R_B \beta}{2\,\Delta}$, $\Delta = 120°$. The winding arbor **counter-rotates** relative to the running direction — the reversal the offset gear pair used to provide is now in the spin direction.
 - While winding the lower sun stands still (the train holds the barrel); while running the upper sun stands still (the click holds the ratchet).
-- **Real-time mode acts as an auto-winder:** $dw = (R_B/R_A)\,d\beta = 24\,d\beta$ — the ratchet creeps, the reserve hand holds steady while both suns turn.
-- Stops: at $c = 1$ the crown stops taking turns (full-wind stop); at $c = 0$ demo mode halts the movement.
-- Numbers: one click (2π of the ratchet) = $+0.375$ charge; a full wind runs ≈ 142 s of demo time at 2.5 beats/s.
-- Verified: the differential condition holds to 12 digits; sun immobility per mode; mesh invariants of all three gear paths = 0; auto-winder behaviour in real time.
+- **Real-time mode acts as an auto-winder:** $dw = (R_B/R_A)\,d\beta = 4\,d\beta$ — the ratchet creeps, the reserve hand holds steady while both suns turn.
+- Stops: at $c = 1$ the crown stops taking turns; at $c = 0$ demo mode halts the movement.
+- Numbers: one click (a quarter-turn of the ratchet) = $+0.375$ charge; a full wind runs ≈ 160 s of demo time at 2.5 beats/s.
+- Z-stack above the barrel: hub wheel 1.85 → ratchet 2.6 → compound 3.3 → suns/planets 4.4–7.8 → carrier bridge 7.95 → scale ring 8.55 → hand 8.85.
+- Verified: the differential condition holds to 12 digits; sun immobility per mode; mesh invariants of both running-path pairs = 0; auto-winder behaviour; full-wind stop.
 
 ### 13. Main plate & jewels
 
