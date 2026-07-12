@@ -172,6 +172,23 @@ describe('заведення (winding)', () => {
     expect(f.winder.charge).toBe(1);
   });
 
+  it('собачка клацає по зубцях храповика при заведенні', () => {
+    const f = buildFresh();
+    const click = f.winder.click;
+    expect(click.rotation.z).toBe(0); // у спокої лежить у западині
+    f.winder.wind();
+    const lifts = [];
+    for (let i = 0; i < 40; i++) { f.winder.update(0.01); lifts.push(click.rotation.z); }
+    expect(Math.max(...lifts)).toBeGreaterThan(0.03);          // піднімалась на зубцях
+    let drops = 0;
+    for (let i = 1; i < lifts.length; i++) {
+      expect(lifts[i]).toBeGreaterThanOrEqual(0);
+      expect(lifts[i]).toBeLessThanOrEqual(0.07 + 1e-9);       // у межах ходу важеля
+      if (lifts[i] < lifts[i - 1] - 0.02) drops++;             // різкий спад = «клац»
+    }
+    expect(drops).toBeGreaterThanOrEqual(3);                   // кілька зубців за клік заводу
+  });
+
   it('барабанне колесо нерухоме під час заведення', () => {
     const f = buildFresh();
     const r0 = f.arbors[0].group.rotation.z;

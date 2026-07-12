@@ -441,20 +441,27 @@ export function buildMovement({ brass, steel, axleMat, ruby, springMat, plateMat
   cwG.rotation.z = phiCW;
   winderGroup.add(cwG);
 
-  // Собачка (клік) — тримає храповик.
+  // Собачка (клік): важіль на стійці, кінчик лежить на зубцях храповика.
+  // Пропускає обертання в бік заведення і блокує зворотне розкручування
+  // пружини через заводний ланцюг — енергія виходить лише в передачу.
+  // Гойдається по зубцях у syncDiff (повільний підйом, різкий спад — «клац»).
+  const clickPivot = arbors[0].pos.clone().add(dir2((120 * Math.PI) / 180).multiplyScalar(6.0));
+  const clickG = new THREE.Group(); // обертається навколо стійки
+  clickG.position.set(clickPivot.x, clickPivot.y, WIND_Z);
   {
-    const clickPivot = arbors[0].pos.clone().add(dir2((120 * Math.PI) / 180).multiplyScalar(6.0));
     const post = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 1.4, 12), axleMat);
     post.rotation.x = Math.PI / 2;
-    post.position.set(clickPivot.x, clickPivot.y, WIND_Z - 0.4);
-    winderGroup.add(post);
+    post.position.z = -0.4;
+    clickG.add(post);
     const tip = arbors[0].pos.clone().add(dir2((104 * Math.PI) / 180).multiplyScalar(4.45));
     const d = tip.clone().sub(clickPivot);
     const clickBar = new THREE.Mesh(new THREE.BoxGeometry(d.length(), 0.32, 0.3), steel);
-    clickBar.position.set((clickPivot.x + tip.x) / 2, (clickPivot.y + tip.y) / 2, WIND_Z);
+    clickBar.position.set(d.x / 2, d.y / 2, 0);
     clickBar.rotation.z = Math.atan2(d.y, d.x);
-    winderGroup.add(clickBar);
+    clickBar.castShadow = true;
+    clickG.add(clickBar);
   }
+  winderGroup.add(clickG);
 
   // Конічний триб на валу: вершина його конуса — у ТІЙ САМІЙ точці Z_APEX на осі
   // коронного вузла (спільний апекс пари), вісь горизонтальна, дивиться назовні
@@ -668,6 +675,11 @@ export function buildMovement({ brass, steel, axleMat, ruby, springMat, plateMat
     carrierG.rotation.z = (supG.rotation.z + slowG.rotation.z) / 2 + KC; // умова диференціала
     const spin = ((supG.rotation.z - slowG.rotation.z) / 2) * (SUN_T / PLANET_T);
     for (const p of planetMeshes) p.rotation.z = spin * p.userData.dir;
+    // Собачка: перескакує по зубцях храповика (28 зубців) — повільний підйом
+    // кінчика за фазою зубця, різкий спад на переході («клац»). Працює і при
+    // ручному заведенні, і при автопідзаводі в реальному часі.
+    const stepR = (2 * Math.PI) / 28;
+    clickG.rotation.z = 0.07 * (mod(windAngle, stepR) / stepR);
     const c = Math.min(1, Math.max(0, chargeOf()));
     if (mainspring) {
       mainspring.userData.setShape({
@@ -681,6 +693,7 @@ export function buildMovement({ brass, steel, axleMat, ruby, springMat, plateMat
   const winder = {
     group: winderGroup,
     ratchet: ratchetG,
+    click: clickG,
     get charge() { return Math.min(1, Math.max(0, chargeOf())); },
     wind() { windPending += Math.PI / 2; }, // один «клік» = чверть оберту храповика (+0.375 заряду при RA=1)
     update(dt) {
@@ -707,6 +720,7 @@ export function buildMovement({ brass, steel, axleMat, ruby, springMat, plateMat
     { name: 'Баланс', pos: balancePos, z: arbors[4].wheelZ + 1.3, r: 3.6 },
     { name: 'Стрілки', pos: P1, z: 10.0, r: 4.5 },
     { name: 'Заведення', pos: cwPos, z: 2.0, r: 4.5 },
+    { name: 'Собачка', pos: clickPivot, z: WIND_Z, r: 1.4 },
     { name: 'Запас ходу', pos: arbors[0].pos, z: 8.6, r: 3.2 },
   ];
 

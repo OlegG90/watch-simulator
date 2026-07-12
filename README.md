@@ -100,7 +100,10 @@ Polyline of 200 points: $\alpha(f) = \theta_b(1-f) + f\Phi - \Phi + \lambda$, $r
 
 ### 11. Winding works
 
-- Chain: crown → winding stem → bevel pinion (8) → bevel wheel (16) → crown wheel (18) → ratchet wheel (28) on the barrel arbor; a click holds the ratchet.
+- Chain: crown → winding stem → bevel pinion (8) → bevel wheel (16) → crown wheel (18) → ratchet wheel (28) on the barrel arbor.
+- **The click** — a lever on a post whose tip rests on the ratchet teeth. It is the one-way valve of the winding works: it lets the ratchet turn in the winding direction (hopping over the teeth — the familiar "click-click" of winding a watch) and blocks the mainspring from unwinding back through the winding chain, so the spring's energy can only escape into the going train. The click is also what holds the winding input still while the watch runs — the very condition the power reserve differential (§12) relies on.
+- Click animation: lever angle follows the tooth phase, $\alpha_{cl}(w) = 0.07\cdot\dfrac{w \bmod s_R}{s_R}$, $s_R = \dfrac{2\pi}{28}$ — slow rise, sharp drop ("click") on every tooth; active during manual winding and auto-winding.
+- Verified: at rest the lever sits in the valley (0); while winding it rises within the 0.07 rad travel with ≥3 drops per winding click.
 - **90° bevel pair:** $\tan\delta_w = \dfrac{z_w}{z_p} \Rightarrow \delta_w \approx 63.4°$, $\delta_p \approx 26.6°$, $\delta_w+\delta_p = 90°$; the apexes of both pitch cones meet at a **common point** on the axis intersection; each gear ring sits at $R/\tan\delta$ along its own axis; shared cone distance: $L = \dfrac{R_w}{\sin\delta_w} = \dfrac{R_p}{\sin\delta_p} = 2.95$.
 - Winding kinematics: ratchet $+\omega$; crown-wheel assembly $-\omega\cdot\frac{28}{18}$; stem/pinion/crown $+\omega\cdot\frac{28}{18}\cdot\frac{16}{8}$.
 - Verified: distance between the bevel pitch circles = **0.0000** (tangent); apex distance = 0; the barrel wheel stays still while winding.
@@ -133,7 +136,7 @@ Polyline of 200 points: $\alpha(f) = \theta_b(1-f) + f\Phi - \Phi + \lambda$, $r
 5. **Bevel pair:** pitch cones are geometrically exact (tangency = 0), but tooth phasing is approximate — profiles are not conjugate.
 6. **Mainspring:** its shape is interpolated from the charge; ribbon length is not conserved and spring torque is not modeled; "120 s per full wind" is an arbitrary demo value.
 7. **Hairspring** "breathes" in a simplified way (linear angle interpolation along the coils), without length conservation.
-8. **Winding** moves only during the button animation; the click is static (does not ratchet over the teeth).
+8. **Winding** moves during the button animation and auto-winding; the click ratchets kinematically (angle from the tooth phase), but physical contact and locking are not modeled.
 9. **No bearings/bridges:** arbors float visually; the plate is decorative.
 10. **Power reserve differential:** the kinematics are exact (carrier condition, sun immobility, mesh invariants), but sun↔planet bevel tooth phasing is approximate (profiles are not conjugate), the scale ring floats without bridges, and the winding input is taken off the ratchet rather than the barrel arbor (equivalent — they are rigidly coupled).
 11. **Verification precision:** mesh invariants, gear ratios, hand angles and cone tangency are exact to machine precision (<1e−6); layout collisions are checked by bounding-sphere scans (threshold: XY overlap > 1.3 units with Z intersection).
