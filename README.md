@@ -44,7 +44,7 @@ Barrel wheel 48 teeth ($m=0.35$, $r=8.4$), 5 spoke windows; open drum (wall + fl
 
 - Archimedean spiral: $r(t) = r_{in} + (r_{out}-r_{in})\,t$, $\theta(t) = 2\pi N t$, $t\in[0,1]$, $r_{in}=1.05$.
 - Wind state $c\in[0,1]$: $r_{out}(c) = 6.8 - 1.2c$, $N(c) = 3.4 + 3.6c$ (tighter = more coils, smaller radius).
-- Winding and drain are computed by the **differential** (see §12): the charge is derived from the ratchet and barrel-wheel angles; one click $= +0.375$, a full wind ≈ 142 s of demo running (2.5 beats/s); at $c=0$ the movement stops.
+- Winding and drain are computed by the **differential** (see §12): the charge is derived from the ratchet and barrel-wheel angles; one click $= +0.375$, a full wind ≈ 160 s of demo running (2.5 beats/s); at $c=0$ the movement stops.
 - Verified: the coil radius is monotonic in charge (the spring shape always agrees with the reserve hand).
 
 ### 3. Going train
