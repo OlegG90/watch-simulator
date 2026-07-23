@@ -628,11 +628,20 @@ export function buildMovement({ brass, steel, axleMat, ruby, springMat, plateMat
   }
   powerReserveGroup.add(carrierG);
 
-  // Кільцева шкала — висить просто над барабаном (відкритий центр: диференціал видно).
+  // Шкала-СЕГМЕНТ над барабаном: тло — не повне кільце, а сектор-«віяло»
+  // на розмах шкали (120° + невеликі поля); біля осі — мале кільце-основа.
+  // Диференціал під шкалою видно ще краще, ніж із кільцем.
   {
-    const ring = new THREE.Mesh(new THREE.RingGeometry(1.55, 3.05, 48), plateMat);
-    ring.position.z = Z_DIFF + 2.75; // 8.55
-    powerReserveGroup.add(ring);
+    const pad = (8 * Math.PI) / 180; // поля сектора за межами ходу стрілки
+    const fan = new THREE.Mesh(
+      new THREE.RingGeometry(0.7, 3.05, 48, 1, PR_FULL - pad, SWEEP + 2 * pad),
+      plateMat
+    );
+    fan.position.z = Z_DIFF + 2.75; // 8.55
+    powerReserveGroup.add(fan);
+    const hubRing = new THREE.Mesh(new THREE.RingGeometry(0.4, 0.7, 32), plateMat);
+    hubRing.position.z = Z_DIFF + 2.75;
+    powerReserveGroup.add(hubRing);
     const arc = new THREE.Mesh(new THREE.RingGeometry(2.35, 2.85, 48, 1, PR_FULL, SWEEP), brass);
     arc.position.z = Z_DIFF + 2.77;
     powerReserveGroup.add(arc);

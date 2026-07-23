@@ -110,7 +110,7 @@ Polyline of 200 points: $\alpha(f) = \theta_b(1-f) + f\Phi - \Phi + \lambda$, $r
 
 ### 12. Power reserve differential
 
-- **A real bevel differential, COAXIAL with the barrel** — the whole module sits on the barrel axis with its open-center 120° scale ring floating right above the barrel (both inputs are already on that axis, so no long transfer trains).
+- **A real bevel differential, COAXIAL with the barrel** — the whole module sits on the barrel axis with its fan-shaped sector scale (120° + margins, not a full ring) floating right above the barrel (both inputs are already on that axis, so no long transfer trains).
 - Winding input: ratchet → straight pipe → **upper sun** (16), $R_A = 1$. Running input: barrel wheel → hub wheel (32) → compound idler (pinion 8 + wheel 20) → sun-pipe wheel (20) → **lower sun** (16), $R_B = \frac{32}{8}\cdot\frac{20}{20} = 4$; both pairs share one center distance $\frac{(32+8)m}{2} = \frac{(20+20)m}{2} = 6.0$.
 - Two planets (10) on a **cage carrier** (a ring around the suns with inward stub axles — the planet axle cannot cross the center, the pipes live there); the hand sits on the carrier bridge above the upper sun.
 - Differential condition: $\theta_C = \dfrac{\theta_{up} + \theta_{low}}{2} + const$. Cones: $\delta_s \approx 58°$, $\delta_{pl} \approx 32°$, common apex.
@@ -119,7 +119,7 @@ Polyline of 200 points: $\alpha(f) = \theta_b(1-f) + f\Phi - \Phi + \lambda$, $r
 - **Real-time mode acts as an auto-winder:** $dw = (R_B/R_A)\,d\beta = 4\,d\beta$ — the ratchet creeps, the reserve hand holds steady while both suns turn.
 - Stops: at $c = 1$ the crown stops taking turns; at $c = 0$ demo mode halts the movement.
 - Numbers: one click (a quarter-turn of the ratchet) = $+0.375$ charge; a full wind runs ≈ 160 s of demo time at 2.5 beats/s.
-- Z-stack above the barrel: hub wheel 1.85 → ratchet 2.6 → compound 3.3 → suns/planets 4.4–7.8 → carrier bridge 7.95 → scale ring 8.55 → hand 8.85.
+- Z-stack above the barrel: hub wheel 1.85 → ratchet 2.6 → compound 3.3 → suns/planets 4.4–7.8 → carrier bridge 7.95 → sector scale 8.55 → hand 8.85.
 - Verified: the differential condition holds to 12 digits; sun immobility per mode; mesh invariants of both running-path pairs = 0; auto-winder behaviour; full-wind stop.
 
 ### 13. Main plate & jewels
@@ -138,7 +138,7 @@ Polyline of 200 points: $\alpha(f) = \theta_b(1-f) + f\Phi - \Phi + \lambda$, $r
 7. **Hairspring** "breathes" in a simplified way (linear angle interpolation along the coils), without length conservation.
 8. **Winding** moves during the button animation and auto-winding; the click ratchets kinematically (angle from the tooth phase), but physical contact and locking are not modeled.
 9. **No bearings/bridges:** arbors float visually; the plate is decorative.
-10. **Power reserve differential:** the kinematics are exact (carrier condition, sun immobility, mesh invariants), but sun↔planet bevel tooth phasing is approximate (profiles are not conjugate), the scale ring floats without bridges, and the winding input is taken off the ratchet rather than the barrel arbor (equivalent — they are rigidly coupled).
+10. **Power reserve differential:** the kinematics are exact (carrier condition, sun immobility, mesh invariants), but sun↔planet bevel tooth phasing is approximate (profiles are not conjugate), the sector scale floats without bridges, and the winding input is taken off the ratchet rather than the barrel arbor (equivalent — they are rigidly coupled).
 11. **Verification precision:** mesh invariants, gear ratios, hand angles and cone tangency are exact to machine precision (<1e−6); layout collisions are checked by bounding-sphere scans (threshold: XY overlap > 1.3 units with Z intersection).
 
 ## Controls
