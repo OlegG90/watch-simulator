@@ -1,6 +1,7 @@
 # watch-simulator
 
 [![tests](https://github.com/OlegG90/watch-simulator/actions/workflows/test.yml/badge.svg)](https://github.com/OlegG90/watch-simulator/actions/workflows/test.yml)
+[![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
 
 A simple visual model of watch gears that can work together — a 3D simulation of a
 mechanical watch movement (no dial), focused on the minimal set of modules and wheels.
@@ -201,3 +202,7 @@ npm run dev   # http://localhost:5174
 ```
 
 Both can run at the same time (different ports).
+
+## License
+
+[MIT](LICENSE) © OlegG90. See [CHANGELOG.md](CHANGELOG.md) for release notes.

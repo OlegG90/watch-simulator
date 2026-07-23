@@ -1,7 +1,7 @@
 {
-  "name": "simwatch",
-  "version": "0.1.0",
-  "description": "3D-симулятор простого годинникового механізму",
+  "name": "watch-simulator",
+  "version": "1.0.0",
+  "description": "A 3D simulation of a simple mechanical watch movement — going train, Swiss lever escapement in a rotating tourbillon cage, motion works, winding with a bevel take-off, and a power-reserve differential (Three.js + Vite).",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -9,9 +9,28 @@
     "preview": "vite preview",
     "test": "vitest run"
   },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
+  "keywords": [
+    "watch",
+    "tourbillon",
+    "mechanical-watch",
+    "horology",
+    "escapement",
+    "gears",
+    "three.js",
+    "webgl",
+    "3d",
+    "simulation"
+  ],
+  "author": "OlegG90 <olegg@usa.com>",
+  "license": "MIT",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/OlegG90/watch-simulator.git"
+  },
+  "homepage": "https://github.com/OlegG90/watch-simulator#readme",
+  "bugs": {
+    "url": "https://github.com/OlegG90/watch-simulator/issues"
+  },
   "dependencies": {
     "lil-gui": "^0.21.0",
     "three": "^0.185.1"
