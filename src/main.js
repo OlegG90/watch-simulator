@@ -53,9 +53,13 @@ const springMat = new THREE.LineBasicMaterial({ color: 0x5b7fd4 });
 const plateMat = new THREE.MeshStandardMaterial({ color: 0x8a7440, roughness: 0.55, metalness: 0.7 });
 const bluedMat = new THREE.MeshStandardMaterial({ color: 0x24418f, roughness: 0.3, metalness: 0.85 });
 const springSteel = new THREE.MeshStandardMaterial({ color: 0x9aa1ab, roughness: 0.32, metalness: 0.95, side: THREE.DoubleSide });
+// Задня платина — темна й прохолодна, щоб латунь/сталь механізму й кліть турбійона контрастували.
+const backdropMat = new THREE.MeshStandardMaterial({ color: 0x2b3038, roughness: 0.7, metalness: 0.4 });
+// Кліть турбійона — воронена сталь: виразно виділяється на золотому тлі й серед латунних коліс.
+const cageMat = new THREE.MeshStandardMaterial({ color: 0x2f4b8c, roughness: 0.28, metalness: 0.9 });
 
 // ── Механізм (передача + спуск) ───────────────────────────────────
-const movement = buildMovement({ brass, steel, axleMat, ruby, springMat, plateMat, bluedMat, springSteel });
+const movement = buildMovement({ brass, steel, axleMat, ruby, springMat, plateMat, bluedMat, springSteel, backdropMat, cageMat });
 scene.add(movement.root);
 
 // Підписи вузлів.
@@ -118,9 +122,9 @@ gui.add(powerUI, 'power', 0, 100, 1).name('Завод, %').listen().disable();
 gui.add(labels, 'visible').name('Підписи');
 const nodes = gui.addFolder('Вузли');
 for (const a of movement.arbors) nodes.add(a.group, 'visible').name(a.name);
-nodes.add(movement.escapement.fork, 'visible').name('Анкер (вилка)');
-nodes.add(movement.escapement.balance, 'visible').name('Баланс');
-nodes.add(movement.escapement.springGroup, 'visible').name('Спіраль');
+nodes.add(movement.tourbillon.cage, 'visible').name('Турбійон (кліть)');
+nodes.add(movement.tourbillon.fixed, 'visible').name('Нерухоме колесо');
+nodes.add(movement.tourbillon.balance, 'visible').name('Баланс');
 const mwVis = { hands: true, winding: true };
 nodes.add(mwVis, 'hands').name('Стрілки + моторний мех.').onChange((v) => {
   for (const g of Object.values(movement.motionWorks)) g.visible = v;

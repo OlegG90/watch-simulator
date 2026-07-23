@@ -1,6 +1,6 @@
 import * as THREE from 'three';
-import { makeGear, makeEscapeWheel, makeHand, makeSpiralRibbon, makeBevelGear } from './gear.js';
-import { buildEscapement } from './escapement.js';
+import { makeGear, makeHand, makeSpiralRibbon, makeBevelGear } from './gear.js';
+import { buildTourbillon } from './tourbillon.js';
 
 // ── Параметри механізму ───────────────────────────────────────────
 const M = 0.35;        // модуль зубців (спільний для всіх зчеплень)
@@ -25,7 +25,9 @@ const TRAIN = [
 // Напрям (у площині XY) від осі k до осі k+1 — передачу скручено в тісну петлю
 // (компактна компоновка): кожен крок повертає сильніше, тож хвіст майже змикається
 // з барабаном. Колеса лежать на різних Z-площинах, тож перекриття по XY безпечне.
-const MESH_ANGLES = [0, 78, 150, 214].map((d) => (d * Math.PI) / 180);
+// Останній кут (секундне → анкерний вузол) — 170°: там просторо для обертової
+// кліті турбійона (перевірено числовим прототипом компоновки).
+const MESH_ANGLES = [0, 78, 150, 170].map((d) => (d * Math.PI) / 180);
 
 const pitchR = (z) => (M * z) / 2;
 const mod = (a, m) => ((a % m) + m) % m;
@@ -43,7 +45,9 @@ function meshPhase(theta, ZA, ZB, phiA) {
   return theta + Math.PI - stepB / 2 + (ZA / ZB) * tau;
 }
 
-export function buildMovement({ brass, steel, axleMat, ruby, springMat, plateMat, bluedMat, springSteel }) {
+export function buildMovement({ brass, steel, axleMat, ruby, springMat, plateMat, bluedMat, springSteel, backdropMat, cageMat }) {
+  backdropMat = backdropMat || plateMat; // сумісність, якщо не передано
+  cageMat = cageMat || plateMat;
   const root = new THREE.Group();
   const arbors = [];
   const handRefs = {};
@@ -76,13 +80,11 @@ export function buildMovement({ brass, steel, axleMat, ruby, springMat, plateMat
     });
   });
 
-  // ── Розкладка спуску: анкер і баланс продовжують дугу механізму ──
-  const ESC_R = 4.9; // зовнішній радіус анкерного колеса
-  const escDir = (330 * Math.PI) / 180; // спуск дивиться всередину петлі
+  // ── Турбійон: обертова кліть на місці анкерного вузла (arbor4) ──
   const dir2 = (a) => new THREE.Vector2(Math.cos(a), Math.sin(a));
-  const escPos = arbors[4].pos;
-  const anchorPos = escPos.clone().add(dir2(escDir).multiplyScalar(7.0));
-  const balancePos = anchorPos.clone().add(dir2(escDir).multiplyScalar(5.5)); // баланс тулиться в порожнину петлі (свій Z-шар)
+  const cagePos = arbors[4].pos;   // центр кліті = місце анкерного вузла
+  const CAGE_R = 4.3;              // радіус кліті (перевірено прототипом на 170°)
+  const CAGE_ZBASE = arbors[4].wheelZ; // 4.4 — низ кліті над передачею
 
   // ── Розкладка моторного механізму (стрілки) і заведення ──
   // Канонний тріб (12) → хвилинне колесо (36); тріб хвилинного (10) → годинне (40) → ×12.
@@ -123,12 +125,11 @@ export function buildMovement({ brass, steel, axleMat, ruby, springMat, plateMat
     .add(dir2((160 * Math.PI) / 180).multiplyScalar(((PRT_HUB + PRT_P) / 2) * PRT_M));
 
   // ── Центрування механізму навколо початку координат ──
-  const outerR = (s) => (s.escapeTeeth ? ESC_R + 0.3 : pitchR(s.wheel) + M * 1.3);
+  const outerR = (s) => (s.escapeTeeth ? CAGE_R : pitchR(s.wheel) + M * 1.3);
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
   const extents = [
     ...arbors.map((a) => ({ pos: a.pos, r: outerR(a.spec) })),
-    { pos: anchorPos, r: 1.5 },
-    { pos: balancePos, r: 3.8 },
+    { pos: cagePos, r: CAGE_R }, // обертова кліть турбійона
     { pos: P1, r: 7.9 },        // розмах найдовшої центральної стрілки (секундної)
     { pos: mwPos, r: 5.6 },     // хвилинне колесо
     { pos: csFrom, r: (CS_DRIVE * CS_M) / 2 + CS_M * 1.3 }, // ведуче колесо центральної секунди
@@ -167,18 +168,8 @@ export function buildMovement({ brass, steel, axleMat, ruby, springMat, plateMat
       w.position.z = a.wheelZ;
       g.add(w);
     }
-    if (a.spec.escapeTeeth) {
-      const e = makeEscapeWheel(
-        { teeth: a.spec.escapeTeeth, outerR: ESC_R, rootR: 3.8, thickness: 0.5, bore: AXLE_R * 0.9 },
-        brass
-      );
-      e.position.z = a.wheelZ;
-      // Фазування: при E=0 вістря зубця стоїть проти вхідної палети
-      // (світовий кут колеса = phi + E, палета на escDir + 30°).
-      const stepE = (2 * Math.PI) / a.spec.escapeTeeth;
-      e.rotation.z = mod(escDir + Math.PI / 6 - a.phi, stepE);
-      g.add(e);
-    }
+    // Анкерне колесо тепер живе в кліті турбійона (див. нижче); arbor4 несе
+    // лише триб (12), що меншить секундне колесо, і слугує обертовою кліттю.
     if (k === 0) {
       // Відкритий барабан пружини — видно змотаний мейнспринг усередині.
       const R = pitchR(48) - 1.2; // 7.2 — внутрішній радіус барабана
@@ -230,20 +221,17 @@ export function buildMovement({ brass, steel, axleMat, ruby, springMat, plateMat
     a.group = g;
   });
 
-  // ── Спусковий вузол (анкер + баланс) ──
-  const escapement = buildEscapement(
-    { brass, steel, ruby, springMat, axleMat },
-    {
-      wheelPos: escPos,
-      dirAngle: escDir,
-      wheelR: ESC_R,
-      zW: arbors[4].wheelZ,
-      anchorPos,
-      balancePos,
-      escTeeth: TRAIN[4].escapeTeeth,
-    }
+  // ── Турбійон: спуск у обертовій кліті ──
+  // Кліть = arbor4.group (уже обертається на θ_cage через привід). Нерухоме
+  // колесо ставимо в root на місці кліті, зі зсувом по Z.
+  const tourbillon = buildTourbillon(
+    { brass, steel, ruby, springMat, axleMat, plateMat: cageMat },
+    { escTeeth: TRAIN[4].escapeTeeth, fixedTeeth: 10, pinionTeeth: 10, moduleT: 0.26, cageR: CAGE_R, escDirLocal: 0 }
   );
-  root.add(escapement.group);
+  tourbillon.cage.position.z = CAGE_ZBASE;
+  arbors[4].group.add(tourbillon.cage); // обертається разом з arbor4 (θ_cage)
+  tourbillon.fixed.position.set(cagePos.x, cagePos.y, CAGE_ZBASE);
+  root.add(tourbillon.fixed);
 
   // ── Платина (задня плита) + рубінові камені під осями ──
   const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
@@ -252,14 +240,13 @@ export function buildMovement({ brass, steel, axleMat, ruby, springMat, plateMat
   for (const e of extents) {
     plateR = Math.max(plateR, Math.hypot(e.pos.x - cx, e.pos.y - cy) + e.r + plateMargin);
   }
-  const plate = new THREE.Mesh(new THREE.CylinderGeometry(plateR, plateR, 0.8, 96), plateMat);
+  const plate = new THREE.Mesh(new THREE.CylinderGeometry(plateR, plateR, 0.8, 96), backdropMat);
   plate.rotation.x = Math.PI / 2;
   plate.position.set(cx, cy, -3.2);
   plate.receiveShadow = true;
   root.add(plate);
 
-  const jewelPts = [...arbors.map((a) => a.pos), anchorPos];
-  if (Math.hypot(balancePos.x - cx, balancePos.y - cy) < plateR - 1) jewelPts.push(balancePos);
+  const jewelPts = [...arbors.map((a) => a.pos)];
   for (const p of jewelPts) {
     const jewel = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.4, 20), ruby);
     jewel.rotation.x = Math.PI / 2;
@@ -725,8 +712,7 @@ export function buildMovement({ brass, steel, axleMat, ruby, springMat, plateMat
   // ── Точки фокуса (для підписів і пресетів камери) ──
   const focusPoints = [
     ...arbors.map((a) => ({ name: a.name, pos: a.pos, z: a.wheelZ, r: outerR(a.spec) })),
-    { name: 'Анкер', pos: anchorPos, z: arbors[4].wheelZ, r: 2.2 },
-    { name: 'Баланс', pos: balancePos, z: arbors[4].wheelZ + 1.3, r: 3.6 },
+    { name: 'Турбійон', pos: cagePos, z: CAGE_ZBASE + 1.8, r: CAGE_R },
     { name: 'Стрілки', pos: P1, z: 10.0, r: 4.5 },
     { name: 'Заведення', pos: cwPos, z: 2.0, r: 4.5 },
     { name: 'Собачка', pos: clickPivot, z: WIND_Z, r: 1.4 },
@@ -755,11 +741,12 @@ export function buildMovement({ brass, steel, axleMat, ruby, springMat, plateMat
   }
   update(0);
 
-  // Головний вхід: час → баланс/анкер → кут анкерного колеса → вся передача.
+  // Головний вхід: час → баланс/спуск у кліті → кут кліті θ_cage → вся передача.
+  // θ_cage = β (Zf = Zp), і arbor4.group (кліть) обертається на phi4 + β.
   function setTime(t, { beatHz, amplitude }) {
-    const E = escapement.update(t, beatHz, amplitude);
-    update(E / arbors[4].omega);
-    return E;
+    const beta = tourbillon.update(t, beatHz, amplitude);
+    update(beta / arbors[4].omega);
+    return beta;
   }
 
   function clockAngle(unit) {
@@ -771,11 +758,11 @@ export function buildMovement({ brass, steel, axleMat, ruby, springMat, plateMat
   // стрілки накладаються поверх на істинний час годинника через handRefs.
   // beatT — безперервна фаза ходу (реальний час), окремо від годинника на стрілках.
   function setClockTime(date, beatT, { beatHz, amplitude }) {
-    // 1) Спуск веде передачу — точно тим самим шляхом, що й демо-режим.
-    const E = escapement.update(beatT, beatHz, amplitude);
+    // 1) Спуск (у кліті) веде передачу — точно тим самим шляхом, що й демо.
+    const beta = tourbillon.update(beatT, beatHz, amplitude);
     // Автопідзавод: докручуємо храповик рівно так, щоб водило диференціала
     // (стрілка запасу ходу) стояло: dθ_C = 0 ⇔ dw = (RB/RA)·dβ.
-    const nd = E / arbors[4].omega;
+    const nd = beta / arbors[4].omega;
     if (nd > lastDrive) {
       windAngle += (RB / RA) * (nd - lastDrive);
       ratchetG.rotation.z = -windAngle; // контр-обертання (див. syncDiff)
@@ -798,7 +785,7 @@ export function buildMovement({ brass, steel, axleMat, ruby, springMat, plateMat
   }
 
   return {
-    root, arbors, update, setTime, setClockTime, escapement, size, focusPoints, winder,
+    root, arbors, update, setTime, setClockTime, tourbillon, size, focusPoints, winder,
     bounds: { minX, maxX, minY, maxY, cx, cy, plateR },
     centralSeconds: { drive: csDriveGear, idler: csIdlerGroup, center: centralSecondsGroup },
     motionWorks: { cannonSub, mwArbor, hourGroup, csDriveGear, csIdlerGroup, centralSecondsGroup },

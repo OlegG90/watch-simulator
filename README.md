@@ -11,6 +11,7 @@ Built with **Three.js** + **Vite**. All geometry is generated procedurally in co
 
 - **Going train** — barrel → center → intermediate → seconds → escape wheel, with correct gear ratios.
 - **Swiss lever escapement** — escape wheel, pallet fork with ruby pallets, balance wheel with hairspring; the whole movement is driven stepwise by the balance ("tick–tock").
+- **Tourbillon** — the entire escapement rides in a rotating cage (blued steel, 12 s/rev) whose pinion rolls around a fixed wheel; timing is unchanged.
 - **Motion works & hands** — hour, minute and central seconds hands (12:1), raised to the top of the central staff.
 - **Winding** — ratchet, crown wheel and winding crown; "wind the mainspring" animation.
 - **Open barrel** — the drum is open so the coiled mainspring is visible inside.
@@ -72,8 +73,19 @@ Pallets at $\pm30°$ from the line of centers (span 2.5 teeth), fork throw $F_{m
 ### 6. Balance wheel
 
 - $\theta_b(u) = A\sin(\pi u)$, $u = t\,f_{beat}$; amplitude $A$ = 90–270°, beat rate $f_{beat}$ = 0.5–6 beats/s (sliders).
-- Balance zero crossings (integer $u$) trigger the fork flip and the escape-wheel step. **The whole movement is driven by the escapement:** $driveAngle = E/\omega_4$.
-- Verified: $\theta_b$ at half-beat $=A$ exactly, at beat $=0$ exactly; seconds-wheel period $=\dfrac{2\pi}{(\omega_3/\omega_4)\cdot \frac{\pi}{15} f_{beat}} = 32$ s at $f_{beat}=2.5$.
+- Balance zero crossings (integer $u$) trigger the fork flip and the escape-wheel step. **The whole movement is driven by the escapement:** $driveAngle = \beta/\omega_4$, where $\beta$ is the tourbillon cage angle (§6a).
+- In the tourbillon the balance is at the **cage center** (coaxial with the fixed wheel), radius reduced to ≈1.5.
+- Verified: $\theta_b$ at half-beat $=A$ exactly, at beat $=0$ exactly; seconds-wheel period $= 32$ s at $f_{beat}=2.5$ (the tourbillon does not change timing).
+
+### 6a. Tourbillon
+
+The entire escapement (escape wheel + pallet fork + balance + hairspring) lives inside a **rotating cage**. The cage IS the escape arbor (arbor4): it carries the pinion (12) that meshes the seconds wheel and turns as the cage. The escape pinion ($Z_p$) rolls around a **fixed wheel** ($Z_f$) at the cage center.
+
+- **Key identity:** with $Z_f = Z_p$ the cage angle equals the escapement beat, $\theta_{cage} = \beta\cdot\frac{Z_p}{Z_f} = \beta$. So $\theta_{cage}$ **replaces** the old escape-wheel angle in the drive — the movement's timing is unchanged (the tourbillon doesn't affect the rate, it only averages the error — physically correct).
+- Cage period = the old escape arbor's period = **12 s** (at 2.5 beats/s); the escape wheel relative to the cage is also 12 s/rev, so 6 s/rev absolute.
+- The fixed wheel stays put (pinned to the plate through a post to the cage center); the cage, balance, fork and escape wheel rotate around it.
+- Compact geometry: cage module $m_T=0.26$, $Z_f=Z_p=10$ → escape arbor 2.6 from center; cage radius 4.3 (two cut-out plates + 3 pillars), fits the existing footprint (the plate does not grow).
+- Verified: cage = arbor4.group, 12 s period; the fixed wheel does not rotate while the cage does; escape wheel relative to cage = $\beta$; seconds-wheel period 32 s; real-time hand angles exact.
 
 ### 7. Hairspring
 
@@ -138,6 +150,7 @@ Polyline of 200 points: $\alpha(f) = \theta_b(1-f) + f\Phi - \Phi + \lambda$, $r
 7. **Hairspring** "breathes" in a simplified way (linear angle interpolation along the coils), without length conservation.
 8. **Winding** moves during the button animation and auto-winding; the click ratchets kinematically (angle from the tooth phase), but physical contact and locking are not modeled.
 9. **No bearings/bridges:** arbors float visually; the plate is decorative.
+9a. **Tourbillon:** kinematics are exact (cage angle = $\beta$ with $Z_f=Z_p$, timing unchanged, escape pinion rolls around the fixed wheel), but escape-pinion↔fixed-wheel tooth phasing is approximate and the physical purpose of a tourbillon (averaging the balance's positional error) is not reproduced in a scripted model — it is a purely visual/kinematic complication.
 10. **Power reserve differential:** the kinematics are exact (carrier condition, sun immobility, mesh invariants), but sun↔planet bevel tooth phasing is approximate (profiles are not conjugate), the sector scale floats without bridges, and the winding input is taken off the ratchet rather than the barrel arbor (equivalent — they are rigidly coupled).
 11. **Verification precision:** mesh invariants, gear ratios, hand angles and cone tangency are exact to machine precision (<1e−6); layout collisions are checked by bounding-sphere scans (threshold: XY overlap > 1.3 units with Z intersection).
 
