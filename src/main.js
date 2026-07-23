@@ -145,13 +145,9 @@ const cams = {
     const hTan = vTan * camera.aspect;
     fly.flyTo(viewDir.clone().multiplyScalar((fitR / Math.min(vTan, hTan)) * 1.05), new THREE.Vector3());
   },
-  'Барабан': () => goto(worldOf('Барабан'), 26),
-  'Передача': () => goto(worldOf('Проміжне колесо'), 34, 4),
-  'Спуск': () => goto(worldOf('Анкер'), 22),
-  'Баланс': () => goto(worldOf('Баланс'), 16, 1),
   'Стрілки': () => goto(worldOf('Стрілки'), 22, 4),
-  'Заведення': () => goto(worldOf('Заведення'), 18),
   'Запас ходу': () => goto(worldOf('Запас ходу'), 13, 1),
+  'Турбійон': () => goto(worldOf('Турбійон'), 15, 3),
 };
 const camF = gui.addFolder('Камера');
 for (const k of Object.keys(cams)) camF.add(cams, k);
