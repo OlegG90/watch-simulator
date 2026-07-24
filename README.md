@@ -176,6 +176,16 @@ npm run build
 npm run preview
 ```
 
+### Serve as plain static files
+
+`npm run build` produces a self-contained `dist/` (one `index.html` + one bundle),
+so it can be served by any static HTTP server — no Node needed:
+
+```bash
+npm run build
+python -m http.server 8642 --directory dist   # http://localhost:8642 (also on your LAN)
+```
+
 ## Tests
 
 ```bash
