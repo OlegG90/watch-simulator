@@ -121,8 +121,14 @@ const powerUI = { power: 75 };
 gui.add(powerUI, 'power', 0, 100, 1).name('Завод, %').listen().disable();
 gui.add(labels, 'visible').name('Підписи');
 const nodes = gui.addFolder('Вузли');
-for (const a of movement.arbors) nodes.add(a.group, 'visible').name(a.name);
-nodes.add(movement.tourbillon.cage, 'visible').name('Турбійон (кліть)');
+// Анкерний вузол — це і є кліть турбійона (кліть сидить на його осі), тож у
+// списку він один раз, під назвою «Турбійон»: тумблер ховає весь вузол разом
+// із кліттю. Нерухоме колесо стоїть окремо в сцені, баланс — усередині кліті.
+const cageArbor = movement.arbors.find((a) => a.spec.escapeTeeth);
+for (const a of movement.arbors) {
+  if (a !== cageArbor) nodes.add(a.group, 'visible').name(a.name);
+}
+nodes.add(cageArbor.group, 'visible').name('Турбійон');
 nodes.add(movement.tourbillon.fixed, 'visible').name('Нерухоме колесо');
 nodes.add(movement.tourbillon.balance, 'visible').name('Баланс');
 const mwVis = { hands: true, winding: true };
