@@ -177,7 +177,10 @@ export function buildMovement({ brass, steel, axleMat, ruby, springMat, plateMat
 
   // ── Точки фокуса (для підписів і пресетів камери) ─────────────────
   const focusPoints = [
-    ...arbors.map((a) => ({ name: a.name, pos: a.pos, z: a.wheelZ, r: arborOuterR(a.spec, CAGE_R) })),
+    // Анкерний вузол окремо не підписуємо: це і є кліть турбійона — та сама вісь,
+    // тож два підписи в одній точці накладалися б. Його позначає «Турбійон».
+    ...arbors.filter((a) => !a.spec.escapeTeeth)
+      .map((a) => ({ name: a.name, pos: a.pos, z: a.wheelZ, r: arborOuterR(a.spec, CAGE_R) })),
     { name: 'Турбійон', pos: cagePos, z: CAGE_ZBASE + 1.8, r: CAGE_R },
     { name: 'Стрілки', pos: mwL.P1, z: 10.0, r: 4.5 },
     { name: 'Заведення', pos: windL.cwPos, z: 2.0, r: 4.5 },
