@@ -195,6 +195,46 @@ Or serve an existing `dist/` with any static server:
 python -m http.server 8642 --directory dist
 ```
 
+## Source layout
+
+One file per mechanism module, mirroring *Mechanism elements* above. `movement.js` is a
+composer, not a monolith.
+
+```text
+src/
+  main.js          scene, render loop, lil-gui, time modes
+  movement.js      composer: layout → bounds → module assembly → kinematics  §13
+  common.js        shared constants and helpers (meshPhase, makeAxle, makeHandAssembly)
+  gear.js          procedural geometry: gears, bevel gears, hands, spirals
+  train.js         going train (TRAIN table, MESH_ANGLES)                    §3
+  barrel.js        barrel and mainspring                                     §1, §2
+  tourbillon.js    cage: escape wheel, fork, balance, hairspring             §4–§7
+  motionWorks.js   motion works, central seconds, hands                      §8–§10
+  winding.js       ratchet, crown wheel, bevel pair, click, stem             §11
+  powerReserve.js  bevel differential and sector scale                       §12
+  ui.js            node labels and camera presets
+```
+
+There is no `escapement.js` — the escapement lives inside the cage in `tourbillon.js`.
+
+Every module is **two-phase**:
+
+- `layout…()` returns positions **and its own `extents`** (centre + radius pairs). It runs
+  before any mesh exists, so `movement.js` can size the main plate from the whole mechanism
+  while no module needs to know about its neighbours.
+- `build…()` creates the meshes and returns its own `update()`.
+
+Keep that split: it is what lets a module move or grow without touching the rest.
+
+Two cautions for anyone refactoring the kinematics:
+
+- Almost everything is a pure function of the drive angle, but the winding stem's spin is
+  **not** — it accumulates, because auto-winding advances the ratchet without turning the
+  crown. Rewriting it as a function of the ratchet angle silently breaks that.
+- The test suite alone is not enough cover for a large refactor. Diff the scene graph
+  against the previous build (world transform of every mesh across idle / demo / manual
+  wind / auto-wind states); that is what caught the crown-spin regression above.
+
 ## Tests
 
 ```bash
