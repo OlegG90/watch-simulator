@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v1.1.0 — 2026-09-06
 
 ### Changed
 
@@ -32,7 +32,7 @@
 - Documented that the fixed wheel's post and the cage arbor are coaxial and
   interpenetrate (a real calibre would use a hollow cage arbor).
 
-## v1.0.0
+## v1.0.0 — 2026-07-23
 
 First complete release — a browser 3D model of a simple mechanical watch
 movement (no dial), built procedurally with Three.js + Vite, with a headless
