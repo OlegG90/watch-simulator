@@ -15,11 +15,12 @@ import { TRAIN, layoutTrain } from '../train.js';
 import { pitchR, WHEEL_T, PINION_T } from '../common.js';
 import { LAYERS as BARREL } from '../barrel.js';
 import { LAYERS as WIND, RATCHET_T, CROWN_T, RATCH_M } from '../winding.js';
-import { LAYERS as PR, PRT_HUB, PRT_P, PRT_W, PRT_G, PRT_M } from '../powerReserve.js';
-import { LAYERS as MW, CANNON_T, MINUTE_T, MW_PINION_T, HOUR_T, MW_M1, MW_M2, CS_DRIVE, CS_IDLER, CS_PINION } from '../motionWorks.js';
-import { LAYERS as CAGE } from '../tourbillon.js';
+import { LAYERS as PR, PRT_HUB, PRT_P, PRT_W, PRT_G, PRT_M, SUN_T, DIFF_M, DIAL_R, PR_HAND_L } from '../powerReserve.js';
+import { LAYERS as MW, CANNON_T, MINUTE_T, MW_PINION_T, HOUR_T, MW_M1, MW_M2,
+         CS_DRIVE, CS_IDLER, CS_PINION, HAND_L, layoutMotionWorks } from '../motionWorks.js';
+import { LAYERS as CAGE, balanceR } from '../tourbillon.js';
+import { CAGE_R } from '../movement.js';
 
-const CAGE_R = 4.3;
 const V_EXAGGERATION = 2; // інакше шари в 1.1 зливаються; підписано у в'юпорті
 
 /**
@@ -75,9 +76,9 @@ export function sectionParts() {
   add({ u: uIdler, z0: PR.hubWheel, z1: PR.hubWheel + 0.5, r: pitchR(PRT_P, PRT_M), mod: 'powerReserve', kind: 'pinion' });
   add({ u: uIdler, z0: PR.idlerWheel, z1: PR.idlerWheel + 0.5, r: pitchR(PRT_W, PRT_M), mod: 'powerReserve', kind: 'wheel' });
   add({ u: 0, z0: PR.idlerWheel, z1: PR.idlerWheel + 0.5, r: pitchR(PRT_G, PRT_M), mod: 'powerReserve', kind: 'wheel' });
-  add({ u: 0, z0: PR.suns - 0.2, z1: PR.suns + 0.2, r: 2.24, mod: 'powerReserve', kind: 'sun' });
-  add({ u: 0, z0: PR.dial, z1: PR.dial + 0.1, r: 3.05, mod: 'powerReserve', kind: 'flat' });
-  add({ u: 0, z0: PR.hand, z1: PR.hand + 0.14, r: 2.5, mod: 'powerReserve', kind: 'hand', labelKey: 'part.powerReserve' });
+  add({ u: 0, z0: PR.suns - 0.2, z1: PR.suns + 0.2, r: pitchR(SUN_T, DIFF_M), mod: 'powerReserve', kind: 'sun' });
+  add({ u: 0, z0: PR.dial, z1: PR.dial + 0.1, r: DIAL_R, mod: 'powerReserve', kind: 'flat' });
+  add({ u: 0, z0: PR.hand, z1: PR.hand + 0.14, r: PR_HAND_L, mod: 'powerReserve', kind: 'hand', labelKey: 'part.powerReserve' });
 
   // ── Індикація: канон і годинне на центральній осі, хвилинний вузол збоку ──
   const uc = u[1];
@@ -88,23 +89,25 @@ export function sectionParts() {
   add({ u: uc, z0: MW.hourWheel, z1: MW.hourWheel + 0.5, r: pitchR(HOUR_T, MW_M2), mod: 'motionWorks', kind: 'wheel' });
 
   // Центральна секунда: ведуче на секундній осі, проміжне між ними, тріб у центрі.
-  const csM = 0.29508; // модуль підганяється під фактичну відстань осей
+  // Модуль центральної секунди підганяється під фактичну відстань осей —
+  // беремо його з розкладки, а не переписуємо число сюди.
+  const csM = layoutMotionWorks(arbors).CS_M;
   add({ u: u[3], z0: MW.centralSeconds, z1: MW.centralSeconds + 0.45, r: pitchR(CS_DRIVE, csM), mod: 'motionWorks', kind: 'wheel' });
   add({ u: uc, z0: MW.centralSeconds, z1: MW.centralSeconds + 0.55, r: pitchR(CS_PINION, csM), mod: 'motionWorks', kind: 'pinion' });
   const uCsIdler = uc + ((CS_IDLER + CS_PINION) / 2) * csM;
   add({ u: uCsIdler, z0: MW.centralSeconds, z1: MW.centralSeconds + 0.45, r: pitchR(CS_IDLER, csM), mod: 'motionWorks', kind: 'wheel' });
 
   // Три стрілки на одній осі — вкладені трубки видно саме тут.
-  add({ u: uc, z0: MW.hands.hour, z1: MW.hands.hour + 0.14, r: 5.6, mod: 'motionWorks', kind: 'hand' });
-  add({ u: uc, z0: MW.hands.minute, z1: MW.hands.minute + 0.14, r: 7.0, mod: 'motionWorks', kind: 'hand' });
-  add({ u: uc, z0: MW.hands.second, z1: MW.hands.second + 0.14, r: 7.4, mod: 'motionWorks', kind: 'hand',
+  add({ u: uc, z0: MW.hands.hour, z1: MW.hands.hour + 0.14, r: HAND_L.hour, mod: 'motionWorks', kind: 'hand' });
+  add({ u: uc, z0: MW.hands.minute, z1: MW.hands.minute + 0.14, r: HAND_L.minute, mod: 'motionWorks', kind: 'hand' });
+  add({ u: uc, z0: MW.hands.second, z1: MW.hands.second + 0.14, r: HAND_L.second, mod: 'motionWorks', kind: 'hand',
         labelKey: 'part.hands' });
 
   // ── Кліть турбійона: вежа з двох платівок ──
   const base = arbors[4].wheelZ;
   add({ u: u[4], z0: base + CAGE.bottom, z1: base + CAGE.top, r: CAGE_R, mod: 'tourbillon', kind: 'cage',
         labelKey: 'part.tourbillon' });
-  add({ u: u[4], z0: base + CAGE.balance - 0.1, z1: base + CAGE.balance + 0.1, r: 1.5, mod: 'tourbillon', kind: 'flat' });
+  add({ u: u[4], z0: base + CAGE.balance - 0.1, z1: base + CAGE.balance + 0.1, r: balanceR(CAGE_R), mod: 'tourbillon', kind: 'flat' });
 
   // ── Платина ──
   const uMin = Math.min(...parts.map((p) => p.u - p.r));

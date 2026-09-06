@@ -6,6 +6,9 @@ import { tagModule } from './common.js';
 /** Локальні Z-рівні кліті (від її основи) — спільні з розрізом збоку. */
 export const LAYERS = { bottom: -0.55, pin: 0, escape: 0.55, fork: 0.95, balance: 1.75, hair: 2.25, top: 2.6 };
 
+/** Радіус обода балансу: або власний розмір, або скільки лишає кліть. */
+export const balanceR = (cageR) => Math.min(1.95, cageR - 1.95);
+
 const FORK_MAX = 0.14;   // розмах анкера, рад
 const FLIP_W = 0.12;     // пів-ширина вікна перекидання, частка удару
 const smooth = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
@@ -33,7 +36,7 @@ function bar(from, to, w, t, material) {
  * (у нас — arbor4.group); нерухоме колесо додається окремо, у нерухому групу.
  */
 export function buildTourbillon(
-  { steel, brass, ruby, springMat, axleMat, plateMat },
+  { steel, brass, ruby, springMat, springSteel, axleMat, plateMat },
   { escTeeth = 15, fixedTeeth = 10, pinionTeeth = 10, moduleT = 0.26, cageR = 4.3, escDirLocal = 0 }
 ) {
   const cage = new THREE.Group();   // обертова частина (додати до arbor4.group)
@@ -81,20 +84,43 @@ export function buildTourbillon(
   cage.add(escSub);
 
   // ── Вилка (анкер) — між анкерним колесом і балансом у центрі ──
+  // Рубінові палети — гранований фізичний матеріал з transmission, щоб камінь
+  // просвічувався і мав відблиск, на відміну від матового Box.
+  const palletMat = new THREE.MeshPhysicalMaterial({
+    color: 0xc0304a, roughness: 0.12, metalness: 0.0,
+    transmission: 0.28, thickness: 0.4, ior: 1.76,
+    emissive: 0x1a050a, emissiveIntensity: 0.25,
+    clearcoat: 0.6, clearcoatRoughness: 0.15,
+  });
+  // Імпульсний камінь балансу теж фізичний — просвічує.
+  const impulseRubyMat = palletMat.clone();
+  impulseRubyMat.emissiveIntensity = 0.18;
   const fork = new THREE.Group();
   const forkPivot = dir2(escDirLocal).multiplyScalar(escOff * 0.52); // ближче до центра
   fork.position.set(forkPivot.x, forkPivot.y, zFork);
   {
-    const toEscLocal = escCenter.clone().sub(forkPivot);
     // Палети на ободі анкерного колеса, ±30° від лінії до балансу.
     const inward = escDirLocal + Math.PI; // від анкерного колеса до центра
     for (const s of [+1, -1]) {
       const rimPt = escCenter.clone().add(dir2(inward + s * (30 * Math.PI) / 180).multiplyScalar(escR - 0.12));
       const local = rimPt.clone().sub(forkPivot);
       fork.add(bar(new THREE.Vector2(0, 0), local, 0.3, 0.28, steel));
-      const stone = new THREE.Mesh(new THREE.BoxGeometry(0.3, 0.6, 0.4), ruby);
+      // Гранована призма замість Box — фаска через bevel Extrude.
+      const pShape = new THREE.Shape();
+      const pw = 0.3, ph = 0.6;
+      pShape.moveTo(-pw / 2, -ph / 2);
+      pShape.lineTo(pw / 2, -ph / 2);
+      pShape.lineTo(pw / 2, ph / 2);
+      pShape.lineTo(-pw / 2, ph / 2);
+      pShape.closePath();
+      const pGeo = new THREE.ExtrudeGeometry(pShape, {
+        depth: 0.4, bevelEnabled: true, bevelThickness: 0.04, bevelSize: 0.035, bevelSegments: 2,
+      });
+      pGeo.translate(0, 0, -0.2);
+      const stone = new THREE.Mesh(pGeo, palletMat);
       stone.position.set(local.x, local.y, 0);
       stone.rotation.z = inward + s * (30 * Math.PI) / 180;
+      stone.castShadow = true;
       fork.add(stone);
     }
     // Стрижень до центра (балансу) + ріжки.
@@ -106,17 +132,38 @@ export function buildTourbillon(
   }
   cage.add(fork);
 
-  // ── Баланс — у ЦЕНТРІ кліті (коаксіально з нерухомим колесом) ──
+  // ── Баланс — у ЦЕНТРІ кліті (коаксіально з нерухомим колесом) — збільшено для видимості ──
   const balance = new THREE.Group();
   balance.position.z = zBal;
-  const balR = Math.min(1.5, cageR - 2.4);
-  const rim = new THREE.Mesh(new THREE.TorusGeometry(balR, 0.16, 10, 40), brass);
+  const balR = balanceR(cageR);
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(balR, 0.18, 16, 64), brass);
   rim.castShadow = true;
+  rim.receiveShadow = true;
   balance.add(rim);
   for (const a of [0, Math.PI / 2]) {
     const spoke = new THREE.Mesh(new THREE.BoxGeometry(balR * 2 - 0.15, 0.16, 0.16), brass);
     spoke.rotation.z = a;
+    spoke.castShadow = true;
     balance.add(spoke);
+  }
+  // Регулювальні гвинти/ваги на ободі — 4 шт хрест-навхрест з офсетом, щоб не збігались зі спицями.
+  const screwGeo = new THREE.CylinderGeometry(0.09, 0.09, 0.26, 12);
+  for (let i = 0; i < 4; i++) {
+    const a = (i * Math.PI * 2) / 4 + Math.PI / 8;
+    const sx = Math.cos(a) * balR, sy = Math.sin(a) * balR;
+    const screw = new THREE.Mesh(screwGeo, steel);
+    screw.position.set(sx, sy, 0.08);
+    // Гвинт стирчить радіально назовні.
+    screw.rotation.z = a;
+    screw.rotation.x = Math.PI / 2;
+    screw.castShadow = true;
+    balance.add(screw);
+    const head = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 0.06, 12), steel);
+    head.position.set(Math.cos(a) * (balR + 0.07), Math.sin(a) * (balR + 0.07), 0.08);
+    head.rotation.z = a;
+    head.rotation.x = Math.PI / 2;
+    head.castShadow = true;
+    balance.add(head);
   }
   const balHub = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, 0.5, 16), steel);
   balHub.rotation.x = Math.PI / 2;
@@ -125,62 +172,141 @@ export function buildTourbillon(
   balAxle.rotation.x = Math.PI / 2;
   balAxle.position.z = -0.35;
   balance.add(balAxle);
-  // Імпульсний палець (у площину вилки).
-  const pin = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 1.1, 10), ruby);
-  pin.rotation.x = Math.PI / 2;
+  // Імпульсний камінь — прямокутна призма рубіну з фаскою (не циліндр).
+  const impulseGeo = new THREE.BoxGeometry(0.18, 0.28, 0.9);
+  const pin = new THREE.Mesh(impulseGeo, impulseRubyMat);
   const pinPos = dir2(escDirLocal).multiplyScalar(0.45);
-  pin.position.set(pinPos.x, pinPos.y, -0.7);
+  pin.position.set(pinPos.x, pinPos.y, -0.68);
   balance.add(pin);
   cage.add(balance);
 
-  // ── Спіраль (волосок): зовнішній кінець на кліті, внутрішній — на балансі ──
-  const N = 160, TURNS = 4, R0 = 0.32, R1 = Math.min(1.25, balR - 0.15);
+  // ── Спіраль (волосок): об'ємна трубка з Breguet overcoil ──
+  // Зовнішній кінець на кліті (stud), внутрішній — на балансі. TubeGeometry дає
+  // реальну товщину (видно під кутом і з відстані), на відміну від Line 1px.
+  const N = 120, TURNS = 4, R0 = 0.32, R1 = Math.min(1.65, balR - 0.08);
+  const OVERCOIL_F = 0.85, OVERCOIL_H = 0.18, HAIR_R = 0.034;
   const hairGroup = new THREE.Group();
   hairGroup.position.z = zHair;
-  const hairGeo = new THREE.BufferGeometry();
-  hairGeo.setAttribute('position', new THREE.BufferAttribute(new Float32Array(N * 3), 3));
-  const hair = new THREE.Line(hairGeo, springMat);
+  // Матеріал трубки — об'ємний метал, не LineBasicMaterial.
+  let hairMat = springSteel || springMat;
+  if (hairMat && hairMat.isLineBasicMaterial) {
+    hairMat = springSteel || new THREE.MeshStandardMaterial({ color: 0x9aa1ab, roughness: 0.32, metalness: 0.95 });
+  }
+  hairMat = hairMat.clone();
+  // Підсилюємо контраст відносно вороненої кліті — трохи світліший і холодніший
+  // відтінок, щоб тонкий дріт не губився на темному тлі.
+  if (hairMat.color) hairMat.color.setHex(0xbfd4ff);
+  hairMat.roughness = 0.22;
+  hairMat.metalness = 0.95;
+  const hair = new THREE.Mesh(new THREE.BufferGeometry(), hairMat);
+  hair.castShadow = true;
   hairGroup.add(hair);
   const stud = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.24, 0.35), steel);
-  stud.position.set(Math.cos(escDirLocal) * R1, Math.sin(escDirLocal) * R1, 0);
+  stud.position.set(Math.cos(escDirLocal) * R1, Math.sin(escDirLocal) * R1, OVERCOIL_H);
   hairGroup.add(stud);
   cage.add(hairGroup);
   const PHI_TOT = TURNS * Math.PI * 2;
   function updateHair(thetaB) {
-    const pos = hairGeo.attributes.position;
+    const points = [];
     for (let j = 0; j < N; j++) {
       const f = j / (N - 1);
       const ang = thetaB * (1 - f) + f * PHI_TOT - PHI_TOT + escDirLocal;
-      const r = R0 + (R1 - R0) * f;
-      pos.setXYZ(j, Math.cos(ang) * r, Math.sin(ang) * r, 0);
+      let r = R0 + (R1 - R0) * f;
+      let z = 0;
+      if (f > OVERCOIL_F) {
+        const t = (f - OVERCOIL_F) / (1 - OVERCOIL_F);
+        const s = t * t * (3 - 2 * t); // smoothstep
+        z = s * OVERCOIL_H;
+        r = THREE.MathUtils.lerp(r, R1 * 0.92, s * 0.35);
+      }
+      points.push(new THREE.Vector3(Math.cos(ang) * r, Math.sin(ang) * r, z));
     }
-    pos.needsUpdate = true;
+    const curve = new THREE.CatmullRomCurve3(points);
+    const newGeo = new THREE.TubeGeometry(curve, N, HAIR_R, 8, false);
+    hair.geometry.dispose();
+    hair.geometry = newGeo;
   }
 
-  // ── Кліть: дві платівки з вирізами + 3 колони ──
-  const makePlate = (z) => {
-    const ring = new THREE.Mesh(new THREE.RingGeometry(cageR - 0.85, cageR, 40), plateMat);
+  // ── Кліть: дві платівки з об'ємом і фаскою + 3 колони з оголовками ──
+  const cagePlateMat = plateMat.clone();
+  cagePlateMat.side = THREE.DoubleSide;
+  const cagePillars = [];
+  const cagePlates = [];
+  const topPlateGroup = new THREE.Group();
+  const PLATE_T = 0.11;
+  const bottomPlateGroup = new THREE.Group();
+
+  function makeCagePlate(z, targetGroup) {
+    const shape = new THREE.Shape();
+    shape.absarc(0, 0, cageR, 0, Math.PI * 2, false);
+    const hole = new THREE.Path();
+    hole.absarc(0, 0, cageR - 0.32, 0, Math.PI * 2, true);
+    shape.holes.push(hole);
+    const geo = new THREE.ExtrudeGeometry(shape, {
+      depth: PLATE_T,
+      bevelEnabled: true,
+      bevelThickness: 0.015,
+      bevelSize: 0.015,
+      bevelSegments: 2,
+      curveSegments: 48,
+    });
+    geo.translate(0, 0, -PLATE_T / 2);
+    const ring = new THREE.Mesh(geo, cagePlateMat);
     ring.position.z = z;
-    cage.add(ring);
-    // Три перемички-спиці (щоб платівка була цілісною, але прозорою).
+    ring.castShadow = true;
+    ring.receiveShadow = true;
+    targetGroup.add(ring);
+    cagePlates.push(ring);
     for (let i = 0; i < 3; i++) {
       const a = escDirLocal + Math.PI / 2 + (i * 2 * Math.PI) / 3;
-      const spoke = new THREE.Mesh(new THREE.BoxGeometry(cageR, 0.35, 0.12), plateMat);
+      const spokeGeo = new THREE.BoxGeometry(cageR * 0.96, 0.32, 0.09);
+      const spoke = new THREE.Mesh(spokeGeo, cagePlateMat);
       spoke.rotation.z = a;
-      spoke.position.set(Math.cos(a) * cageR * 0.5, Math.sin(a) * cageR * 0.5, z);
-      cage.add(spoke);
+      spoke.position.set(Math.cos(a) * cageR * 0.48, Math.sin(a) * cageR * 0.48, z);
+      spoke.castShadow = true;
+      spoke.receiveShadow = true;
+      targetGroup.add(spoke);
+      cagePlates.push(spoke);
     }
-  };
-  makePlate(zBot);
-  makePlate(zTop);
+  }
+  makeCagePlate(zBot, bottomPlateGroup);
+  makeCagePlate(zTop, topPlateGroup);
+  cage.add(bottomPlateGroup);
+  cage.add(topPlateGroup);
+
+  const pillarH = zTop - zBot;
   for (let i = 0; i < 3; i++) {
     const a = escDirLocal + Math.PI / 2 + (i * 2 * Math.PI) / 3;
-    const pillar = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, zTop - zBot, 10), steel);
-    pillar.rotation.x = Math.PI / 2;
-    pillar.position.set(Math.cos(a) * (cageR - 0.25), Math.sin(a) * (cageR - 0.25), (zBot + zTop) / 2);
-    pillar.castShadow = true;
-    cage.add(pillar);
+    const cx = Math.cos(a) * (cageR - 0.28), cy = Math.sin(a) * (cageR - 0.28);
+    const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.15, pillarH, 14), steel);
+    stem.rotation.x = Math.PI / 2;
+    stem.position.set(cx, cy, (zBot + zTop) / 2);
+    stem.castShadow = true;
+    cage.add(stem);
+    cagePillars.push(stem);
+    for (const z of [zBot, zTop]) {
+      const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.20, 0.20, 0.05, 14), steel);
+      cap.rotation.x = Math.PI / 2;
+      cap.position.set(cx, cy, z > 0 ? z - 0.015 : z + 0.015);
+      cap.castShadow = true;
+      cage.add(cap);
+      cagePillars.push(cap);
+      const screw = new THREE.Mesh(new THREE.CylinderGeometry(0.10, 0.10, 0.02, 10), axleMat);
+      screw.rotation.x = Math.PI / 2;
+      screw.position.set(cx, cy, z > 0 ? z + PLATE_T / 2 + 0.04 : z - PLATE_T / 2 - 0.04);
+      cage.add(screw);
+      cagePillars.push(screw);
+    }
   }
+
+  function setCageOpacity(op) {
+    const on = op < 1;
+    cagePlateMat.transparent = on;
+    cagePlateMat.opacity = op;
+    cagePlateMat.depthWrite = !on;
+    cagePlateMat.needsUpdate = true;
+  }
+  function setTopPlateVisible(v) { topPlateGroup.visible = v; }
 
   // ── Фазування анкерного колеса: вістря проти вхідної палети при β=0 ──
   const stepE = (2 * Math.PI) / escTeeth;
@@ -207,7 +333,11 @@ export function buildTourbillon(
 
   tagModule(cage, 'tourbillon');
   tagModule(fixed, 'tourbillon');
-  return { cage, fixed, update, balance, fork, escSub, hairGroup, cageR };
+  // Позначити внутрішні групи кліті теж, щоб підсвітка уроку не ламалась.
+  tagModule(bottomPlateGroup, 'tourbillon');
+  tagModule(topPlateGroup, 'tourbillon');
+  return { cage, fixed, update, balance, fork, escSub, hairGroup, cageR,
+           setCageOpacity, setTopPlateVisible, cagePlates, cagePillars, topPlateGroup, bottomPlateGroup };
 }
 
 function mod(a, m) { return ((a % m) + m) % m; }

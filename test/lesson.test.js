@@ -7,6 +7,13 @@ import { STATIONS } from '../src/lesson/stations.js';
 import { LANGS, dictKeys, t, tf, getLang, setLang, onLangChange } from '../src/i18n.js';
 import { readouts } from '../src/lesson/readouts.js';
 import { lineText, maybe } from '../src/lesson/cardText.js';
+import { sectionParts } from '../src/lesson/section.js';
+import { CAGE_R } from '../src/movement.js';
+import { balanceR } from '../src/tourbillon.js';
+import { HAND_L, CS_DRIVE, layoutMotionWorks } from '../src/motionWorks.js';
+import { SUN_T, DIFF_M, DIAL_R, PR_HAND_L } from '../src/powerReserve.js';
+import { layoutTrain } from '../src/train.js';
+import { pitchR } from '../src/common.js';
 
 const mat = () => new THREE.MeshStandardMaterial();
 const build = () => buildMovement({
@@ -141,6 +148,68 @@ describe('підсвітка вузла', () => {
       h.focus(s.highlight);
       expect(h.count - h.dimCount(), `станція ${s.id} нічого не підсвічує`).toBeGreaterThan(0);
     }
+  });
+
+  it('приглушені клони йдуть за каркасом, увімкненим після їх створення', () => {
+    const mv = build();
+    const h = createHighlighter(mv.root);
+    h.focus({ mods: ['tourbillon'] });          // клони створюються тут
+    const dimmedMesh = [];
+    mv.root.traverse((o) => { if (o.isMesh && o.material.opacity < 1) dimmedMesh.push(o); });
+    expect(dimmedMesh.length).toBeGreaterThan(0);
+
+    // Тумблер «Каркас» у вільному режимі перемикає ОРИГІНАЛИ матеріалів.
+    h.clear();
+    mv.root.traverse((o) => { if (o.isMesh) o.material.wireframe = true; });
+    h.focus({ mods: ['tourbillon'] });
+    for (const o of dimmedMesh) {
+      expect(o.material.wireframe, 'приглушений меш лишився суцільним').toBe(true);
+    }
+  });
+});
+
+describe('розріз збоку не має власних копій розмірів', () => {
+  const byKind = (mod, kind) =>
+    sectionParts().parts.filter((p) => p.mod === mod && p.kind === kind).map((p) => p.r);
+
+  it('кліть і баланс — з констант турбійона, а не вписані', () => {
+    expect(byKind('tourbillon', 'cage')).toEqual([CAGE_R]);
+    expect(byKind('tourbillon', 'flat')).toEqual([balanceR(CAGE_R)]);
+  });
+
+  it('стрілки й шкала — з констант своїх модулів', () => {
+    expect(byKind('motionWorks', 'hand')).toEqual([HAND_L.hour, HAND_L.minute, HAND_L.second]);
+    expect(byKind('powerReserve', 'hand')).toEqual([PR_HAND_L]);
+    expect(byKind('powerReserve', 'flat')).toEqual([DIAL_R]);
+    expect(byKind('powerReserve', 'sun')).toEqual([pitchR(SUN_T, DIFF_M)]);
+  });
+
+  it('модуль центральної секунди береться з розкладки', () => {
+    // Він виводиться з фактичної відстані осей: варто зрушити передачу —
+    // і вписане число розвело б діаграму з механізмом.
+    const csM = layoutMotionWorks(layoutTrain()).CS_M;
+    expect(byKind('motionWorks', 'wheel')).toContain(pitchR(CS_DRIVE, csM));
+  });
+});
+
+describe('знімок чисел не смітить у циклі рендеру', () => {
+  const inp = { beatHz: 2.5, amplitude: 220, speed: 1, charge: 0.5 };
+
+  it('без буфера знімки незалежні', () => {
+    const a = readouts(inp);
+    const b = readouts({ ...inp, charge: 1 });
+    expect(a).not.toBe(b);
+    expect(a.chargePct).toBe(50);
+  });
+
+  it('з буфером не створює нових об'єктів', () => {
+    const buf = {};
+    expect(readouts(inp, buf)).toBe(buf);
+    const spring = buf.spring, ratios = buf.ratios;
+    readouts({ ...inp, charge: 1 }, buf);
+    expect(buf.spring, 'вкладений об'єкт пружини перестворено').toBe(spring);
+    expect(buf.ratios, 'сталі перераховано').toBe(ratios);
+    expect(buf.chargePct).toBe(100); // і при цьому оновився
   });
 });
 

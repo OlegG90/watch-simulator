@@ -7,7 +7,8 @@ import { layoutWinding, buildWinding } from './winding.js';
 import { layoutPowerReserve, buildPowerReserve, chargeOf, windRoomAt, autoWindDelta } from './powerReserve.js';
 import { buildTourbillon } from './tourbillon.js';
 
-const CAGE_R = 4.3;       // радіус кліті турбійона (перевірено прототипом на 170°)
+/** Радіус кліті турбійона (перевірено прототипом на 170°). Розріз збоку бере його звідси. */
+export const CAGE_R = 4.3;
 const WIND_RATE = 5;      // швидкість анімації заведення, рад/с
 const WIND_CLICK = Math.PI / 2; // один «клік» = чверть оберту храповика (+0.375 заряду)
 
