@@ -58,9 +58,10 @@ const DICT = {
     'station.powerReserve.sub': 'диференціал · віднімання кутів',
 
     // ── оболонка уроку ──
-    'app.subtitle': 'дослідження механіки',
+    'app.subtitle': 'дослідження механіки годинника',
     'mode.lesson': 'Дослідження',
     'mode.free': 'Вільний режим',
+    'mode.back': '← Дослідження',
     'rail.title': 'Ланцюг енергії',
     'rail.subtitle': 'Шість зупинок: від вашого пальця на головці до кута стрілки.',
     'rail.collected': 'ЗІБРАНО ДОСІ',
@@ -137,9 +138,10 @@ const DICT = {
     'station.powerReserve.sub': 'differential · subtracting angles',
 
     // ── lesson shell ──
-    'app.subtitle': 'movement explorer',
+    'app.subtitle': 'watch movement explorer',
     'mode.lesson': 'Explore',
     'mode.free': 'Free mode',
+    'mode.back': '← Explore',
     'rail.title': 'The energy chain',
     'rail.subtitle': 'Six stops: from your finger on the crown to the angle of a hand.',
     'rail.collected': 'COLLECTED SO FAR',

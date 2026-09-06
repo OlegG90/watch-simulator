@@ -33,6 +33,11 @@ export function mountLesson({ highlighter, camera, status, onMode, params, run }
   const state = { mode: 'lesson', current: null, visited: new Set(), cam: 'cam.overview', view: 'top', finished: false };
 
   const refs = {};   // живі вузли шапки й підвала
+
+  // Вільний режим ховає всю шапку разом із перемикачем, тож повернення
+  // живе окремою кнопкою просто у сцені.
+  const back = document.getElementById('to-lesson');
+  back.addEventListener('click', () => setMode('lesson'));
   let dyn = [];      // вузли картки з живими числами: {node, fn}
 
   /** Поточний знімок чисел — сталі з констант, змінні з налаштувань і заряду. */
@@ -57,7 +62,9 @@ export function mountLesson({ highlighter, camera, status, onMode, params, run }
     h.replaceChildren();
 
     const brand = el('div', 'brand');
-    brand.append(gearIcon(), el('b', null, 'SimWatch'), el('span', null, t('app.subtitle')));
+    brand.append(gearIcon(), el('b', null, 'SimWatch'),
+                 el('span', 'ver', `v${__APP_VERSION__}`),
+                 el('span', 'sub', t('app.subtitle')));
     h.append(brand);
 
     h.append(segmented([
@@ -68,7 +75,7 @@ export function mountLesson({ highlighter, camera, status, onMode, params, run }
     h.append(el('div', 'spacer'));
 
     const st = el('div', 'status');
-    refs.mode = el('span'); refs.speed = el('b'); refs.wind = el('b');
+    refs.mode = el('span', 'mode'); refs.speed = el('b'); refs.wind = el('b');
     st.append(refs.mode, el('i', null, '·'), wrap(t('status.speed'), refs.speed),
               el('i', null, '·'), wrap(t('status.wind'), refs.wind));
     h.append(st, el('div', 'divider'));
@@ -194,8 +201,9 @@ export function mountLesson({ highlighter, camera, status, onMode, params, run }
     dyn = [];
 
     if (state.current === null) {
-      card.append(el('div', 'eyebrow', t('rail.title').toUpperCase()));
-      card.append(el('div', 'card-title', t('app.subtitle')));
+      // Порожній стан: заголовок — назва ланцюга, а не застосунку (та вже в шапці).
+      card.append(el('div', 'eyebrow', t('card.start').toUpperCase()));
+      card.append(el('div', 'card-title', t('rail.title')));
       card.append(el('div', 'placeholder', t('rail.empty')));
       card.append(navRow());
       return;
@@ -529,6 +537,7 @@ export function mountLesson({ highlighter, camera, status, onMode, params, run }
 
   function setMode(mode) {
     state.mode = mode;
+    back.hidden = mode !== 'free'; // вихід із вільного режиму — інакше двері в один бік
     state.finished = false;
     ui.classList.remove('mode-finish');
     ui.classList.toggle('mode-free', mode === 'free');
@@ -540,7 +549,7 @@ export function mountLesson({ highlighter, camera, status, onMode, params, run }
     drawSection();
   }
 
-  function renderAll() { renderHeader(); renderRail(); renderChrome(); renderCard(); renderChain(); drawSection(); }
+  function renderAll() { back.textContent = t('mode.back'); renderHeader(); renderRail(); renderChrome(); renderCard(); renderChain(); drawSection(); }
 
   /** Живі числа в шапці й підвалі — оновлюються з циклу рендеру. */
   function update() {

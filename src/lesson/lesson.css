@@ -268,3 +268,21 @@ body { font-family: var(--ui); color: var(--body); }
 .fin-actions button.primary { background: var(--brass); color: #1a1c20; font-weight: 600; }
 .fin-actions span { margin-left: auto; font: 400 11.5px/1 var(--mono); color: #5f656d; }
 .collected .more { font: 400 11px/1 var(--mono); color: #5f656d; }
+
+/* ── Версія й деградація шапки ─────────────────────────────────── */
+.brand .ver {
+  padding: 3px 7px; border-radius: 4px; background: var(--chip);
+  font: 500 10.5px/1 var(--mono); color: var(--muted);
+}
+.brand .sub { font: 400 13px/1 var(--mono); color: var(--faint); white-space: nowrap; }
+/* Коли шапці тісно, першою йде назва — вона найменш потрібна в роботі. */
+@media (max-width: 1260px) { .brand .sub { display: none; } }
+@media (max-width: 1080px) { .status .mode { display: none; } }
+
+/* ── Повернення з вільного режиму ──────────────────────────────── */
+#to-lesson {
+  position: absolute; top: 16px; left: 16px; z-index: 2;
+  border: 0; cursor: pointer; padding: 7px 13px; border-radius: 5px;
+  background: var(--chip); color: var(--body); font: 500 12px/1 var(--ui);
+}
+#to-lesson:hover { background: var(--raised); color: var(--ink); }
