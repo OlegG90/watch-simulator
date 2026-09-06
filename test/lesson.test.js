@@ -30,6 +30,16 @@ describe('i18n', () => {
     for (const l of LANGS) expect([...dictKeys(l)].sort(), `мова ${l}`).toEqual(base);
   });
 
+  it('жоден підпис GUI не вписаний повз словник', () => {
+    // Ключі-парність не ловлять хардкод: рядок, вписаний просто в `.name()`,
+    // у словник узагалі не потрапляє й лишається українським для EN.
+    const src = readFileSync(new URL('../src/main.js', import.meta.url), 'utf8');
+    const bad = [...src.matchAll(/\.name\(\s*(['"`])(.*?)\1\s*\)/g)]
+      .map((m) => m[2])
+      .filter((s) => /[Ѐ-ӿ]/.test(s) && s !== 'УКР');
+    expect(bad, 'підписи в обхід t(): ' + bad.join(' | ')).toEqual([]);
+  });
+
   it('жодне значення не порожнє', () => {
     for (const l of LANGS) {
       setLang(l);

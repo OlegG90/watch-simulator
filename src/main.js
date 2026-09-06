@@ -135,6 +135,9 @@ let gui = null;
 let uiMode = 'lesson'; // панель вільного режиму схована, поки триває урок
 const powerUI = { power: 75 };
 const mwVis = { hands: true, winding: true };
+// Поруч із mwVis, а не всередині buildGui(): зміна мови будує панель наново,
+// і локальний стан розійшовся б із тим, що вже застосовано до мешів.
+const tourbillonVis = { cageOpacity: 1.0, topPlate: true };
 // Анкерний вузол — це і є кліть турбійона (кліть сидить на його осі), тож у
 // списку він один раз, під назвою «Турбійон»: тумблер ховає весь вузол разом
 // із кліттю. Нерухоме колесо стоїть окремо в сцені, баланс — усередині кліті.
@@ -183,7 +186,6 @@ function buildGui() {
   gui.add(powerUI, 'power', 0, 100, 1).name(t('gui.charge')).listen().disable();
   gui.add(labels, 'visible').name(t('gui.labels'));
 
-  const tourbillonVis = { cageOpacity: 1.0, topPlate: true };
   const nodes = gui.addFolder(t('gui.nodes'));
   for (const a of movement.arbors) {
     if (a !== cageArbor) nodes.add(a.group, 'visible').name(t(a.nameKey));
@@ -191,8 +193,8 @@ function buildGui() {
   nodes.add(cageArbor.group, 'visible').name(t('part.tourbillon'));
   nodes.add(movement.tourbillon.fixed, 'visible').name(t('part.fixedWheel'));
   nodes.add(movement.tourbillon.balance, 'visible').name(t('part.balance'));
-  nodes.add(tourbillonVis, 'cageOpacity', 0.15, 1.0, 0.05).name('Кліть — прозорість').onChange((v) => movement.tourbillon.setCageOpacity(v));
-  nodes.add(tourbillonVis, 'topPlate').name('Кліть — верхня платівка').onChange((v) => movement.tourbillon.setTopPlateVisible(v));
+  nodes.add(tourbillonVis, 'cageOpacity', 0.15, 1.0, 0.05).name(t('gui.cageOpacity')).onChange((v) => movement.tourbillon.setCageOpacity(v));
+  nodes.add(tourbillonVis, 'topPlate').name(t('gui.cageTopPlate')).onChange((v) => movement.tourbillon.setTopPlateVisible(v));
   nodes.add(mwVis, 'hands').name(t('gui.handsAndMotionWorks')).onChange((v) => {
     for (const g of Object.values(movement.motionWorks)) g.visible = v;
   });

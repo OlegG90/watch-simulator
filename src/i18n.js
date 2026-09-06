@@ -40,6 +40,8 @@ const DICT = {
     'gui.labels': 'Підписи',
     'gui.nodes': 'Вузли',
     'gui.handsAndMotionWorks': 'Стрілки + моторний мех.',
+    'gui.cageOpacity': 'Кліть — прозорість',
+    'gui.cageTopPlate': 'Кліть — верхня платівка',
     'gui.camera': 'Камера',
     'cam.overview': 'Загальний вид',
 
@@ -120,6 +122,8 @@ const DICT = {
     'gui.labels': 'Labels',
     'gui.nodes': 'Nodes',
     'gui.handsAndMotionWorks': 'Hands + motion works',
+    'gui.cageOpacity': 'Cage opacity',
+    'gui.cageTopPlate': 'Cage top plate',
     'gui.camera': 'Camera',
     'cam.overview': 'Overview',
 
