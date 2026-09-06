@@ -1,5 +1,30 @@
 # Changelog
 
+## v2.1.1 — 2026-09-07
+
+Two things the visual overhaul left behind.
+
+### Fixed
+
+- **The hairspring rebuilt its whole mesh every frame.** `updateHair()` made a
+  fresh CatmullRom curve and a whole `TubeGeometry`, then threw the previous
+  one away: ~5.7 KB of garbage and ~285 µs per frame — more than the rest of
+  the movement put together, plus a full GPU buffer re-upload each frame. The
+  tube grid (121×9 vertices, indices, UVs) is now built once and only
+  `position` and `normal` are rewritten in place. **`setTime`: ~395 µs → ~140
+  µs per frame; the hairspring's own allocation goes to zero.** Cross-sections
+  are framed from the Z axis rather than by Frenet — the spiral's tangent never
+  turns vertical, so that is stable, cheaper, and does not twist the section
+  along the coil. Verified against the analytic curve at four balance angles:
+  axis, thickness and normal length match to Float32 precision.
+- **The two cage controls named themselves in Ukrainian**, so they stayed
+  Ukrainian in English. They now go through `i18n`, and a test scans `main.js`
+  for Cyrillic in `.name()` literals — key parity cannot catch a string that
+  never reaches a dictionary.
+- **Cage opacity and top-plate state reset on a language change.** The GUI is
+  rebuilt when the language switches, and that state lived inside the builder
+  while the cage kept whatever had been applied to it.
+
 ## v2.1.0 — 2026-09-06
 
 Finish and detail. The movement was correct but flat-looking; this release
