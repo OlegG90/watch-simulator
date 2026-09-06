@@ -1,5 +1,52 @@
 # Changelog
 
+## v2.1.0 — 2026-09-06
+
+Finish and detail. The movement was correct but flat-looking; this release
+is mostly about what the eye gets, plus the render loop the lesson layer
+had quietly made expensive.
+
+### Added
+
+- **Tourbillon cage in detail** — plates extruded with a bevel, pillars with
+  caps and screws, timing screws on the balance, and pallet stones as a
+  physical material with transmission so the rubies read as stones.
+- **Hairspring as a body**, not a line: a swept tube with a Breguet
+  overcoil, studded to the cage at one end and the balance at the other.
+- **Winding you can read** — a thickened ratchet, a 36-ridge knurled crown
+  with bevels, cap and gasket, and an extruded click lever with its ruby
+  and spring. Bevel-gear teeth now taper toward the apex, preserving the
+  cone invariant.
+- **Two cage controls** in free mode: cage opacity and top-plate visibility,
+  so the escapement inside can actually be seen.
+- A spot light on the cage, so blued steel and rubies stand out without
+  blowing out the brass.
+
+### Fixed
+
+- **The render loop allocates again — as in, no longer.** `readouts()` ran
+  every frame and rebuilt a dozen objects: 807 B per frame, 2.8 MB a
+  minute. Mechanism constants are computed once, rounding no longer goes
+  through `toFixed`, and the panel passes a reusable buffer. 807 B → 23 B
+  per frame, 3.6 µs → 0.06 µs. Free mode now skips the lesson update
+  entirely: it is the pre-lesson app and should not pay for the lesson.
+- **The side view kept its own copies of the mechanism's dimensions** —
+  the cage radius, the central-seconds module, hand lengths and the
+  differential radii were typed into `section.js`, contradicting the
+  promise in its own header. Every one of them is now derived from the
+  module that owns it. This surfaced a real error: the balance rim was
+  drawn at 1.5 where the mesh has 1.95.
+- **Dimmed material clones ignored a later wireframe toggle.** Turning on
+  the wireframe in free mode and returning to a station left the dimmed
+  parts solid while the highlighted ones were wireframe.
+- Two Ukrainian strings in the test suite closed their quotes early, so
+  Vite could not parse the file and half the suite silently never ran.
+
+### Removed
+
+- `createHighlighter().dispose()` — dead code that implied a managed
+  lifecycle the app does not have.
+
 ## v2.0.0 — 2026-09-06
 
 A guided layer over the simulator. On open the app is no longer a bare

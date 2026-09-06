@@ -1,6 +1,6 @@
 {
   "name": "watch-simulator",
-  "version": "2.0.0",
+  "version": "2.1.0",
   "description": "A 3D simulation of a simple mechanical watch movement — going train, Swiss lever escapement in a rotating tourbillon cage, motion works, winding with a bevel take-off, and a power-reserve differential (Three.js + Vite).",
   "type": "module",
   "scripts": {
