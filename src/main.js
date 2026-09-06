@@ -22,7 +22,7 @@ scene.background = new THREE.Color(0x1a1c20);
 // Оточення для відблисків на металі.
 const pmrem = new THREE.PMREMGenerator(renderer);
 scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
-scene.environmentIntensity = 0.45;
+scene.environmentIntensity = 0.72;
 
 const camera = new THREE.PerspectiveCamera(45, 1, 0.1, 1000);
 
@@ -31,7 +31,7 @@ controls.enableDamping = true;
 controls.target.set(0, 0, 0);
 
 // ── Освітлення ────────────────────────────────────────────────────
-scene.add(new THREE.AmbientLight(0xffffff, 0.15));
+scene.add(new THREE.AmbientLight(0xffffff, 0.18));
 const key = new THREE.DirectionalLight(0xffffff, 2.2);
 key.position.set(25, 35, 30);
 key.castShadow = true;
@@ -43,9 +43,14 @@ key.shadow.camera.right = 32;
 key.shadow.camera.top = 32;
 key.shadow.camera.bottom = -32;
 scene.add(key);
-const fill = new THREE.DirectionalLight(0x88aaff, 0.5);
+const fill = new THREE.DirectionalLight(0x88aaff, 0.55);
 fill.position.set(-20, 8, -12);
 scene.add(fill);
+// Точкове підсвічування турбійона — виділяє фаски вороненої кліті та рубіни без пересвіту латуні.
+const cageSpot = new THREE.SpotLight(0xffffff, 6.0, 30, Math.PI / 6, 0.45, 1.1);
+cageSpot.castShadow = false;
+scene.add(cageSpot);
+scene.add(cageSpot.target);
 
 // ── Матеріали ─────────────────────────────────────────────────────
 const brass = new THREE.MeshStandardMaterial({ color: 0xcaa84a, roughness: 0.35, metalness: 0.9 });
@@ -59,11 +64,20 @@ const springSteel = new THREE.MeshStandardMaterial({ color: 0x9aa1ab, roughness:
 // Задня платина — темна й прохолодна, щоб латунь/сталь механізму й кліть турбійона контрастували.
 const backdropMat = new THREE.MeshStandardMaterial({ color: 0x2b3038, roughness: 0.7, metalness: 0.4 });
 // Кліть турбійона — воронена сталь: виразно виділяється на золотому тлі й серед латунних коліс.
-const cageMat = new THREE.MeshStandardMaterial({ color: 0x2f4b8c, roughness: 0.28, metalness: 0.9 });
+const cageMat = new THREE.MeshStandardMaterial({ color: 0x2f4b8c, roughness: 0.22, metalness: 0.92 });
+cageMat.envMapIntensity = 1.15;
 
 // ── Механізм (передача + спуск) ───────────────────────────────────
 const movement = buildMovement({ brass, steel, axleMat, ruby, springMat, plateMat, bluedMat, springSteel, backdropMat, cageMat });
 scene.add(movement.root);
+// Націлити спот на центр кліті (після центрування root).
+{
+  const cageWorld = new THREE.Vector3(movement.focusPoints.find((f) => f.nameKey === 'part.tourbillon').pos.x,
+                                      movement.focusPoints.find((f) => f.nameKey === 'part.tourbillon').pos.y, 2.0)
+                                      .add(movement.root.position);
+  cageSpot.position.set(cageWorld.x + 6, cageWorld.y + 8, cageWorld.z + 14);
+  cageSpot.target.position.set(cageWorld.x, cageWorld.y, cageWorld.z + 1.0);
+}
 
 // Підписи вузлів. Текст запікається в текстуру, тож при зміні мови їх
 // доводиться будувати наново — сама група лишається тією ж.
@@ -169,6 +183,7 @@ function buildGui() {
   gui.add(powerUI, 'power', 0, 100, 1).name(t('gui.charge')).listen().disable();
   gui.add(labels, 'visible').name(t('gui.labels'));
 
+  const tourbillonVis = { cageOpacity: 1.0, topPlate: true };
   const nodes = gui.addFolder(t('gui.nodes'));
   for (const a of movement.arbors) {
     if (a !== cageArbor) nodes.add(a.group, 'visible').name(t(a.nameKey));
@@ -176,6 +191,8 @@ function buildGui() {
   nodes.add(cageArbor.group, 'visible').name(t('part.tourbillon'));
   nodes.add(movement.tourbillon.fixed, 'visible').name(t('part.fixedWheel'));
   nodes.add(movement.tourbillon.balance, 'visible').name(t('part.balance'));
+  nodes.add(tourbillonVis, 'cageOpacity', 0.15, 1.0, 0.05).name('Кліть — прозорість').onChange((v) => movement.tourbillon.setCageOpacity(v));
+  nodes.add(tourbillonVis, 'topPlate').name('Кліть — верхня платівка').onChange((v) => movement.tourbillon.setTopPlateVisible(v));
   nodes.add(mwVis, 'hands').name(t('gui.handsAndMotionWorks')).onChange((v) => {
     for (const g of Object.values(movement.motionWorks)) g.visible = v;
   });
@@ -218,6 +235,7 @@ resize();
 // ── Урок ──────────────────────────────────────────────────────────
 let freeLabels = true; // стан підписів у вільному режимі
 const highlighter = createHighlighter(movement.root);
+const statusOut = { real: false, speed: 1, charge: 0, time: 0 };
 const lesson = mountLesson({
   highlighter,
   camera: {
@@ -227,12 +245,15 @@ const lesson = mountLesson({
   },
   params,
   run: (action) => { if (action === 'wind') movement.winder.wind(); },
-  status: () => ({
-    real: params.timeMode === 'real',
-    speed: params.speed,
-    charge: movement.winder.charge,
-    time: simT,
-  }),
+  // Кличеться з циклу рендеру, тому заповнює той самий об'єкт: читають його
+  // синхронно й не зберігають.
+  status: () => {
+    statusOut.real = params.timeMode === 'real';
+    statusOut.speed = params.speed;
+    statusOut.charge = movement.winder.charge;
+    statusOut.time = simT;
+    return statusOut;
+  },
   onMode: (mode) => {
     uiMode = mode;
     gui.domElement.style.display = mode === 'free' ? '' : 'none';

@@ -245,9 +245,21 @@ export function makeBevelGear({ teeth, module, thickness = 0.4, bore, pitchAngle
   // r / tan(кут) — так кут між твірною конуса й віссю точно дорівнює pitchAngleDeg.
   const g = 1 / Math.tan((pitchAngleDeg * Math.PI) / 180);
   const pos = geo.attributes.position;
+  const z0 = new Float32Array(pos.count);
+  const r0 = new Float32Array(pos.count);
+  for (let i = 0; i < pos.count; i++) { z0[i] = pos.getZ(i); r0[i] = Math.hypot(pos.getX(i), pos.getY(i)); }
+  for (let i = 0; i < pos.count; i++) pos.setZ(i, z0[i] + r0[i] * g);
+  // Звуження зубців до вершини (B2): верхня грань (початково z = +thickness/2)
+  // масштабується до ~0.78, щоб зубець тоншав до конуса, як у реальній парі.
+  // При цьому зберігаємо приналежність до конуса: z = z0 + s·r0·g, щоб lift = z - r·g == z0.
+  const topZ = thickness / 2;
   for (let i = 0; i < pos.count; i++) {
-    const r = Math.hypot(pos.getX(i), pos.getY(i));
-    pos.setZ(i, pos.getZ(i) + r * g);
+    if (z0[i] > topZ - 1e-4 && r0[i] > bore + 0.1) {
+      const s = 0.78;
+      pos.setX(i, pos.getX(i) * s);
+      pos.setY(i, pos.getY(i) * s);
+      pos.setZ(i, z0[i] + s * r0[i] * g);
+    }
   }
   geo.computeVertexNormals();
   const mesh = new THREE.Mesh(geo, material);

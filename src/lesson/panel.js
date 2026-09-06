@@ -40,11 +40,20 @@ export function mountLesson({ highlighter, camera, status, onMode, params, run }
   back.addEventListener('click', () => setMode('lesson'));
   let dyn = [];      // вузли картки з живими числами: {node, fn}
 
+  // Буфер знімка: `update()` кличеться щокадру, тож новий об'єкт на кадр
+  // означав би сміття в циклі рендеру. Знімок читається синхронно і нікуди
+  // не зберігається, тому один буфер на панель безпечний.
+  const buf = {};
+  const inp = { beatHz: 0, amplitude: 0, speed: 1, charge: 0 };
+
   /** Поточний знімок чисел — сталі з констант, змінні з налаштувань і заряду. */
-  const snap = () => readouts({
-    beatHz: params.beatHz, amplitude: params.amplitude,
-    speed: params.speed, charge: status().charge,
-  });
+  function snap() {
+    inp.beatHz = params.beatHz;
+    inp.amplitude = params.amplitude;
+    inp.speed = params.speed;
+    inp.charge = status().charge;
+    return readouts(inp, buf);
+  }
 
   /**
    * Текст, що сам себе оновлює. Перемальовувати картку щокадру не можна:
@@ -553,6 +562,9 @@ export function mountLesson({ highlighter, camera, status, onMode, params, run }
 
   /** Живі числа в шапці й підвалі — оновлюються з циклу рендеру. */
   function update() {
+    // У вільному режимі шапки й картки на екрані немає. Вільний режим — це
+    // застосунок до v2.0.0 як є, тож він не має платити за шар дослідження.
+    if (state.mode !== 'lesson') return;
     const s = status();
     const r = snap();
     for (const d of dyn) {

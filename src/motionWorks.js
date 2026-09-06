@@ -18,6 +18,8 @@ export const LAYERS = { minuteWheel: Z_MW, hourWheel: Z_HR, hands: { hour: 9.9, 
 export const CS_DRIVE = 48;
 export const CS_IDLER = 20;
 export const CS_PINION = 8;
+/** Довжини стрілок — розріз збоку бере їх звідси, а не вписує. */
+export const HAND_L = { hour: 5.6, minute: 7.0, second: 7.4 };
 const Z_CS = 9.45;
 LAYERS.centralSeconds = Z_CS;
 
@@ -67,7 +69,7 @@ export function buildMotionWorks({ brass, steel, axleMat, bluedMat }, L, arbors,
     cannonSub.add(cannon);
     cannonSub.add(makeAxle({ r: 0.4, len: 3.1, z: 8.7, segments: 16 }, steel)); // канонна трубка до верху
     handRefs.minute = makeHandAssembly(
-      { length: 7.0, width: 0.6, hubR: 0.5, hubH: 0.28, z: 10.25 }, bluedMat
+      { length: HAND_L.minute, width: 0.6, hubR: 0.5, hubH: 0.28, z: 10.25 }, bluedMat
     );
     cannonSub.add(handRefs.minute);
   }
@@ -96,7 +98,7 @@ export function buildMotionWorks({ brass, steel, axleMat, bluedMat }, L, arbors,
     hourGroup.add(wheel);
     hourGroup.add(makeAxle({ r: 0.62, len: 2.0, z: 8.9, segments: 16 }, brass)); // годинна трубка
     handRefs.hour = makeHandAssembly(
-      { length: 5.6, width: 0.7, hubR: 0.62, z: 9.9 }, bluedMat // над усіма колесами (найвище z≈9.45)
+      { length: HAND_L.hour, width: 0.7, hubR: 0.62, z: 9.9 }, bluedMat // над усіма колесами (найвище z≈9.45)
     );
     hourGroup.add(handRefs.hour);
   }
@@ -129,7 +131,7 @@ export function buildMotionWorks({ brass, steel, axleMat, bluedMat }, L, arbors,
     centralSecondsGroup.add(pinion);
     centralSecondsGroup.add(makeAxle({ r: 0.24, len: 2.2, z: 10.0, segments: 16 }, steel));
     handRefs.second = makeHandAssembly(
-      { length: 7.4, width: 0.32, tail: 0.18, hubR: 0.32, z: 10.7 }, bluedMat // зверху над хвилинною
+      { length: HAND_L.second, width: 0.32, tail: 0.18, hubR: 0.32, z: 10.7 }, bluedMat // зверху над хвилинною
     );
     centralSecondsGroup.add(handRefs.second);
   }

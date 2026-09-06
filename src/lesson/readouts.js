@@ -13,16 +13,28 @@ import { CANNON_T, MINUTE_T, MW_PINION_T, HOUR_T, MW_M1, MW_M2, CS_DRIVE, CS_IDL
 import { RATCHET_T, CROWN_T, BEVEL_W, BEVEL_P, RATCH_M } from '../winding.js';
 import { PRT_HUB, PRT_P, PRT_W, PRT_G, PRT_M, RA, RB, SWEEP } from '../powerReserve.js';
 
-const round = (x, n = 2) => Number(x.toFixed(n));
+// Арифметичне округлення, а не `toFixed`: той створює рядок на кожен виклик,
+// а це гарячий шлях. Усі величини тут додатні, тож розбіжності між
+// «половина від нуля» (toFixed) і «половина вгору» (Math.round) не виникає.
+const round = (x, n = 2) => { const p = 10 ** n; return Math.round(x * p) / p; };
 
-/** Передавальні відношення вузлів відносно барабана — тим самим правилом, що й у `layoutTrain`. */
+let RATIOS = null;
+
+/**
+ * Передавальні відношення вузлів відносно барабана — тим самим правилом, що й у `layoutTrain`.
+ *
+ * Рахується один раз: `TRAIN` незмінний, а цей масив лежить на гарячому шляху
+ * (`readouts` кличеться щокадру). Результат **спільний — не мутувати**.
+ */
 export function trainRatios() {
+  if (RATIOS) return RATIOS;
   const out = [{ nameKey: TRAIN[0].nameKey, omega: 1, pair: null }];
   for (let k = 1; k < TRAIN.length; k++) {
     const zw = TRAIN[k - 1].wheel, zp = TRAIN[k].pinion;
     out.push({ nameKey: TRAIN[k].nameKey, omega: -out[k - 1].omega * (zw / zp), pair: `${zw}/${zp}` });
   }
-  return out;
+  RATIOS = out;
+  return RATIOS;
 }
 
 /** Пів-кроку зубця анкерного колеса — стільки воно проходить за удар балансу. */
@@ -87,30 +99,27 @@ export function bevelAngles() {
 /** Крок зубця храповика — по ньому й клацає собачка. */
 export const ratchetStepDeg = () => round(360 / RATCHET_T, 2);
 
-/** Форма пружини при даному заряді. */
-export const springAt = (c) => ({
-  turns: round(SPRING_TURNS_0 + SPRING_TURNS_C * c, 1),
-  squeeze: round(SPRING_SQUEEZE * c, 2),
-});
+/** Форма пружини при даному заряді. `out` — необов'язковий буфер для гарячого шляху. */
+export function springAt(c, out = {}) {
+  out.turns = round(SPRING_TURNS_0 + SPRING_TURNS_C * c, 1);
+  out.squeeze = round(SPRING_SQUEEZE * c, 2);
+  return out;
+}
 
 /** Радіус барабанного колеса — звідки береться масштаб усього механізму. */
 export const barrelR = () => round(pitchR(TRAIN[0].wheel, M), 2);
 
+let CONST = null;
+
 /**
- * Знімок усіх чисел для картки: сталі — з констант, змінні — з поточних
- * налаштувань і заряду.
+ * Те, що взагалі не залежить від налаштувань — самі сталі механізму.
+ * Рахується один раз; ці вкладені об'єкти спільні для всіх знімків.
  */
-export function readouts({ beatHz, amplitude, speed, charge }) {
-  return {
-    beatHz, amplitude, speed, charge,
-    chargePct: Math.round(charge * 100),
+function constants() {
+  if (CONST) return CONST;
+  CONST = {
     ratios: trainRatios(),
     halfStepDeg: round((halfStep() * 180) / Math.PI, 1),
-    cagePeriod: round(cagePeriod(beatHz), 1),
-    secondsPeriod: round(secondsWheelPeriod(beatHz), 1),
-    fullRun: Math.round(runTime(beatHz, 1)),
-    // Швидкість множить модельний час, тож на екрані завод «згорає» швидше.
-    fullRunMin: round(runTime(beatHz, 1) / 60 / Math.max(speed, 0.1), 1),
     clickPct: Math.round(chargePerClick() * 1000) / 10,
     mw: motionWorks(),
     cs: centralSeconds(),
@@ -118,8 +127,47 @@ export function readouts({ beatHz, amplitude, speed, charge }) {
     bevel: bevelAngles(),
     crownTurns: round(crownPerRatchet(), 2),
     ratchetStep: ratchetStepDeg(),
-    spring: springAt(charge),
     barrelR: barrelR(),
     sweepDeg: Math.round((SWEEP * 180) / Math.PI),
   };
+  return CONST;
+}
+
+/**
+ * Знімок усіх чисел для картки: сталі — з констант, змінні — з поточних
+ * налаштувань і заряду.
+ *
+ * Функція лежить у циклі рендеру, тому не має алокувати: сталі беруться з
+ * `constants()`, а викличник із гарячого шляху передає власний буфер `out`
+ * і перевикористовує його щокадру. Без буфера повертається свіжий об'єкт —
+ * знімки лишаються незалежними для тих, хто порівнює два виклики.
+ */
+export function readouts({ beatHz, amplitude, speed, charge }, out = {}) {
+  const k = constants();
+  const run = runTime(beatHz, 1);
+
+  out.beatHz = beatHz;
+  out.amplitude = amplitude;
+  out.speed = speed;
+  out.charge = charge;
+  out.chargePct = Math.round(charge * 100);
+  out.cagePeriod = round(cagePeriod(beatHz), 1);
+  out.secondsPeriod = round(secondsWheelPeriod(beatHz), 1);
+  out.fullRun = Math.round(run);
+  // Швидкість множить модельний час, тож на екрані завод «згорає» швидше.
+  out.fullRunMin = round(run / 60 / Math.max(speed, 0.1), 1);
+  out.spring = springAt(charge, out.spring);
+
+  out.ratios = k.ratios;
+  out.halfStepDeg = k.halfStepDeg;
+  out.clickPct = k.clickPct;
+  out.mw = k.mw;
+  out.cs = k.cs;
+  out.reserve = k.reserve;
+  out.bevel = k.bevel;
+  out.crownTurns = k.crownTurns;
+  out.ratchetStep = k.ratchetStep;
+  out.barrelR = k.barrelR;
+  out.sweepDeg = k.sweepDeg;
+  return out;
 }

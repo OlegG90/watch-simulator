@@ -21,8 +21,11 @@ export const PR_FULL = deg(30);              // повний завод
 export const SWEEP = PR_EMPTY - PR_FULL;     // 120°
 const C0 = 0.75;                             // початковий заряд
 
-const DIFF_M = 0.28;              // модуль конічних коліс диференціала
-const SUN_T = 16, PLANET_T = 10;  // δ_сонця = atan(16/10) ≈ 58°, δ_планети ≈ 32°
+export const DIFF_M = 0.28;              // модуль конічних коліс диференціала
+export const SUN_T = 16;          // δ_сонця = atan(16/10) ≈ 58°
+const PLANET_T = 10;              // δ_планети ≈ 32°
+/** Радіуси шкали й стрілки — розріз збоку бере їх звідси, а не вписує. */
+export const DIAL_R = 3.05, PR_HAND_L = 2.5;
 const DELTA_SUN = Math.atan(SUN_T / PLANET_T);
 const DELTA_PL = Math.atan(PLANET_T / SUN_T);
 const Z_DIFF = 5.8;               // спільний апекс сонць/планет
@@ -147,7 +150,7 @@ export function buildPowerReserve({ brass, steel, axleMat, ruby, plateMat, blued
     carrier.add(arm);
     carrier.add(makeAxle({ r: 0.25, len: 0.9, z: Z_DIFF + 2.6 }, axleMat));
     carrier.add(makeHandAssembly(
-      { length: 2.5, width: 0.32, tail: 0.3, hubR: 0.28, hubH: 0.22, z: Z_DIFF + 3.05, segments: 14 },
+      { length: PR_HAND_L, width: 0.32, tail: 0.3, hubR: 0.28, hubH: 0.22, z: Z_DIFF + 3.05, segments: 14 },
       bluedMat
     ));
   }
@@ -157,7 +160,7 @@ export function buildPowerReserve({ brass, steel, axleMat, ruby, plateMat, blued
   {
     const pad = deg(8); // поля сектора за межами ходу стрілки
     const fan = new THREE.Mesh(
-      new THREE.RingGeometry(0.7, 3.05, 48, 1, PR_FULL - pad, SWEEP + 2 * pad), plateMat
+      new THREE.RingGeometry(0.7, DIAL_R, 48, 1, PR_FULL - pad, SWEEP + 2 * pad), plateMat
     );
     fan.position.z = Z_DIFF + 2.75;
     group.add(fan);

@@ -29,6 +29,11 @@ export function createHighlighter(root, { dimOpacity = DIM_OPACITY } = {}) {
       d.depthWrite = false;
       dimOf.set(mat, d);
     }
+    // Клон робиться один раз, а база може змінитися після цього: тумблер
+    // «Каркас» у вільному режимі перемикає саме оригінали. Без цієї звірки
+    // повернення в дослідження показало б підсвічене каркасом, а приглушене —
+    // суцільним.
+    d.wireframe = mat.wireframe;
     return d;
   }
 
@@ -55,12 +60,10 @@ export function createHighlighter(root, { dimOpacity = DIM_OPACITY } = {}) {
   /** Скільки мешів зараз приглушено (для перевірок). */
   const dimCount = () => items.filter((it) => it.obj.material !== it.base).length;
 
-  function dispose() {
-    clear();
-    for (const d of dimOf.values()) d.dispose();
-    dimOf.clear();
-  }
+  // Знищувати нічого не треба: клонів рівно стільки, скільки різних матеріалів
+  // у сцені (одиниці), а підсвітка живе стільки ж, скільки сама сторінка.
+  // `dispose()` тут був мертвим кодом і вдавав керований життєвий цикл.
 
   clear();
-  return { focus, clear, modules, dimCount, dispose, count: items.length };
+  return { focus, clear, modules, dimCount, count: items.length };
 }
