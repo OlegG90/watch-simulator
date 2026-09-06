@@ -8,6 +8,8 @@ export const SPRING_INNER_R = 1.05;
 export const SPRING_SQUEEZE = 1.2;   // на скільки вінець відходить від стінки при c = 1
 export const SPRING_TURNS_0 = 3.4;   // витків у розслабленої
 export const SPRING_TURNS_C = 3.6;   // приріст витків до повного заводу
+/** Z-рівні модуля — спільні з розрізом збоку. */
+export const LAYERS = { drumCentre: -1.5, drumHeight: 2.0 };
 export const springShape = (c, relaxedOuterR) => ({
   innerR: SPRING_INNER_R,
   outerR: relaxedOuterR - SPRING_SQUEEZE * c,

@@ -11,12 +11,15 @@ export const MW_M1 = 0.28;                  // модуль пари канон 
 export const MW_M2 = (MW_M1 * 48) / 50;     // модуль пари тріб → годинне (та сама міжосьова)
 export const MW_ANGLE = deg(120);           // хвилинне колесо — над петлею передачі
 const Z_MW = 7.2, Z_HR = 7.9;
+/** Z-рівні модуля — їх читає і розріз збоку, тож числа живуть в одному місці. */
+export const LAYERS = { minuteWheel: Z_MW, hourWheel: Z_HR, hands: { hour: 9.9, minute: 10.25, second: 10.7 } };
 
 // ── Центральна секунда: верхній місток від секундного колеса до центру ──
 export const CS_DRIVE = 48;
 export const CS_IDLER = 20;
 export const CS_PINION = 8;
 const Z_CS = 9.45;
+LAYERS.centralSeconds = Z_CS;
 
 /** Розкладка моторного вузла й центральної секунди (позиції + внесок у межі). */
 export function layoutMotionWorks(arbors) {

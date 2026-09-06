@@ -1,6 +1,8 @@
 import './lesson.css';
 import { t, tn, tf, getLang, setLang, onLangChange, LANGS } from '../i18n.js';
 import { readouts } from './readouts.js';
+import { renderSection } from './sectionView.js';
+import { lineText, maybe } from './cardText.js';
 import { STATIONS } from './stations.js';
 
 /**
@@ -28,7 +30,7 @@ const CHAIN_MAIN = ['chain.winding', 'chain.barrel', 'chain.train', 'chain.escap
 
 export function mountLesson({ highlighter, camera, status, onMode, params, run }) {
   const ui = document.getElementById('ui');
-  const state = { mode: 'lesson', current: null, visited: new Set(), cam: 'cam.overview' };
+  const state = { mode: 'lesson', current: null, visited: new Set(), cam: 'cam.overview', view: 'top' };
 
   const refs = {};   // живі вузли шапки й підвала
   let dyn = [];      // вузли картки з живими числами: {node, fn}
@@ -162,12 +164,12 @@ export function mountLesson({ highlighter, camera, status, onMode, params, run }
     }
     box.append(cams);
 
-    const view = segmented([
-      [t('view.top'), true, () => {}],
-      [t('view.side'), false, null, true], // вигляд збоку — у своїй фазі
-    ], 'mini');
-    view.lastChild.title = t('view.sideSoon');
-    box.append(view);
+    cams.style.display = state.view === 'side' ? 'none' : ''; // камера в розрізі ні до чого
+
+    box.append(segmented([
+      [t('view.top'), state.view === 'top', () => setView('top')],
+      [t('view.side'), state.view === 'side', () => setView('side')],
+    ], 'mini'));
   }
 
   // ── Картка станції ──────────────────────────────────────────────
@@ -192,7 +194,7 @@ export function mountLesson({ highlighter, camera, status, onMode, params, run }
     card.append(el('div', 'card-sub', t(`${s.nameKey}.sub`)));
 
     const prose = el('div', 'prose');
-    prose.append(s.proseVals ? live((x) => tf(s.prose, ...s.proseVals(x))) : document.createTextNode(t(s.prose)));
+    prose.append(s.proseVals ? live((x) => maybe(s.prose, s.proseVals(x))) : document.createTextNode(t(s.prose)));
     card.append(prose);
 
     const idea = el('div', 'idea');
@@ -206,11 +208,7 @@ export function mountLesson({ highlighter, camera, status, onMode, params, run }
     s.formula(r).forEach((line, i) => {
       // Рядок перечитується за індексом із свіжого знімка — так живі числа
       // оновлюються, а розмітка лишається на місці.
-      const text = (x) => {
-        const l = s.formula(x)[i];
-        if (l.note) return t(l.note);
-        return l.vals ? tf(l.key, ...l.vals) : t(l.key);
-      };
+      const text = (x) => lineText(s.formula(x)[i]);
       const isDyn = Boolean(line.vals);
       const node = el(line.note ? 'span' : 'div', line.note ? 'note' : null);
       node.append(isDyn ? live(text) : document.createTextNode(text(r)));
@@ -239,7 +237,7 @@ export function mountLesson({ highlighter, camera, status, onMode, params, run }
     for (const c of s.controls ?? []) ctl.append(control(c));
     tBlock.append(ctl);
     const hint = el('div', 'hint-text');
-    hint.append(s.hintVals ? live((x) => tf(s.hint, ...s.hintVals(x))) : document.createTextNode(t(s.hint)));
+    hint.append(s.hintVals ? live((x) => maybe(s.hint, s.hintVals(x))) : document.createTextNode(t(s.hint)));
     tBlock.append(hint);
     card.append(tBlock);
 
@@ -411,6 +409,23 @@ export function mountLesson({ highlighter, camera, status, onMode, params, run }
     return s;
   }
 
+  /** Розріз малюється з тих самих `layout…()`, що й сцена — розійтися не може. */
+  function drawSection() {
+    const host = document.getElementById('section');
+    const on = state.view === 'side' && state.mode === 'lesson';
+    host.hidden = !on;
+    document.getElementById('hint').hidden = on; // підказка про орбіту в розрізі ні до чого
+    if (!on) return;
+    const s = state.current === null ? null : STATIONS[state.current];
+    renderSection(host, s ? new Set(s.highlight.mods ?? []) : null);
+  }
+
+  function setView(v) {
+    state.view = v;
+    drawSection();
+    renderChrome();
+  }
+
   // ── Дії ─────────────────────────────────────────────────────────
   function go(i) {
     state.current = i;
@@ -419,7 +434,7 @@ export function mountLesson({ highlighter, camera, status, onMode, params, run }
     highlighter.focus(s.highlight);
     if (s.focus) { camera.toKey(s.focus); state.cam = null; }
     else { camera.overview(); state.cam = 'cam.overview'; }
-    renderRail(); renderCard(); renderChain(); renderChrome();
+    renderRail(); renderCard(); renderChain(); renderChrome(); drawSection();
   }
 
   function setMode(mode) {
@@ -430,9 +445,10 @@ export function mountLesson({ highlighter, camera, status, onMode, params, run }
     else if (state.current !== null) highlighter.focus(STATIONS[state.current].highlight);
     onMode?.(mode);
     renderHeader();
+    drawSection();
   }
 
-  function renderAll() { renderHeader(); renderRail(); renderChrome(); renderCard(); renderChain(); }
+  function renderAll() { renderHeader(); renderRail(); renderChrome(); renderCard(); renderChain(); drawSection(); }
 
   /** Живі числа в шапці й підвалі — оновлюються з циклу рендеру. */
   function update() {

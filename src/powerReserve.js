@@ -26,6 +26,8 @@ const SUN_T = 16, PLANET_T = 10;  // δ_сонця = atan(16/10) ≈ 58°, δ_п
 const DELTA_SUN = Math.atan(SUN_T / PLANET_T);
 const DELTA_PL = Math.atan(PLANET_T / SUN_T);
 const Z_DIFF = 5.8;               // спільний апекс сонць/планет
+/** Z-рівні модуля — спільні з розрізом збоку. */
+export const LAYERS = { hubWheel: 1.85, idlerWheel: 3.3, suns: Z_DIFF, arm: Z_DIFF + 2.15, dial: Z_DIFF + 2.75, hand: Z_DIFF + 3.05 };
 
 /** Заряд — ПОХІДНИЙ від двох входів диференціала, а не окрема змінна стану. */
 export const chargeOf = (w, beta) => C0 + (RA * w - RB * beta) / (2 * SWEEP);

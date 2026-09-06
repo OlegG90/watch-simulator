@@ -6,6 +6,7 @@ import { createHighlighter } from '../src/lesson/highlight.js';
 import { STATIONS } from '../src/lesson/stations.js';
 import { LANGS, dictKeys, t, tf, getLang, setLang, onLangChange } from '../src/i18n.js';
 import { readouts } from '../src/lesson/readouts.js';
+import { lineText, maybe } from '../src/lesson/cardText.js';
 
 const mat = () => new THREE.MeshStandardMaterial();
 const build = () => buildMovement({
@@ -213,15 +214,19 @@ describe('зміст карток', () => {
     for (const l of LANGS) {
       setLang(l);
       for (const s of STATIONS) {
+        // Ті самі хелпери, що й у панелі — інакше тест перевіряє намір, а не
+        // те, що справді потрапляє на екран.
         const texts = [
-          s.proseVals ? tf(s.prose, ...s.proseVals(r)) : t(s.prose),
-          s.hintVals ? tf(s.hint, ...s.hintVals(r)) : t(s.hint),
-          ...s.formula(r).map((line) => (line.vals
-            ? tf(line.key ?? line.note, ...line.vals)
-            : t(line.key ?? line.note))),
+          maybe(s.prose, s.proseVals?.(r)),
+          maybe(s.hint, s.hintVals?.(r)),
+          ...s.formula(r).map(lineText),
+          ...(s.stats?.(r) ?? []).map(([, v]) => String(v)),
         ];
+        // Шукаємо саме місця підстановки, а не знак відсотка в «+37.5 %».
+        const holes = ['%1', '%2', '%3', '%n'];
         for (const x of texts) {
-          expect(x.includes('%'), `${l}/${s.id}: лишилось «${x}»`).toBe(false);
+          const left = holes.find((h) => x.includes(h));
+          expect(left, `${l}/${s.id}: незаповнене ${left} у «${x}»`).toBeUndefined();
         }
       }
     }

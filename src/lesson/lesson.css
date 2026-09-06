@@ -222,3 +222,7 @@ body { font-family: var(--ui); color: var(--body); }
 .marker.warn { background: #262218; }
 .marker.warn span { color: #c4ab6e; }
 .marker.warn span i { color: #8a7440; font-style: normal; display: block; }
+
+/* ── Розріз збоку ──────────────────────────────────────────────── */
+#section { position: absolute; inset: 0; background: var(--ground); }
+#section svg { display: block; width: 100%; height: 100%; }
