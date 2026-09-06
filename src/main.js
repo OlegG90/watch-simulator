@@ -225,6 +225,8 @@ const lesson = mountLesson({
     overview,
     toKey: (key) => (CAMS.find(([k]) => k === key)?.[1] ?? overview)(),
   },
+  params,
+  run: (action) => { if (action === 'wind') movement.winder.wind(); },
   status: () => ({
     real: params.timeMode === 'real',
     speed: params.speed,

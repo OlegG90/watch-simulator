@@ -4,7 +4,8 @@ import * as THREE from 'three';
 import { buildMovement } from '../src/movement.js';
 import { createHighlighter } from '../src/lesson/highlight.js';
 import { STATIONS } from '../src/lesson/stations.js';
-import { LANGS, dictKeys, t, getLang, setLang, onLangChange } from '../src/i18n.js';
+import { LANGS, dictKeys, t, tf, getLang, setLang, onLangChange } from '../src/i18n.js';
+import { readouts } from '../src/lesson/readouts.js';
 
 const mat = () => new THREE.MeshStandardMaterial();
 const build = () => buildMovement({
@@ -139,5 +140,91 @@ describe('підсвітка вузла', () => {
       h.focus(s.highlight);
       expect(h.count - h.dimCount(), `станція ${s.id} нічого не підсвічує`).toBeGreaterThan(0);
     }
+  });
+});
+
+describe('живі числа карток', () => {
+  const at = (beatHz, charge = 0.75, speed = 1) =>
+    readouts({ beatHz, amplitude: 220, speed, charge });
+
+  it('відтворюють перевірені величини при 2.5 уд/с', () => {
+    const r = at(2.5);
+    expect(r.cagePeriod).toBe(12);       // той самий період, що й у тесті кліті
+    expect(r.secondsPeriod).toBe(32);    // і в тесті секундного колеса
+    expect(r.halfStepDeg).toBe(12);      // пів-кроку зубця
+    expect(r.clickPct).toBe(37.5);       // один клік заведення
+    expect(Math.round(r.fullRun)).toBe(213);
+  });
+
+  it('хід масштабує обидва періоди, а їхнє відношення лишається', () => {
+    const a = at(2.5), b = at(5);
+    expect(b.cagePeriod).toBeCloseTo(a.cagePeriod / 2, 6);
+    expect(b.secondsPeriod).toBeCloseTo(a.secondsPeriod / 2, 6);
+    // саме це й обіцяє картка: незмінне — відношення, а не самі числа
+    expect(b.secondsPeriod / b.cagePeriod).toBeCloseTo(a.secondsPeriod / a.cagePeriod, 9);
+  });
+
+  it('однакова міжосьова в обох компаундних вузлах', () => {
+    const r = at(2.5);
+    expect(r.mw.equal, 'моторний механізм').toBe(true);
+    expect(r.mw.centreA).toBe(6.72);
+    expect(r.reserve.equal, 'передача запасу ходу').toBe(true);
+    expect(r.reserve.centreA).toBe(6);
+  });
+
+  it('передавальні відношення збігаються з тестом передачі', () => {
+    const w = at(2.5).ratios.map((x) => Number(x.omega.toFixed(3)));
+    expect(w).toEqual([1, -4, 13.333, -40, 106.667]);
+  });
+
+  it('кути конічної пари доповнюють один одного до 90°', () => {
+    expect(at(2.5).bevel.sum).toBe(90);
+  });
+
+  it('заряд і швидкість входять у числа, а не вписані текстом', () => {
+    expect(at(2.5, 0).spring.turns).toBe(3.4);
+    expect(at(2.5, 1).spring.turns).toBe(7);
+    expect(at(2.5, 1, 2).fullRunMin).toBeCloseTo(at(2.5, 1, 1).fullRunMin / 2, 6);
+  });
+});
+
+describe('зміст карток', () => {
+  const r = readouts({ beatHz: 2.5, amplitude: 220, speed: 1, charge: 0.75 });
+
+  it('усі ключі карток є в обох мовах', () => {
+    const need = [];
+    for (const s of STATIONS) {
+      need.push(s.prose, s.idea, s.hint);
+      if (s.simplification) need.push(s.simplification);
+      for (const line of s.formula(r)) need.push(line.key ?? line.note);
+      for (const [label] of s.stats?.(r) ?? []) need.push(label);
+      for (const c of s.controls ?? []) {
+        if (c.labelKey) need.push(c.labelKey);
+        for (const [, key] of c.options ?? []) need.push(key);
+      }
+    }
+    for (const l of LANGS) {
+      const keys = new Set(dictKeys(l));
+      for (const k of need) expect(keys, `${l}: бракує ${k}`).toContain(k);
+    }
+  });
+
+  it('після підстановки не лишається незаповнених місць', () => {
+    for (const l of LANGS) {
+      setLang(l);
+      for (const s of STATIONS) {
+        const texts = [
+          s.proseVals ? tf(s.prose, ...s.proseVals(r)) : t(s.prose),
+          s.hintVals ? tf(s.hint, ...s.hintVals(r)) : t(s.hint),
+          ...s.formula(r).map((line) => (line.vals
+            ? tf(line.key ?? line.note, ...line.vals)
+            : t(line.key ?? line.note))),
+        ];
+        for (const x of texts) {
+          expect(x.includes('%'), `${l}/${s.id}: лишилось «${x}»`).toBe(false);
+        }
+      }
+    }
+    setLang('ua');
   });
 });

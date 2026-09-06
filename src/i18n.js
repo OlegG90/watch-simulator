@@ -1,3 +1,5 @@
+import { CONTENT } from './lesson/content.js';
+
 /**
  * Мова інтерфейсу. Українська — базова; англійські назви вузлів горологічні,
  * не буквальний переклад (проміжне = third wheel, секундне = fourth wheel).
@@ -167,6 +169,9 @@ const DICT = {
   },
 };
 
+// Копірайт уроку живе окремо (`lesson/content.js`) — тут лишається хром.
+for (const l of Object.keys(DICT)) Object.assign(DICT[l], CONTENT[l]);
+
 export const LANGS = Object.keys(DICT);
 const listeners = new Set();
 let lang = 'ua';
@@ -178,6 +183,13 @@ export function t(key) {
 
 /** Переклад із підстановкою числа замість `%n`. */
 export const tn = (key, n) => t(key).replace('%n', String(n));
+
+/** Переклад із підстановкою `%1`, `%2`, … — усі входження кожного. */
+export function tf(key, ...vals) {
+  let out = t(key);
+  vals.forEach((v, i) => { out = out.split(`%${i + 1}`).join(String(v)); });
+  return out;
+}
 
 export const getLang = () => lang;
 

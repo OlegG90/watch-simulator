@@ -8,7 +8,10 @@ import { deg, dir2, meshPhase, makeAxle, makeHandAssembly, tagModule } from './c
 // → компаунд-проміжне (8/20) → колесо трубки нижнього сонця (20), RB = 4.
 // Міжосьова однакова для обох пар: (32+8)·m/2 = (20+20)·m/2 = 6.0.
 export const PRT_M = 0.3;
-export const PRT_HUB = 32, PRT_P = 8, PRT_W = 20, PRT_G = 20;
+export const PRT_HUB = 32;
+export const PRT_P = 8;
+export const PRT_W = 20;
+export const PRT_G = 20;
 export const RA = 1;                                   // храповик → верхнє сонце
 export const RB = (PRT_HUB / PRT_P) * (PRT_W / PRT_G); // барабан → нижнє сонце = 4
 const PRT_ANGLE = deg(160);                            // напрям компаунд-проміжного від барабана

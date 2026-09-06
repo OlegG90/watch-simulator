@@ -1,5 +1,6 @@
 import './lesson.css';
-import { t, tn, getLang, setLang, onLangChange, LANGS } from '../i18n.js';
+import { t, tn, tf, getLang, setLang, onLangChange, LANGS } from '../i18n.js';
+import { readouts } from './readouts.js';
 import { STATIONS } from './stations.js';
 
 /**
@@ -25,11 +26,28 @@ const svgEl = (tag, attrs = {}) => {
 /** Ланцюг у підвалі: головний ряд + два відгалуження + петля ритму. */
 const CHAIN_MAIN = ['chain.winding', 'chain.barrel', 'chain.train', 'chain.escape', 'chain.balance'];
 
-export function mountLesson({ highlighter, camera, status, onMode }) {
+export function mountLesson({ highlighter, camera, status, onMode, params, run }) {
   const ui = document.getElementById('ui');
   const state = { mode: 'lesson', current: null, visited: new Set(), cam: 'cam.overview' };
 
-  const refs = {}; // живі вузли, які оновлюються щокадру
+  const refs = {};   // живі вузли шапки й підвала
+  let dyn = [];      // вузли картки з живими числами: {node, fn}
+
+  /** Поточний знімок чисел — сталі з констант, змінні з налаштувань і заряду. */
+  const snap = () => readouts({
+    beatHz: params.beatHz, amplitude: params.amplitude,
+    speed: params.speed, charge: status().charge,
+  });
+
+  /**
+   * Текст, що сам себе оновлює. Перемальовувати картку щокадру не можна:
+   * повзунок вислизнув би з-під курсора посеред перетягування.
+   */
+  function live(fn) {
+    const node = document.createTextNode(fn(snap()));
+    dyn.push({ node, fn });
+    return node;
+  }
 
   // ── Шапка ───────────────────────────────────────────────────────
   function renderHeader() {
@@ -156,6 +174,7 @@ export function mountLesson({ highlighter, camera, status, onMode }) {
   function renderCard() {
     const card = document.getElementById('card');
     card.replaceChildren();
+    dyn = [];
 
     if (state.current === null) {
       card.append(el('div', 'eyebrow', t('rail.title').toUpperCase()));
@@ -166,11 +185,127 @@ export function mountLesson({ highlighter, camera, status, onMode }) {
     }
 
     const s = STATIONS[state.current];
+    const r = snap();
+
     card.append(el('div', 'eyebrow', tn('card.station', state.current + 1)));
     card.append(el('div', 'card-title', t(s.nameKey)));
     card.append(el('div', 'card-sub', t(`${s.nameKey}.sub`)));
-    card.append(el('div', 'placeholder', t('card.soon')));
+
+    const prose = el('div', 'prose');
+    prose.append(s.proseVals ? live((x) => tf(s.prose, ...s.proseVals(x))) : document.createTextNode(t(s.prose)));
+    card.append(prose);
+
+    const idea = el('div', 'idea');
+    idea.append(el('b', null, t('card.idea')), el('p', null, t(s.idea)));
+    card.append(idea);
+
+    // ── Як це рахується ──
+    const fBlock = el('div', 'block');
+    fBlock.append(el('b', null, t('card.formula')));
+    const fBox = el('div', 'formula');
+    s.formula(r).forEach((line, i) => {
+      // Рядок перечитується за індексом із свіжого знімка — так живі числа
+      // оновлюються, а розмітка лишається на місці.
+      const text = (x) => {
+        const l = s.formula(x)[i];
+        if (l.note) return t(l.note);
+        return l.vals ? tf(l.key, ...l.vals) : t(l.key);
+      };
+      const isDyn = Boolean(line.vals);
+      const node = el(line.note ? 'span' : 'div', line.note ? 'note' : null);
+      node.append(isDyn ? live(text) : document.createTextNode(text(r)));
+      fBox.append(node);
+    });
+    fBlock.append(fBox);
+
+    if (s.ladder) fBlock.append(ladder(r));
+    else if (s.stats) {
+      const row = el('div', 'stats');
+      s.stats(r).forEach(([labelKey], i) => {
+        const box = el('div', 'stat');
+        const val = el('b');
+        val.append(live((x) => s.stats(x)[i][1]));
+        box.append(el('i', null, t(labelKey)), val);
+        row.append(box);
+      });
+      fBlock.append(row);
+    }
+    card.append(fBlock);
+
+    // ── Спробуйте ──
+    const tBlock = el('div', 'block');
+    tBlock.append(el('b', null, t('card.try')));
+    const ctl = el('div', 'controls');
+    for (const c of s.controls ?? []) ctl.append(control(c));
+    tBlock.append(ctl);
+    const hint = el('div', 'hint-text');
+    hint.append(s.hintVals ? live((x) => tf(s.hint, ...s.hintVals(x))) : document.createTextNode(t(s.hint)));
+    tBlock.append(hint);
+    card.append(tBlock);
+
+    card.append(el('div', 'spacer'));
+    if (s.simplification) card.append(marker('warn', 'card.simplified', t(s.simplification)));
+    card.append(marker('ok', 'card.verified', `«${s.test}»`));
     card.append(navRow());
+  }
+
+  /** Драбина передавальних відношень — для станції «Колісна передача». */
+  function ladder(r) {
+    const box = el('div', 'ladder');
+    r.ratios.forEach((row, i) => {
+      const d = el('div');
+      if (i === r.ratios.length - 1) d.className = 'last';
+      d.append(el('span', 'nm', t(row.nameKey)), el('span', 'pr', row.pair ?? '—'),
+               el('span', 'om', `${row.omega > 0 ? '+' : ''}${row.omega.toFixed(2)}×`));
+      box.append(d);
+    });
+    return box;
+  }
+
+  /** Одна ручка: кнопка, повзунок або перемикач. */
+  function control(c) {
+    const wrapEl = el('div', 'control');
+    if (c.kind === 'button') {
+      const b = el('button', 'act', t(c.labelKey));
+      b.addEventListener('click', () => run(c.action));
+      wrapEl.append(b);
+      return wrapEl;
+    }
+    if (c.kind === 'toggle') {
+      wrapEl.append(segmented(c.options.map(([val, key]) => [
+        t(key), params[c.param] === val, () => { params[c.param] = val; renderCard(); },
+      ])));
+      return wrapEl;
+    }
+    const row = el('div', 'row');
+    const val = el('b', null, c.fmt(params[c.param]));
+    row.append(el('span', null, t(c.labelKey)), val);
+    const input = document.createElement('input');
+    input.type = 'range';
+    Object.assign(input, { min: c.min, max: c.max, step: c.step, value: params[c.param] });
+    input.addEventListener('input', () => {
+      params[c.param] = Number(input.value);
+      val.textContent = c.fmt(params[c.param]);
+      update(); // числа в картці залежать від ходу — оновити, не перемальовуючи
+    });
+    wrapEl.append(row, input);
+    return wrapEl;
+  }
+
+  function marker(kind, titleKey, body) {
+    const m = el('div', `marker ${kind}`);
+    m.append(kind === 'ok' ? checkIcon() : warnIcon());
+    const s = el('span');
+    s.append(document.createTextNode(t(titleKey)), el('i', null, body));
+    m.append(s);
+    return m;
+  }
+
+  function warnIcon() {
+    const s = svgEl('svg', { width: 15, height: 15, viewBox: '0 0 24 24', fill: 'none',
+      stroke: '#caa84a', 'stroke-width': 2, 'stroke-linecap': 'round', 'stroke-linejoin': 'round' });
+    s.append(svgEl('path', { d: 'M12 9v4M12 17h.01M10.3 3.9L2 18a1.9 1.9 0 0 0 1.7 2.8h16.6A1.9 1.9 0 0 0 22 18L13.7 3.9a1.9 1.9 0 0 0-3.4 0z' }));
+    return s;
   }
 
   function navRow() {
@@ -302,6 +437,11 @@ export function mountLesson({ highlighter, camera, status, onMode }) {
   /** Живі числа в шапці й підвалі — оновлюються з циклу рендеру. */
   function update() {
     const s = status();
+    const r = snap();
+    for (const d of dyn) {
+      const next = d.fn(r);
+      if (d.node.nodeValue !== next) d.node.nodeValue = next;
+    }
     if (refs.mode) refs.mode.textContent = t(s.real ? 'status.realTime' : 'status.modelTime');
     if (refs.speed) refs.speed.textContent = `×${s.speed.toFixed(1)}`;
     if (refs.wind) refs.wind.textContent = `${Math.round(s.charge * 100)} %`;

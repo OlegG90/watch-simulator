@@ -1,0 +1,125 @@
+/**
+ * Живі числа для карток станцій.
+ *
+ * Головне правило: **нічого не вписувати руками**. Кожне число тут виводиться
+ * з тих самих констант, які будують геометрію й кінематику. Інакше картка,
+ * що обіцяє «перевірено тестом», почне брехати при першій же зміні коду —
+ * наприклад, варто зрушити `beatHz`, і зашите «12.0 с» стане неправдою.
+ */
+import { TRAIN } from '../train.js';
+import { M, pitchR } from '../common.js';
+import { SPRING_TURNS_0, SPRING_TURNS_C, SPRING_SQUEEZE } from '../barrel.js';
+import { CANNON_T, MINUTE_T, MW_PINION_T, HOUR_T, MW_M1, MW_M2, CS_DRIVE, CS_IDLER, CS_PINION } from '../motionWorks.js';
+import { RATCHET_T, CROWN_T, BEVEL_W, BEVEL_P, RATCH_M } from '../winding.js';
+import { PRT_HUB, PRT_P, PRT_W, PRT_G, PRT_M, RA, RB, SWEEP } from '../powerReserve.js';
+
+const round = (x, n = 2) => Number(x.toFixed(n));
+
+/** Передавальні відношення вузлів відносно барабана — тим самим правилом, що й у `layoutTrain`. */
+export function trainRatios() {
+  const out = [{ nameKey: TRAIN[0].nameKey, omega: 1, pair: null }];
+  for (let k = 1; k < TRAIN.length; k++) {
+    const zw = TRAIN[k - 1].wheel, zp = TRAIN[k].pinion;
+    out.push({ nameKey: TRAIN[k].nameKey, omega: -out[k - 1].omega * (zw / zp), pair: `${zw}/${zp}` });
+  }
+  return out;
+}
+
+/** Пів-кроку зубця анкерного колеса — стільки воно проходить за удар балансу. */
+export const halfStep = () => Math.PI / TRAIN[4].escapeTeeth;
+
+/** Період оберту кліті: 2π / (пів-крок · удари за секунду). */
+export const cagePeriod = (beatHz) => (2 * Math.PI) / (halfStep() * beatHz);
+
+/** Період секундного колеса — з відношення його швидкості до швидкості кліті. */
+export function secondsWheelPeriod(beatHz) {
+  const r = trainRatios();
+  return cagePeriod(beatHz) * Math.abs(r[4].omega / r[3].omega);
+}
+
+/** Скільки модельного часу тримає завод від заряду `c` до нуля, при даному ході. */
+export function runTime(beatHz, c = 1) {
+  const r = trainRatios();
+  const drivePerSec = (halfStep() * beatHz) / r[4].omega; // приріст кута барабана за секунду
+  return (c * 2 * SWEEP) / RB / drivePerSec;
+}
+
+/** Приріст заряду за один клік (чверть оберту храповика). */
+export const chargePerClick = () => (RA * (Math.PI / 2)) / (2 * SWEEP);
+
+/** Моторний механізм: обидві пари й доказ, що міжосьова в них однакова. */
+export function motionWorks() {
+  const a1 = ((CANNON_T + MINUTE_T) / 2) * MW_M1;
+  const a2 = ((MW_PINION_T + HOUR_T) / 2) * MW_M2;
+  return {
+    hourRatio: (CANNON_T / MINUTE_T) * (MW_PINION_T / HOUR_T), // = 1/12
+    centreA: round(a1, 3),
+    centreB: round(a2, 3),
+    equal: Math.abs(a1 - a2) < 1e-9,
+    modules: [MW_M1, round(MW_M2, 4)],
+  };
+}
+
+/** Центральна секунда: 48→20→8 множить швидкість секундної осі на 6. */
+export function centralSeconds() {
+  const r = trainRatios();
+  const step = CS_DRIVE / CS_PINION;
+  return { step, total: Math.abs(r[3].omega / r[1].omega) * step, idler: CS_IDLER };
+}
+
+/** Передача запасу ходу: та сама міжосьова в обох пар — тому проміжне колесо одне. */
+export function reserveTrain() {
+  const a1 = ((PRT_HUB + PRT_P) / 2) * PRT_M;
+  const a2 = ((PRT_W + PRT_G) / 2) * PRT_M;
+  return { ratio: RB, centreA: round(a1, 3), centreB: round(a2, 3), equal: Math.abs(a1 - a2) < 1e-9 };
+}
+
+/** Заведення: скільки обертів робить головка на один оберт храповика. */
+export const crownPerRatchet = () => (RATCHET_T / CROWN_T) * (BEVEL_W / BEVEL_P);
+
+/** Кути ділильних конусів заводної пари — доповнюють один одного до 90°. */
+export function bevelAngles() {
+  const w = (Math.atan(BEVEL_W / BEVEL_P) * 180) / Math.PI;
+  const p = (Math.atan(BEVEL_P / BEVEL_W) * 180) / Math.PI;
+  return { wheel: round(w, 1), pinion: round(p, 1), sum: round(w + p, 1) };
+}
+
+/** Крок зубця храповика — по ньому й клацає собачка. */
+export const ratchetStepDeg = () => round(360 / RATCHET_T, 2);
+
+/** Форма пружини при даному заряді. */
+export const springAt = (c) => ({
+  turns: round(SPRING_TURNS_0 + SPRING_TURNS_C * c, 1),
+  squeeze: round(SPRING_SQUEEZE * c, 2),
+});
+
+/** Радіус барабанного колеса — звідки береться масштаб усього механізму. */
+export const barrelR = () => round(pitchR(TRAIN[0].wheel, M), 2);
+
+/**
+ * Знімок усіх чисел для картки: сталі — з констант, змінні — з поточних
+ * налаштувань і заряду.
+ */
+export function readouts({ beatHz, amplitude, speed, charge }) {
+  return {
+    beatHz, amplitude, speed, charge,
+    chargePct: Math.round(charge * 100),
+    ratios: trainRatios(),
+    halfStepDeg: round((halfStep() * 180) / Math.PI, 1),
+    cagePeriod: round(cagePeriod(beatHz), 1),
+    secondsPeriod: round(secondsWheelPeriod(beatHz), 1),
+    fullRun: Math.round(runTime(beatHz, 1)),
+    // Швидкість множить модельний час, тож на екрані завод «згорає» швидше.
+    fullRunMin: round(runTime(beatHz, 1) / 60 / Math.max(speed, 0.1), 1),
+    clickPct: Math.round(chargePerClick() * 1000) / 10,
+    mw: motionWorks(),
+    cs: centralSeconds(),
+    reserve: reserveTrain(),
+    bevel: bevelAngles(),
+    crownTurns: round(crownPerRatchet(), 2),
+    ratchetStep: ratchetStepDeg(),
+    spring: springAt(charge),
+    barrelR: barrelR(),
+    sweepDeg: Math.round((SWEEP * 180) / Math.PI),
+  };
+}

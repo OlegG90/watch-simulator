@@ -3,14 +3,19 @@ import { makeGear } from './gear.js';
 import { AXLE_R, deg, dir2, meshPhase, makeAxle, makeHandAssembly, tagModule } from './common.js';
 
 // ── Моторний механізм: канон (12) → хвилинне (36); тріб (10) → годинне (40) = ×12 ──
-export const CANNON_T = 12, MINUTE_T = 36, MW_PINION_T = 10, HOUR_T = 40;
+export const CANNON_T = 12;
+export const MINUTE_T = 36;
+export const MW_PINION_T = 10;
+export const HOUR_T = 40;
 export const MW_M1 = 0.28;                  // модуль пари канон → хвилинне
 export const MW_M2 = (MW_M1 * 48) / 50;     // модуль пари тріб → годинне (та сама міжосьова)
 export const MW_ANGLE = deg(120);           // хвилинне колесо — над петлею передачі
 const Z_MW = 7.2, Z_HR = 7.9;
 
 // ── Центральна секунда: верхній місток від секундного колеса до центру ──
-export const CS_DRIVE = 48, CS_IDLER = 20, CS_PINION = 8;
+export const CS_DRIVE = 48;
+export const CS_IDLER = 20;
+export const CS_PINION = 8;
 const Z_CS = 9.45;
 
 /** Розкладка моторного вузла й центральної секунди (позиції + внесок у межі). */
