@@ -202,12 +202,12 @@ describe('знімок чисел не смітить у циклі рендер
     expect(a.chargePct).toBe(50);
   });
 
-  it('з буфером не створює нових об'єктів', () => {
+  it('з буфером не створює нових обʼєктів', () => {
     const buf = {};
     expect(readouts(inp, buf)).toBe(buf);
     const spring = buf.spring, ratios = buf.ratios;
     readouts({ ...inp, charge: 1 }, buf);
-    expect(buf.spring, 'вкладений об'єкт пружини перестворено').toBe(spring);
+    expect(buf.spring, 'вкладений обʼєкт пружини перестворено').toBe(spring);
     expect(buf.ratios, 'сталі перераховано').toBe(ratios);
     expect(buf.chargePct).toBe(100); // і при цьому оновився
   });
