@@ -1,5 +1,49 @@
 # Changelog
 
+## Unreleased
+
+A guided layer over the simulator. On open the app is no longer a bare
+scene with a panel of engineering knobs: it is a route through the
+movement, and the old app is one click away.
+
+### Added
+
+- **Explore mode** — six stops in the order energy flows: winding, barrel,
+  going train, escapement, time display, power reserve. Each stop dims the
+  rest of the movement, flies the camera to its node, and shows a card:
+  the key idea, the formula, one control to turn.
+- **Live figures.** No number in a card is typed. `readouts.js` derives
+  every figure from the same constants that build the geometry, so a card
+  cannot drift from the mechanism. This caught a false claim during
+  development: a card said the seconds wheel "still" takes 32 s at any
+  rate — both periods scale with the rate; only their ratio does not.
+- **Two honesty markers.** Green names the test that backs the claim, and a
+  meta-test asserts every referenced test exists, so the badge cannot
+  quietly become a lie. Amber marks where the model departs from horology.
+- **Side view** — a developed section along the chain, not a projection: an
+  orthographic side view collapses Y and would drop the tourbillon cage on
+  the differential. Heights are true, arbors sit at their real centre
+  distances, so every pinion touches its neighbour exactly at the pitch
+  circles. Vertical exaggeration is measured, not asserted.
+- **Summary.** Each stop leaves a sentence; the end assembles all six into
+  a description of the going, and hands over to free mode.
+- **Ukrainian and English** throughout, including the 3D labels and the
+  free-mode panel. Wheel names are horological, not literal: the third and
+  fourth wheels are not "intermediate" and "seconds".
+- **Interface fonts ship with the repo** (OFL 1.1), so typography does not
+  depend on the network.
+- The version is shown in the header, taken from `package.json` at build.
+
+### Changed
+
+- **Free mode** is the v1.1.0 app unchanged — verified by a scene-graph
+  diff across four states, zero differences — reachable from the header
+  and from the end of the route, with its own way back.
+- Modules tag what they create (`userData.mod`), which is what lets a
+  station light the barrel without the rest of the train: scene groups are
+  mixed by purpose, so dimming by group could not express a station.
+- 59 tests (was 34).
+
 ## v1.1.0 — 2026-09-06
 
 ### Changed

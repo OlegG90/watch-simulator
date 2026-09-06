@@ -22,6 +22,34 @@ Built with **Three.js** + **Vite**. All geometry is generated procedurally in co
 - **Time modes** — demo time (runs from the escapement) and real time (hands follow the system clock while the escapement stays visually coupled).
 - **Compact layered layout** — the train is coiled into a tight loop; balance, motion works and central seconds sit on higher Z-layers above it.
 
+## Two modes
+
+**Explore** is what opens: six stops in the order energy flows through the movement —
+winding, barrel, going train, escapement, time display, power reserve. A stop dims
+everything but its own parts, flies the camera to it, and shows a card with the key
+idea, the formula and one control to turn. Each stop leaves a sentence behind; the
+summary at the end assembles all six into a description of the going.
+
+Two markers keep the cards honest. Green names the test that backs the claim — and a
+meta-test asserts every referenced test actually exists, so the badge cannot quietly
+become a lie. Amber marks where the model departs from real horology (the same
+departures listed under *Assumptions* below).
+
+No figure in a card is typed: every one is derived from the constants that build the
+geometry, so a card cannot drift from the mechanism it describes.
+
+Each stop can be seen **from the side** — a developed section along the chain rather
+than a projection. An orthographic side view collapses Y and would drop the tourbillon
+cage onto the differential; here heights are true and arbors sit at their real centre
+distances, which is why every pinion touches its neighbour exactly at the pitch circles.
+
+**Free mode** is the movement with every control at once — run/pause, time mode, speed,
+beat rate, amplitude, per-node visibility, camera presets, winding. It is reachable from
+the header and from the end of the route, and has its own way back.
+
+The interface is Ukrainian and English, including the 3D labels; wheel names follow
+horological usage rather than literal translation.
+
 ## Mechanism elements
 
 Notation: $m$ — module, $z$ — tooth count, $s = 2\pi/z$ — angular tooth pitch, $r = mz/2$ — pitch radius, $\omega$ — angular velocity (sign = direction).
@@ -160,7 +188,11 @@ Polyline of 200 points: $\alpha(f) = \theta_b(1-f) + f\Phi - \Phi + \lambda$, $r
 ## Controls
 
 - Mouse: orbit (LMB), zoom (wheel), pan (RMB).
-- `lil-gui` panel: run/pause, time mode, speed, beat rate, amplitude, wireframe, per-node visibility, camera presets, and "wind the mainspring".
+- **Explore**: pick a stop in the left rail; each card carries the one control that
+  matters there. Camera presets and the top/side switch sit over the scene; the mode
+  and language switches are in the header.
+- **Free mode**: the `lil-gui` panel — run/pause, time mode, speed, beat rate,
+  amplitude, wireframe, per-node visibility, camera presets, and "wind the mainspring".
 
 ## Run locally
 
@@ -213,6 +245,24 @@ src/
   winding.js       ratchet, crown wheel, bevel pair, click, stem             §11
   powerReserve.js  bevel differential and sector scale                       §12
   ui.js            node labels and camera presets
+  i18n.js          interface strings, Ukrainian and English
+  lesson/          the guided layer (see below)
+```
+
+The lesson layer is separate from the mechanism and never reaches into it:
+
+```text
+src/lesson/
+  panel.js         header, rail, card, chain footer - knows nothing of three.js
+  stations.js      the six stops: focus, highlight set, content keys, backing test
+  content.js       card copy in both languages
+  readouts.js      every live figure, derived from the mechanism constants
+  highlight.js     dims all but a station's parts (swaps in dimmed material clones,
+                   because materials are shared across dozens of meshes)
+  section.js       the developed section as data
+  sectionView.js   and as SVG
+  cardText.js      one resolver for card text, shared with the tests
+  lesson.css       the interface; fonts.css + fonts/ ship the faces (OFL 1.1)
 ```
 
 There is no `escapement.js` — the escapement lives inside the cage in `tourbillon.js`.
