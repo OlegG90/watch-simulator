@@ -1,5 +1,36 @@
 # Changelog
 
+## v2.1.2 — 2026-09-07
+
+Housekeeping. Nothing in the running app changes — same scene, same
+kinematics, same numbers.
+
+### Changed
+
+- **The workflows moved onto Node 24 actions.** Every action in both
+  workflows targeted Node 20, which the runner already forced onto Node 24
+  with a deprecation warning; when support is dropped the tests and the Pages
+  deploy would have stopped. `checkout` v4 → v7, `setup-node` v4 → v7,
+  `configure-pages` v5 → v6, `upload-pages-artifact` v3 → v5, `deploy-pages`
+  v4 → v5.
+
+### Removed
+
+- **`springMat`, which drew nothing.** The `LineBasicMaterial` outlived the
+  last `Line` in the scene: the mainspring and the hairspring are both solid
+  (`springSteel`) and the click spring clones `steel`, so it was threaded
+  from `main.js` through `buildMovement` into `tourbillon.js` without ever
+  rendering. Its only remaining use was the unreachable half of `springSteel
+  || springMat`. The hairspring material is now simply a `springSteel` clone
+  — verified identical, and the scene holds 176 meshes and zero lines.
+
+### Fixed
+
+- Three stale details in the README: the balance radius was still documented
+  as ≈1.5 where the mesh has 1.95 (and is now derived from the cage radius),
+  the cage was still described as two cut-out plates, and the free-mode
+  control list did not mention cage opacity or the top plate.
+
 ## v2.1.1 — 2026-09-07
 
 Two things the visual overhaul left behind.
