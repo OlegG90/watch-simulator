@@ -105,7 +105,7 @@ Pallets at $\pm30°$ from the line of centers (span 2.5 teeth), fork throw $F_{m
 
 - $\theta_b(u) = A\sin(\pi u)$, $u = t\,f_{beat}$; amplitude $A$ = 90–270°, beat rate $f_{beat}$ = 0.5–6 beats/s (sliders).
 - Balance zero crossings (integer $u$) trigger the fork flip and the escape-wheel step. **The whole movement is driven by the escapement:** $driveAngle = \beta/\omega_4$, where $\beta$ is the tourbillon cage angle (§6a).
-- In the tourbillon the balance is at the **cage center** (coaxial with the fixed wheel), radius reduced to ≈1.5.
+- In the tourbillon the balance is at the **cage center** (coaxial with the fixed wheel). Its radius is derived from the cage, not set on its own: $r_{bal} = \min(1.95,\ r_{cage} - 1.95) = 1.95$, exported as `balanceR(cageR)` because the developed section draws from the same number.
 - Verified: $\theta_b$ at half-beat $=A$ exactly, at beat $=0$ exactly; seconds-wheel period $= 32$ s at $f_{beat}=2.5$ (the tourbillon does not change timing).
 
 ### 6a. Tourbillon
@@ -115,7 +115,7 @@ The entire escapement (escape wheel + pallet fork + balance + hairspring) lives 
 - **Key identity:** with $Z_f = Z_p$ the cage angle equals the escapement beat, $\theta_{cage} = \beta\cdot\frac{Z_p}{Z_f} = \beta$. So $\theta_{cage}$ **replaces** the old escape-wheel angle in the drive — the movement's timing is unchanged (the tourbillon doesn't affect the rate, it only averages the error — physically correct).
 - Cage period = the old escape arbor's period = **12 s** (at 2.5 beats/s); the escape wheel relative to the cage is also 12 s/rev, so 6 s/rev absolute.
 - The fixed wheel stays put (pinned to the plate through a post to the cage center); the cage, balance, fork and escape wheel rotate around it.
-- Compact geometry: cage module $m_T=0.26$, $Z_f=Z_p=10$ → escape arbor 2.6 from center; cage radius 4.3 (two cut-out plates + 3 pillars), fits the existing footprint (the plate does not grow).
+- Compact geometry: cage module $m_T=0.26$, $Z_f=Z_p=10$ → escape arbor 2.6 from center; cage radius 4.3, fitting the existing footprint (the plate does not grow). The cage is two bevelled plates (0.11 thick) on three pillars with caps and screws; the pallets and the balance's impulse jewel are a physical material with refraction ($n=1.76$), and the hairspring is a swept tube with a Breguet overcoil rather than a line.
 - Verified: cage = arbor4.group, 12 s period; the fixed wheel does not rotate while the cage does; escape wheel relative to cage = $\beta$; seconds-wheel period 32 s; real-time hand angles exact.
 
 ### 7. Hairspring
@@ -192,7 +192,8 @@ Polyline of 200 points: $\alpha(f) = \theta_b(1-f) + f\Phi - \Phi + \lambda$, $r
   matters there. Camera presets and the top/side switch sit over the scene; the mode
   and language switches are in the header.
 - **Free mode**: the `lil-gui` panel — run/pause, time mode, speed, beat rate,
-  amplitude, wireframe, per-node visibility, camera presets, and "wind the mainspring".
+  amplitude, wireframe, per-node visibility, cage opacity and top plate, camera
+  presets, and "wind the mainspring".
 
 ## Run locally
 
