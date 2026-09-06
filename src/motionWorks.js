@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { makeGear } from './gear.js';
-import { AXLE_R, deg, dir2, meshPhase, makeAxle, makeHandAssembly } from './common.js';
+import { AXLE_R, deg, dir2, meshPhase, makeAxle, makeHandAssembly, tagModule } from './common.js';
 
 // ── Моторний механізм: канон (12) → хвилинне (36); тріб (10) → годинне (40) = ×12 ──
 export const CANNON_T = 12, MINUTE_T = 36, MW_PINION_T = 10, HOUR_T = 40;
@@ -100,7 +100,8 @@ export function buildMotionWorks({ brass, steel, axleMat, bluedMat }, L, arbors,
   );
   csDriveGear.position.z = Z_CS;
   arbors[3].group.add(csDriveGear);
-  arbors[3].group.add(makeAxle({ r: 0.2, len: 5.8, z: 7.2, segments: 16 }, axleMat));
+  const csDriveAxle = makeAxle({ r: 0.2, len: 5.8, z: 7.2, segments: 16 }, axleMat);
+  arbors[3].group.add(csDriveAxle);
 
   const csIdlerGroup = new THREE.Group();
   csIdlerGroup.position.set(csIdlerPos.x, csIdlerPos.y, 0);
@@ -156,6 +157,10 @@ export function buildMotionWorks({ brass, steel, axleMat, bluedMat }, L, arbors,
     handRefs.second.rotation.z = second - centralSecondsGroup.rotation.z;
     handRefs.minute.rotation.z = minute - arbors_[1].group.rotation.z;
     handRefs.hour.rotation.z = hour - hourGroup.rotation.z;
+  }
+
+  for (const o of [cannonSub, mwArbor, hourGroup, csDriveGear, csDriveAxle, csIdlerGroup, centralSecondsGroup]) {
+    tagModule(o, 'motionWorks');
   }
 
   return {

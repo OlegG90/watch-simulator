@@ -1,4 +1,5 @@
 import * as THREE from 'three';
+import { t } from './i18n.js';
 
 /** Спрайт-підпис: текст на канві, завжди обличчям до камери, поверх геометрії. */
 function makeLabel(text) {
@@ -37,7 +38,7 @@ function makeLabel(text) {
 export function buildLabels(focusPoints) {
   const group = new THREE.Group();
   for (const fp of focusPoints) {
-    const label = makeLabel(fp.name);
+    const label = makeLabel(t(fp.nameKey));
     label.position.set(fp.pos.x, fp.pos.y + fp.r + 1.4, fp.z + 1.2);
     group.add(label);
   }

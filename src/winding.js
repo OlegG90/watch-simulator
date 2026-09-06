@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { makeGear, makeBevelGear } from './gear.js';
-import { AXLE_R, deg, dir2, mod, meshPhase, makeAxle } from './common.js';
+import { AXLE_R, deg, dir2, mod, meshPhase, makeAxle, tagModule } from './common.js';
 
 // ── Заведення: головка → вал → конічна пара → коронне колесо → храповик ──
 export const RATCHET_T = 28, CROWN_T = 18;   // храповик на осі барабана / коронне колесо
@@ -151,5 +151,6 @@ export function buildWinding({ steel, axleMat }, L, barrelPos) {
     crown.rotation.y = -crownSpin;
   }
 
+  tagModule(group, 'winding');
   return { group, ratchet: ratchetG, click: clickG, crownWheelGroup: cwG, setAngle };
 }

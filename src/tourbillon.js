@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { makeGear, makeEscapeWheel } from './gear.js';
+import { tagModule } from './common.js';
 
 // ── Константи спуску (ті самі, що в escapement.js) ────────────────
 const FORK_MAX = 0.14;   // розмах анкера, рад
@@ -201,6 +202,8 @@ export function buildTourbillon(
   }
   update(0, 2.5, 220);
 
+  tagModule(cage, 'tourbillon');
+  tagModule(fixed, 'tourbillon');
   return { cage, fixed, update, balance, fork, escSub, hairGroup, cageR };
 }
 

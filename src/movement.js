@@ -1,5 +1,6 @@
 import * as THREE from 'three';
 import { TRAIN, layoutTrain, buildTrain, arborOuterR } from './train.js';
+import { tagModule } from './common.js';
 import { buildBarrel } from './barrel.js';
 import { layoutMotionWorks, buildMotionWorks } from './motionWorks.js';
 import { layoutWinding, buildWinding } from './winding.js';
@@ -86,11 +87,13 @@ export function buildMovement({ brass, steel, axleMat, ruby, springMat, plateMat
   plate.rotation.x = Math.PI / 2;
   plate.position.set(cx, cy, -3.2);
   plate.receiveShadow = true;
+  tagModule(plate, 'plate');
   root.add(plate);
   for (const a of arbors) {
     const jewel = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 0.4, 20), ruby);
     jewel.rotation.x = Math.PI / 2;
     jewel.position.set(a.pos.x, a.pos.y, -2.65);
+    tagModule(jewel, 'plate');
     root.add(jewel);
   }
 
@@ -180,12 +183,12 @@ export function buildMovement({ brass, steel, axleMat, ruby, springMat, plateMat
     // Анкерний вузол окремо не підписуємо: це і є кліть турбійона — та сама вісь,
     // тож два підписи в одній точці накладалися б. Його позначає «Турбійон».
     ...arbors.filter((a) => !a.spec.escapeTeeth)
-      .map((a) => ({ name: a.name, pos: a.pos, z: a.wheelZ, r: arborOuterR(a.spec, CAGE_R) })),
-    { name: 'Турбійон', pos: cagePos, z: CAGE_ZBASE + 1.8, r: CAGE_R },
-    { name: 'Стрілки', pos: mwL.P1, z: 10.0, r: 4.5 },
-    { name: 'Заведення', pos: windL.cwPos, z: 2.0, r: 4.5 },
-    { name: 'Собачка', pos: windL.clickPivot, z: windL.windZ, r: 1.4 },
-    { name: 'Запас ходу', pos: barrelPos, z: 8.6, r: 3.2 },
+      .map((a) => ({ nameKey: a.nameKey, pos: a.pos, z: a.wheelZ, r: arborOuterR(a.spec, CAGE_R) })),
+    { nameKey: 'part.tourbillon', pos: cagePos, z: CAGE_ZBASE + 1.8, r: CAGE_R },
+    { nameKey: 'part.hands', pos: mwL.P1, z: 10.0, r: 4.5 },
+    { nameKey: 'part.winding', pos: windL.cwPos, z: 2.0, r: 4.5 },
+    { nameKey: 'part.click', pos: windL.clickPivot, z: windL.windZ, r: 1.4 },
+    { nameKey: 'part.powerReserve', pos: barrelPos, z: 8.6, r: 3.2 },
   ];
 
   return {

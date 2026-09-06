@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { makeSpiralRibbon } from './gear.js';
-import { pitchR, makeAxle } from './common.js';
+import { pitchR, makeAxle, tagModule } from './common.js';
 
 /**
  * Модуль енергії: відкритий барабан із видимою заводною пружиною.
@@ -48,5 +48,6 @@ export function buildBarrel({ brass, steel, springSteel }, { wheelTeeth }) {
   }
   setCharge(0); // розслаблена — до першого syncDiff
 
+  tagModule(group, 'barrel');
   return { group, spring, setCharge };
 }
