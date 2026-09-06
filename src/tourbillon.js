@@ -36,7 +36,7 @@ function bar(from, to, w, t, material) {
  * (у нас — arbor4.group); нерухоме колесо додається окремо, у нерухому групу.
  */
 export function buildTourbillon(
-  { steel, brass, ruby, springMat, springSteel, axleMat, plateMat },
+  { steel, brass, ruby, springSteel, axleMat, plateMat },
   { escTeeth = 15, fixedTeeth = 10, pinionTeeth = 10, moduleT = 0.26, cageR = 4.3, escDirLocal = 0 }
 ) {
   const cage = new THREE.Group();   // обертова частина (додати до arbor4.group)
@@ -187,15 +187,12 @@ export function buildTourbillon(
   const OVERCOIL_F = 0.85, OVERCOIL_H = 0.18, HAIR_R = 0.034;
   const hairGroup = new THREE.Group();
   hairGroup.position.z = zHair;
-  // Матеріал трубки — об'ємний метал, не LineBasicMaterial.
-  let hairMat = springSteel || springMat;
-  if (hairMat && hairMat.isLineBasicMaterial) {
-    hairMat = springSteel || new THREE.MeshStandardMaterial({ color: 0x9aa1ab, roughness: 0.32, metalness: 0.95 });
-  }
-  hairMat = hairMat.clone();
+  // Матеріал трубки — власний клон пружинної сталі: спіраль об'ємна, тож це
+  // звичайний метал, а не матеріал лінії.
+  const hairMat = springSteel.clone();
   // Підсилюємо контраст відносно вороненої кліті — трохи світліший і холодніший
   // відтінок, щоб тонкий дріт не губився на темному тлі.
-  if (hairMat.color) hairMat.color.setHex(0xbfd4ff);
+  hairMat.color.setHex(0xbfd4ff);
   hairMat.roughness = 0.22;
   hairMat.metalness = 0.95;
   // Сітка трубки будується ОДИН раз: індекси й UV незмінні, щокадру

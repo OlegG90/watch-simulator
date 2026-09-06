@@ -22,11 +22,11 @@ const WIND_CLICK = Math.PI / 2; // один «клік» = чверть обер
  * `motionWorks` — індикація часу, `winding` — заведення, `powerReserve` —
  * диференціал запасу ходу, `tourbillon` — спуск у обертовій кліті.
  */
-export function buildMovement({ brass, steel, axleMat, ruby, springMat, plateMat, bluedMat, springSteel, backdropMat, cageMat }) {
+export function buildMovement({ brass, steel, axleMat, ruby, plateMat, bluedMat, springSteel, backdropMat, cageMat }) {
   backdropMat = backdropMat || plateMat; // сумісність, якщо не передано
   cageMat = cageMat || plateMat;
   const root = new THREE.Group();
-  const mats = { brass, steel, axleMat, ruby, springMat, plateMat, bluedMat, springSteel };
+  const mats = { brass, steel, axleMat, ruby, plateMat, bluedMat, springSteel };
 
   // ── 1. Розкладка (без мешів) ──────────────────────────────────────
   const arbors = layoutTrain();

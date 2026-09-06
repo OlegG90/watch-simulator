@@ -11,7 +11,7 @@ const mat = () => new THREE.MeshStandardMaterial();
 const buildFresh = () =>
   buildMovement({
     brass: mat(), steel: mat(), axleMat: mat(), ruby: mat(),
-    springMat: new THREE.LineBasicMaterial(), plateMat: mat(), bluedMat: mat(), springSteel: mat(),
+    plateMat: mat(), bluedMat: mat(), springSteel: mat(),
   });
 
 /** Інваріант зачеплення: u + v ≡ 0 (mod 1) — див. README «Common meshing formulas». */

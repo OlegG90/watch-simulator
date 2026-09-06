@@ -57,7 +57,6 @@ const brass = new THREE.MeshStandardMaterial({ color: 0xcaa84a, roughness: 0.35,
 const steel = new THREE.MeshStandardMaterial({ color: 0xb8bec8, roughness: 0.3, metalness: 0.95 });
 const axleMat = new THREE.MeshStandardMaterial({ color: 0x666a72, roughness: 0.4, metalness: 0.8 });
 const ruby = new THREE.MeshStandardMaterial({ color: 0xc0304a, roughness: 0.2, metalness: 0.1, emissive: 0x30040a });
-const springMat = new THREE.LineBasicMaterial({ color: 0x5b7fd4 });
 const plateMat = new THREE.MeshStandardMaterial({ color: 0x8a7440, roughness: 0.55, metalness: 0.7 });
 const bluedMat = new THREE.MeshStandardMaterial({ color: 0x24418f, roughness: 0.3, metalness: 0.85 });
 const springSteel = new THREE.MeshStandardMaterial({ color: 0x9aa1ab, roughness: 0.32, metalness: 0.95, side: THREE.DoubleSide });
@@ -68,7 +67,7 @@ const cageMat = new THREE.MeshStandardMaterial({ color: 0x2f4b8c, roughness: 0.2
 cageMat.envMapIntensity = 1.15;
 
 // ── Механізм (передача + спуск) ───────────────────────────────────
-const movement = buildMovement({ brass, steel, axleMat, ruby, springMat, plateMat, bluedMat, springSteel, backdropMat, cageMat });
+const movement = buildMovement({ brass, steel, axleMat, ruby, plateMat, bluedMat, springSteel, backdropMat, cageMat });
 scene.add(movement.root);
 // Націлити спот на центр кліті (після центрування root).
 {

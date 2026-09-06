@@ -18,7 +18,7 @@ import { pitchR } from '../src/common.js';
 const mat = () => new THREE.MeshStandardMaterial();
 const build = () => buildMovement({
   brass: mat(), steel: mat(), axleMat: mat(), ruby: mat(),
-  springMat: new THREE.LineBasicMaterial(), plateMat: mat(), bluedMat: mat(),
+  plateMat: mat(), bluedMat: mat(),
   springSteel: mat(), backdropMat: mat(), cageMat: mat(),
 });
 
