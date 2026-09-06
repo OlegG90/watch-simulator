@@ -3,20 +3,25 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>SimWatch — симулятор годинникового механізму</title>
-  <style>
-    html, body { margin: 0; height: 100%; overflow: hidden; background: #1a1c20; }
-    #app { width: 100vw; height: 100vh; display: block; }
-    #hint {
-      position: fixed; left: 12px; bottom: 12px;
-      font: 12px/1.4 system-ui, sans-serif; color: #8a8f98;
-      pointer-events: none; user-select: none;
-    }
-  </style>
+  <title>SimWatch — дослідження годинникового механізму</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link rel="stylesheet"
+        href="https://fonts.googleapis.com/css2?family=Literata:opsz,wght@7..72,400;7..72,600&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap" />
 </head>
 <body>
-  <canvas id="app"></canvas>
-  <div id="hint">ЛКМ — обертання · колесо — зум · ПКМ — панорама</div>
+  <!-- Сітка уроку. У вільному режимі лишається сама сцена (див. lesson.css). -->
+  <div id="ui" class="mode-lesson">
+    <header id="hdr"></header>
+    <nav id="rail"></nav>
+    <main id="stage">
+      <canvas id="app"></canvas>
+      <div id="stage-chrome"></div>
+      <div id="hint"></div>
+    </main>
+    <aside id="card"></aside>
+    <footer id="chain"></footer>
+  </div>
   <script type="module" src="/src/main.js"></script>
 </body>
 </html>

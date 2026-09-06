@@ -5,6 +5,8 @@ import GUI from 'lil-gui';
 import { buildMovement } from './movement.js';
 import { buildLabels, createCameraFly } from './ui.js';
 import { t, getLang, setLang, onLangChange, LANGS } from './i18n.js';
+import { createHighlighter } from './lesson/highlight.js';
+import { mountLesson } from './lesson/panel.js';
 
 // ── Сцена / рендер ────────────────────────────────────────────────
 const canvas = document.getElementById('app');
@@ -103,6 +105,7 @@ function fitCamera() {
   const hTan = vTan * camera.aspect;
   const dist = (fitR / Math.min(vTan, hTan)) * 1.05;
   camera.position.copy(viewDir).multiplyScalar(dist);
+  controls.target.set(0, 0, 0); // інакше ціль лишиться на попередньому вузлі
 }
 
 // ── UI ────────────────────────────────────────────────────────────
@@ -115,6 +118,7 @@ const params = {
   wireframe: false,
 };
 let gui = null;
+let uiMode = 'lesson'; // панель вільного режиму схована, поки триває урок
 const powerUI = { power: 75 };
 const mwVis = { hands: true, winding: true };
 // Анкерний вузол — це і є кліть турбійона (кліть сидить на його осі), тож у
@@ -126,9 +130,14 @@ const worldOf = (key) => {
   const fp = movement.focusPoints.find((f) => f.nameKey === key);
   return new THREE.Vector3(fp.pos.x, fp.pos.y, fp.z).add(movement.root.position);
 };
-const goto = (target, back, up = 2) =>
+// Переліт до вузла зупиняє автопідгонку кадру: інакше ресайз (а перемикання
+// режиму — це ресайз) відсмикнув би камеру від щойно наведеного вузла.
+const goto = (target, back, up = 2) => {
+  userOrbited = true;
   fly.flyTo(target.clone().add(new THREE.Vector3(0, up, back)), target);
+};
 const overview = () => {
+  userOrbited = false; // загальний вид повертає механізм у кадр і дозволяє підгонку
   const vTan = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
   const hTan = vTan * camera.aspect;
   fly.flyTo(viewDir.clone().multiplyScalar((fitR / Math.min(vTan, hTan)) * 1.05), new THREE.Vector3());
@@ -178,21 +187,63 @@ function buildGui() {
 
   gui.add({ lang: () => setLang(getLang() === 'ua' ? 'en' : 'ua') }, 'lang')
      .name(getLang() === 'ua' ? 'EN' : 'УКР');
+  // Зміна мови будує панель наново — вона мусить успадкувати режим,
+  // інакше в уроці зринає інтерфейс вільного режиму.
+  gui.domElement.style.display = uiMode === 'free' ? '' : 'none';
 }
 buildGui();
 
-onLangChange(() => { rebuildLabels(); buildGui(); });
+onLangChange(() => {
+  rebuildLabels();
+  buildGui();
+  document.getElementById('hint').textContent = t('hint.controls');
+});
 
 // ── Ресайз ────────────────────────────────────────────────────────
+// Полотно живе в клітинці сітки, тож розмір беремо з нього, а не з вікна:
+// перемикання режиму міняє клітинку без жодної події вікна.
 function resize() {
-  const w = window.innerWidth, h = window.innerHeight;
+  const w = canvas.clientWidth || window.innerWidth;
+  const h = canvas.clientHeight || window.innerHeight;
+  if (!w || !h) return;
   renderer.setSize(w, h, false);
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
   if (!userOrbited) fitCamera(); // тримати механізм у кадрі, поки користувач не орбітав сам
 }
+new ResizeObserver(resize).observe(canvas);
 window.addEventListener('resize', resize);
 resize();
+
+// ── Урок ──────────────────────────────────────────────────────────
+let freeLabels = true; // стан підписів у вільному режимі
+const highlighter = createHighlighter(movement.root);
+const lesson = mountLesson({
+  highlighter,
+  camera: {
+    presets: CAMS,
+    overview,
+    toKey: (key) => (CAMS.find(([k]) => k === key)?.[1] ?? overview)(),
+  },
+  status: () => ({
+    real: params.timeMode === 'real',
+    speed: params.speed,
+    charge: movement.winder.charge,
+    time: simT,
+  }),
+  onMode: (mode) => {
+    uiMode = mode;
+    gui.domElement.style.display = mode === 'free' ? '' : 'none';
+    // Підписи-спрайти мають сталий світовий розмір: зблизька вони закривають
+    // сам вузол. В уроці станцію називає картка, тож підписи ховаємо —
+    // у вільному режимі вони повертаються такими, як були.
+    if (mode === 'lesson') { freeLabels = labels.visible; labels.visible = false; }
+    else labels.visible = freeLabels;
+    resize();
+  },
+});
+lesson.setMode('lesson');
+document.getElementById('hint').textContent = t('hint.controls');
 
 // ── Цикл ──────────────────────────────────────────────────────────
 const clock = new THREE.Clock();
@@ -213,6 +264,7 @@ function tick() {
   }
   movement.winder.update(dt);
   powerUI.power = Math.round(movement.winder.charge * 100);
+  lesson.update();
   fly.update();
   controls.update();
   renderer.render(scene, camera);

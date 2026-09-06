@@ -5,9 +5,12 @@
  * Ключі `part.*` іменують деталі й течуть у 3D-підписи, тумблери видимості та
  * пресети камери — тому вони мусять бути ключами, а не рядками, ще до того, як
  * над сценою з'явиться будь-який текст уроку.
+ *
+ * `%n` у значенні — місце для числа (див. `tn`).
  */
 const DICT = {
   ua: {
+    // ── деталі механізму ──
     'part.barrel': 'Барабан',
     'part.centre': 'Центральне колесо',
     'part.third': 'Проміжне колесо',
@@ -21,6 +24,7 @@ const DICT = {
     'part.click': 'Собачка',
     'part.powerReserve': 'Запас ходу',
 
+    // ── панель вільного режиму ──
     'gui.running': 'Рух',
     'gui.timeMode': 'Режим часу',
     'gui.timeDemo': 'Демонстраційний час',
@@ -37,14 +41,54 @@ const DICT = {
     'gui.camera': 'Камера',
     'cam.overview': 'Загальний вид',
 
+    // ── станції ──
     'station.winding': 'Заведення',
     'station.energy': 'Енергія',
     'station.train': 'Колісна передача',
     'station.escapement': 'Спуск і регулятор',
     'station.timeDisplay': 'Індикація часу',
     'station.powerReserve': 'Запас ходу',
+    'station.winding.sub': 'головка · конічна пара · собачка',
+    'station.energy.sub': 'барабан · пружина · заряд',
+    'station.train.sub': '4 зачеплення · 48→12→40…',
+    'station.escapement.sub': 'анкерне колесо · вилка · баланс',
+    'station.timeDisplay.sub': '12 : 1 і 60 : 1',
+    'station.powerReserve.sub': 'диференціал · віднімання кутів',
+
+    // ── оболонка уроку ──
+    'app.subtitle': 'дослідження механіки',
+    'mode.lesson': 'Дослідження',
+    'mode.free': 'Вільний режим',
+    'rail.title': 'Ланцюг енергії',
+    'rail.subtitle': 'Шість зупинок: від вашого пальця на головці до кута стрілки.',
+    'rail.collected': 'ЗІБРАНО ДОСІ',
+    'rail.empty': 'Порожньо — це перша зупинка. Кожна лишить по одному реченню, і наприкінці вони складуться в опис ходу.',
+    'card.station': 'СТАНЦІЯ %n З 6',
+    'card.soon': 'Зміст картки — у наступній фазі: головна думка, формула з живими числами й одна ручка покрутити.',
+    'card.start': 'початок',
+    'card.summary': 'Підсумок',
+    'chain.label': 'ЛАНЦЮГ',
+    'chain.where': 'де ви зараз у потоці енергії',
+    'chain.winding': 'Заведення',
+    'chain.barrel': 'Барабан',
+    'chain.train': 'Передача',
+    'chain.escape': 'Спуск',
+    'chain.balance': 'Баланс',
+    'chain.powerReserve': 'Запас ходу',
+    'chain.hands': 'Стрілки',
+    'chain.rate': 'ритм',
+    'view.top': 'Згори',
+    'view.side': 'Збоку',
+    'view.sideSoon': 'вигляд збоку — у своїй фазі',
+    'status.modelTime': 'Демонстраційний час',
+    'status.realTime': 'Реальний час',
+    'status.speed': 'швидкість',
+    'status.wind': 'завод',
+    'foot.modelTime': 'модельний час',
+    'hint.controls': 'ЛКМ — обертання · колесо — зум · ПКМ — панорама',
   },
   en: {
+    // ── mechanism parts ──
     'part.barrel': 'Barrel',
     'part.centre': 'Centre wheel',
     'part.third': 'Third wheel',
@@ -58,6 +102,7 @@ const DICT = {
     'part.click': 'Click',
     'part.powerReserve': 'Power reserve',
 
+    // ── free-mode panel ──
     'gui.running': 'Run',
     'gui.timeMode': 'Time mode',
     'gui.timeDemo': 'Model time',
@@ -74,12 +119,51 @@ const DICT = {
     'gui.camera': 'Camera',
     'cam.overview': 'Overview',
 
+    // ── stations ──
     'station.winding': 'Winding',
     'station.energy': 'Energy',
     'station.train': 'Going train',
     'station.escapement': 'Escapement & regulator',
     'station.timeDisplay': 'Time display',
     'station.powerReserve': 'Power reserve',
+    'station.winding.sub': 'crown · bevel pair · click',
+    'station.energy.sub': 'barrel · mainspring · charge',
+    'station.train.sub': '4 meshes · 48→12→40…',
+    'station.escapement.sub': 'escape wheel · lever · balance',
+    'station.timeDisplay.sub': '12 : 1 and 60 : 1',
+    'station.powerReserve.sub': 'differential · subtracting angles',
+
+    // ── lesson shell ──
+    'app.subtitle': 'movement explorer',
+    'mode.lesson': 'Explore',
+    'mode.free': 'Free mode',
+    'rail.title': 'The energy chain',
+    'rail.subtitle': 'Six stops: from your finger on the crown to the angle of a hand.',
+    'rail.collected': 'COLLECTED SO FAR',
+    'rail.empty': 'Empty — this is the first stop. Each one leaves a sentence behind, and together they add up to a description of the going.',
+    'card.station': 'STATION %n OF 6',
+    'card.soon': 'Card content lands in the next phase: the key idea, a formula with live numbers, and one control to turn.',
+    'card.start': 'start',
+    'card.summary': 'Summary',
+    'chain.label': 'CHAIN',
+    'chain.where': 'where you are in the flow of energy',
+    'chain.winding': 'Winding',
+    'chain.barrel': 'Barrel',
+    'chain.train': 'Train',
+    'chain.escape': 'Escape',
+    'chain.balance': 'Balance',
+    'chain.powerReserve': 'Power reserve',
+    'chain.hands': 'Hands',
+    'chain.rate': 'rate',
+    'view.top': 'Top',
+    'view.side': 'Side',
+    'view.sideSoon': 'the side view lands in its own phase',
+    'status.modelTime': 'Model time',
+    'status.realTime': 'Real time',
+    'status.speed': 'speed',
+    'status.wind': 'wind',
+    'foot.modelTime': 'model time',
+    'hint.controls': 'LMB — orbit · wheel — zoom · RMB — pan',
   },
 };
 
@@ -87,10 +171,13 @@ export const LANGS = Object.keys(DICT);
 const listeners = new Set();
 let lang = 'ua';
 
-/** Переклад ключа; невідомий ключ повертається як є — щоб було видно на екрані. */
+/** Переклад ключа; невідомий ключ повертається як є — щоб пропуск було видно. */
 export function t(key) {
   return DICT[lang][key] ?? DICT.ua[key] ?? key;
 }
+
+/** Переклад із підстановкою числа замість `%n`. */
+export const tn = (key, n) => t(key).replace('%n', String(n));
 
 export const getLang = () => lang;
 

@@ -60,6 +60,27 @@ describe('станції уроку', () => {
     for (const s of STATIONS) expect(keys, s.id).toContain(s.nameKey);
   });
 
+  it('усі підзаголовки станцій перекладені', () => {
+    const keys = new Set(dictKeys('ua'));
+    for (const s of STATIONS) expect(keys, s.id).toContain(`${s.nameKey}.sub`);
+  });
+
+  it('кожна станція має місце в ланцюгу підвалу', () => {
+    const rows = new Set(), branches = new Set();
+    for (const s of STATIONS) {
+      expect(s.chain, `станція ${s.id} без місця в ланцюгу`).toBeTruthy();
+      if (s.chain.row !== undefined) {
+        expect(s.chain.row, s.id).toBeGreaterThanOrEqual(0);
+        expect(s.chain.row, s.id).toBeLessThan(5); // головний ряд — 5 вузлів
+        rows.add(s.chain.row);
+      } else {
+        expect(['hands', 'reserve'], s.id).toContain(s.chain.branch);
+        branches.add(s.chain.branch);
+      }
+    }
+    expect(rows.size + branches.size, 'дві станції ділять одне місце').toBe(STATIONS.length);
+  });
+
   it('кожен тест, на який посилається станція, справді існує в наборі', () => {
     const names = new Set();
     const quoted = /\bit\(\s*'([^']*)'/g;

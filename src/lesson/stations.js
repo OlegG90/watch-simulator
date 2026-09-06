@@ -7,12 +7,14 @@
  *
  * `focus` — ім'я точки фокуса з `movement.focusPoints`; `null` = загальний вид.
  * `highlight` — набір для `createHighlighter().focus()`.
+ * `chain` — місце станції в діаграмі підвалу: рядок ланцюга або відгалуження.
  * `test` — назва тесту, яким підперта головна теза станції; мета-тест звіряє,
  *          що такий тест справді існує в наборі.
  */
 export const STATIONS = [
   {
     id: 'winding',
+    chain: { row: 0 },
     nameKey: 'station.winding',
     focus: 'part.winding',
     highlight: { mods: ['winding'] },
@@ -20,6 +22,7 @@ export const STATIONS = [
   },
   {
     id: 'energy',
+    chain: { row: 1 },
     nameKey: 'station.energy',
     focus: 'part.barrel',
     highlight: { mods: ['barrel'], arbors: [0] },
@@ -27,6 +30,7 @@ export const STATIONS = [
   },
   {
     id: 'train',
+    chain: { row: 2 },
     nameKey: 'station.train',
     focus: null,
     highlight: { mods: ['train'] },
@@ -34,6 +38,7 @@ export const STATIONS = [
   },
   {
     id: 'escapement',
+    chain: { row: 3 },
     nameKey: 'station.escapement',
     focus: 'part.tourbillon',
     highlight: { mods: ['tourbillon'] },
@@ -41,6 +46,7 @@ export const STATIONS = [
   },
   {
     id: 'timeDisplay',
+    chain: { branch: 'hands' },
     nameKey: 'station.timeDisplay',
     focus: 'part.hands',
     highlight: { mods: ['motionWorks'] },
@@ -48,6 +54,7 @@ export const STATIONS = [
   },
   {
     id: 'powerReserve',
+    chain: { branch: 'reserve' },
     nameKey: 'station.powerReserve',
     focus: 'part.powerReserve',
     highlight: { mods: ['powerReserve'] },
