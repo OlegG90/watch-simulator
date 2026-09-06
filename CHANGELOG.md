@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## v2.0.0 — 2026-09-06
 
 A guided layer over the simulator. On open the app is no longer a bare
 scene with a panel of engineering knobs: it is a route through the
