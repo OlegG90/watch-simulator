@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { makeGear, makeBevelGear } from './gear.js';
-import { deg, dir2, meshPhase, makeAxle, makeHandAssembly } from './common.js';
+import { deg, dir2, meshPhase, makeAxle, makeHandAssembly, tagModule } from './common.js';
 
 // ── Коаксіальний конічний диференціал над барабаном ───────────────
 // Обидва входи вже на осі барабана: храповик (w) веде верхнє сонце прямою
@@ -8,7 +8,10 @@ import { deg, dir2, meshPhase, makeAxle, makeHandAssembly } from './common.js';
 // → компаунд-проміжне (8/20) → колесо трубки нижнього сонця (20), RB = 4.
 // Міжосьова однакова для обох пар: (32+8)·m/2 = (20+20)·m/2 = 6.0.
 export const PRT_M = 0.3;
-export const PRT_HUB = 32, PRT_P = 8, PRT_W = 20, PRT_G = 20;
+export const PRT_HUB = 32;
+export const PRT_P = 8;
+export const PRT_W = 20;
+export const PRT_G = 20;
 export const RA = 1;                                   // храповик → верхнє сонце
 export const RB = (PRT_HUB / PRT_P) * (PRT_W / PRT_G); // барабан → нижнє сонце = 4
 const PRT_ANGLE = deg(160);                            // напрям компаунд-проміжного від барабана
@@ -23,6 +26,8 @@ const SUN_T = 16, PLANET_T = 10;  // δ_сонця = atan(16/10) ≈ 58°, δ_п
 const DELTA_SUN = Math.atan(SUN_T / PLANET_T);
 const DELTA_PL = Math.atan(PLANET_T / SUN_T);
 const Z_DIFF = 5.8;               // спільний апекс сонць/планет
+/** Z-рівні модуля — спільні з розрізом збоку. */
+export const LAYERS = { hubWheel: 1.85, idlerWheel: 3.3, suns: Z_DIFF, arm: Z_DIFF + 2.15, dial: Z_DIFF + 2.75, hand: Z_DIFF + 3.05 };
 
 /** Заряд — ПОХІДНИЙ від двох входів диференціала, а не окрема змінна стану. */
 export const chargeOf = (w, beta) => C0 + (RA * w - RB * beta) / (2 * SWEEP);
@@ -57,11 +62,14 @@ export function buildPowerReserve({ brass, steel, axleMat, ruby, plateMat, blued
   group.position.set(barrelPos.x, barrelPos.y, 0);
 
   // ── Маточинне колесо (вхід ходу, β) — на трубці барабанного колеса ──
+  const hubParts = [];
   {
     const hubWheel = makeGear({ teeth: PRT_HUB, module: PRT_M, thickness: 0.5, bore: 0.62, crossings: 4 }, brass);
     hubWheel.position.z = 1.85;
     barrelGroup.add(hubWheel);
-    barrelGroup.add(makeAxle({ r: 0.42, len: 1.3, z: 1.05 }, brass));
+    const hubPipe = makeAxle({ r: 0.42, len: 1.3, z: 1.05 }, brass);
+    barrelGroup.add(hubPipe);
+    hubParts.push(hubWheel, hubPipe);
   }
 
   // ── Компаунд-проміжне: тріб (8, площина маточинного) + колесо (20) ──
@@ -190,6 +198,8 @@ export function buildPowerReserve({ brass, steel, axleMat, ruby, plateMat, blued
     for (const p of planets) p.rotation.z = spin * p.userData.dir;
     return Math.min(1, Math.max(0, chargeOf(w, beta)));
   }
+
+  for (const o of [group, ...hubParts]) tagModule(o, 'powerReserve');
 
   return {
     group, carrier, hand: carrier, sunUp, sunLow, idler: idlerG,

@@ -1,13 +1,17 @@
 import * as THREE from 'three';
 import { makeGear, makeBevelGear } from './gear.js';
-import { AXLE_R, deg, dir2, mod, meshPhase, makeAxle } from './common.js';
+import { AXLE_R, deg, dir2, mod, meshPhase, makeAxle, tagModule } from './common.js';
 
 // ── Заведення: головка → вал → конічна пара → коронне колесо → храповик ──
-export const RATCHET_T = 28, CROWN_T = 18;   // храповик на осі барабана / коронне колесо
-export const BEVEL_W = 16, BEVEL_P = 8;      // конічна пара 90°, 2:1
+export const RATCHET_T = 28;
+export const CROWN_T = 18;   // храповик на осі барабана / коронне колесо
+export const BEVEL_W = 16;
+export const BEVEL_P = 8;      // конічна пара 90°, 2:1
 export const RATCH_M = 0.33;                 // модуль пари храповик ↔ коронне
 export const CW_ANGLE = deg(225);            // напрям вузла заведення від барабана
 const WIND_Z = 2.6;                          // палуба заведення (над маточинним колесом диференціала)
+/** Z-рівні модуля — спільні з розрізом збоку. */
+export const LAYERS = { deck: WIND_Z, apex: WIND_Z + 0.35 };
 const CLICK_LIFT = 0.07;                     // підйом собачки на зубці, рад
 
 // Кути ділильних конусів доповнюють один одного: δ_w + δ_p = 90°, tan δ_w = Zw/Zp.
@@ -151,5 +155,6 @@ export function buildWinding({ steel, axleMat }, L, barrelPos) {
     crown.rotation.y = -crownSpin;
   }
 
+  tagModule(group, 'winding');
   return { group, ratchet: ratchetG, click: clickG, crownWheelGroup: cwG, setAngle };
 }

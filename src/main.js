@@ -4,6 +4,9 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import GUI from 'lil-gui';
 import { buildMovement } from './movement.js';
 import { buildLabels, createCameraFly } from './ui.js';
+import { t, getLang, setLang, onLangChange, LANGS } from './i18n.js';
+import { createHighlighter } from './lesson/highlight.js';
+import { mountLesson } from './lesson/panel.js';
 
 // ── Сцена / рендер ────────────────────────────────────────────────
 const canvas = document.getElementById('app');
@@ -62,9 +65,19 @@ const cageMat = new THREE.MeshStandardMaterial({ color: 0x2f4b8c, roughness: 0.2
 const movement = buildMovement({ brass, steel, axleMat, ruby, springMat, plateMat, bluedMat, springSteel, backdropMat, cageMat });
 scene.add(movement.root);
 
-// Підписи вузлів.
-const labels = buildLabels(movement.focusPoints);
+// Підписи вузлів. Текст запікається в текстуру, тож при зміні мови їх
+// доводиться будувати наново — сама група лишається тією ж.
+let labels = buildLabels(movement.focusPoints);
 movement.root.add(labels);
+
+function rebuildLabels() {
+  const visible = labels.visible;
+  movement.root.remove(labels);
+  labels.traverse((o) => { o.material?.map?.dispose?.(); o.material?.dispose?.(); });
+  labels = buildLabels(movement.focusPoints);
+  labels.visible = visible;
+  movement.root.add(labels);
+}
 
 // ── Тло-плита ─────────────────────────────────────────────────────
 const plateR = Math.max(movement.size.w, movement.size.h) / 2 + 10;
@@ -92,6 +105,7 @@ function fitCamera() {
   const hTan = vTan * camera.aspect;
   const dist = (fitR / Math.min(vTan, hTan)) * 1.05;
   camera.position.copy(viewDir).multiplyScalar(dist);
+  controls.target.set(0, 0, 0); // інакше ціль лишиться на попередньому вузлі
 }
 
 // ── UI ────────────────────────────────────────────────────────────
@@ -103,71 +117,135 @@ const params = {
   amplitude: 220,
   wireframe: false,
 };
-const gui = new GUI({ title: 'SimWatch' });
-gui.add(params, 'running').name('Рух');
-gui.add(params, 'timeMode', {
-  'Демонстраційний час': 'demo',
-  'Реальний час': 'real',
-}).name('Режим часу');
-gui.add(params, 'speed', 0, 10, 0.1).name('Швидкість');
-gui.add(params, 'beatHz', 0.5, 6, 0.1).name('Хід, уд/с');
-gui.add(params, 'amplitude', 90, 270, 5).name('Амплітуда, °');
-gui.add(params, 'wireframe').name('Каркас').onChange((v) => {
-  brass.wireframe = v;
-  steel.wireframe = v;
-});
-gui.add({ wind: () => movement.winder.wind() }, 'wind').name('⟳ Завести пружину');
+let gui = null;
+let uiMode = 'lesson'; // панель вільного режиму схована, поки триває урок
 const powerUI = { power: 75 };
-gui.add(powerUI, 'power', 0, 100, 1).name('Завод, %').listen().disable();
-gui.add(labels, 'visible').name('Підписи');
-const nodes = gui.addFolder('Вузли');
+const mwVis = { hands: true, winding: true };
 // Анкерний вузол — це і є кліть турбійона (кліть сидить на його осі), тож у
 // списку він один раз, під назвою «Турбійон»: тумблер ховає весь вузол разом
 // із кліттю. Нерухоме колесо стоїть окремо в сцені, баланс — усередині кліті.
 const cageArbor = movement.arbors.find((a) => a.spec.escapeTeeth);
-for (const a of movement.arbors) {
-  if (a !== cageArbor) nodes.add(a.group, 'visible').name(a.name);
-}
-nodes.add(cageArbor.group, 'visible').name('Турбійон');
-nodes.add(movement.tourbillon.fixed, 'visible').name('Нерухоме колесо');
-nodes.add(movement.tourbillon.balance, 'visible').name('Баланс');
-const mwVis = { hands: true, winding: true };
-nodes.add(mwVis, 'hands').name('Стрілки + моторний мех.').onChange((v) => {
-  for (const g of Object.values(movement.motionWorks)) g.visible = v;
-});
-nodes.add(mwVis, 'winding').name('Заведення').onChange((v) => (movement.winder.group.visible = v));
-nodes.add(movement.powerReserve.group, 'visible').name('Запас ходу');
 
-// Пресети камери.
-const worldOf = (name) => {
-  const fp = movement.focusPoints.find((f) => f.name === name);
+const worldOf = (key) => {
+  const fp = movement.focusPoints.find((f) => f.nameKey === key);
   return new THREE.Vector3(fp.pos.x, fp.pos.y, fp.z).add(movement.root.position);
 };
-const goto = (target, back, up = 2) =>
+// Переліт до вузла зупиняє автопідгонку кадру: інакше ресайз (а перемикання
+// режиму — це ресайз) відсмикнув би камеру від щойно наведеного вузла.
+const goto = (target, back, up = 2) => {
+  userOrbited = true;
   fly.flyTo(target.clone().add(new THREE.Vector3(0, up, back)), target);
-const cams = {
-  'Загальний вид': () => {
-    const vTan = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
-    const hTan = vTan * camera.aspect;
-    fly.flyTo(viewDir.clone().multiplyScalar((fitR / Math.min(vTan, hTan)) * 1.05), new THREE.Vector3());
-  },
-  'Стрілки': () => goto(worldOf('Стрілки'), 22, 4),
-  'Запас ходу': () => goto(worldOf('Запас ходу'), 13, 1),
-  'Турбійон': () => goto(worldOf('Турбійон'), 15, 3),
 };
-const camF = gui.addFolder('Камера');
-for (const k of Object.keys(cams)) camF.add(cams, k);
+const overview = () => {
+  userOrbited = false; // загальний вид повертає механізм у кадр і дозволяє підгонку
+  const vTan = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+  const hTan = vTan * camera.aspect;
+  fly.flyTo(viewDir.clone().multiplyScalar((fitR / Math.min(vTan, hTan)) * 1.05), new THREE.Vector3());
+};
+const CAMS = [
+  ['cam.overview', overview],
+  ['part.hands', () => goto(worldOf('part.hands'), 22, 4)],
+  ['part.powerReserve', () => goto(worldOf('part.powerReserve'), 13, 1)],
+  ['part.tourbillon', () => goto(worldOf('part.tourbillon'), 15, 3)],
+];
+
+/** lil-gui вшиває підписи при створенні, тож зміна мови = перебудова панелі. */
+function buildGui() {
+  gui?.destroy();
+  gui = new GUI({ title: 'SimWatch' });
+  gui.add(params, 'running').name(t('gui.running'));
+  gui.add(params, 'timeMode', {
+    [t('gui.timeDemo')]: 'demo',
+    [t('gui.timeReal')]: 'real',
+  }).name(t('gui.timeMode'));
+  gui.add(params, 'speed', 0, 10, 0.1).name(t('gui.speed'));
+  gui.add(params, 'beatHz', 0.5, 6, 0.1).name(t('gui.beat'));
+  gui.add(params, 'amplitude', 90, 270, 5).name(t('gui.amplitude'));
+  gui.add(params, 'wireframe').name(t('gui.wireframe')).onChange((v) => {
+    brass.wireframe = v;
+    steel.wireframe = v;
+  });
+  gui.add({ wind: () => movement.winder.wind() }, 'wind').name(t('gui.wind'));
+  gui.add(powerUI, 'power', 0, 100, 1).name(t('gui.charge')).listen().disable();
+  gui.add(labels, 'visible').name(t('gui.labels'));
+
+  const nodes = gui.addFolder(t('gui.nodes'));
+  for (const a of movement.arbors) {
+    if (a !== cageArbor) nodes.add(a.group, 'visible').name(t(a.nameKey));
+  }
+  nodes.add(cageArbor.group, 'visible').name(t('part.tourbillon'));
+  nodes.add(movement.tourbillon.fixed, 'visible').name(t('part.fixedWheel'));
+  nodes.add(movement.tourbillon.balance, 'visible').name(t('part.balance'));
+  nodes.add(mwVis, 'hands').name(t('gui.handsAndMotionWorks')).onChange((v) => {
+    for (const g of Object.values(movement.motionWorks)) g.visible = v;
+  });
+  nodes.add(mwVis, 'winding').name(t('part.winding')).onChange((v) => (movement.winder.group.visible = v));
+  nodes.add(movement.powerReserve.group, 'visible').name(t('part.powerReserve'));
+
+  const camF = gui.addFolder(t('gui.camera'));
+  for (const [key, fn] of CAMS) camF.add({ [key]: fn }, key).name(t(key));
+
+  gui.add({ lang: () => setLang(getLang() === 'ua' ? 'en' : 'ua') }, 'lang')
+     .name(getLang() === 'ua' ? 'EN' : 'УКР');
+  // Зміна мови будує панель наново — вона мусить успадкувати режим,
+  // інакше в уроці зринає інтерфейс вільного режиму.
+  gui.domElement.style.display = uiMode === 'free' ? '' : 'none';
+}
+buildGui();
+
+onLangChange(() => {
+  rebuildLabels();
+  buildGui();
+  document.getElementById('hint').textContent = t('hint.controls');
+});
 
 // ── Ресайз ────────────────────────────────────────────────────────
+// Полотно живе в клітинці сітки, тож розмір беремо з нього, а не з вікна:
+// перемикання режиму міняє клітинку без жодної події вікна.
 function resize() {
-  const w = window.innerWidth, h = window.innerHeight;
+  const w = canvas.clientWidth || window.innerWidth;
+  const h = canvas.clientHeight || window.innerHeight;
+  if (!w || !h) return;
   renderer.setSize(w, h, false);
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
   if (!userOrbited) fitCamera(); // тримати механізм у кадрі, поки користувач не орбітав сам
 }
+new ResizeObserver(resize).observe(canvas);
 window.addEventListener('resize', resize);
 resize();
+
+// ── Урок ──────────────────────────────────────────────────────────
+let freeLabels = true; // стан підписів у вільному режимі
+const highlighter = createHighlighter(movement.root);
+const lesson = mountLesson({
+  highlighter,
+  camera: {
+    presets: CAMS,
+    overview,
+    toKey: (key) => (CAMS.find(([k]) => k === key)?.[1] ?? overview)(),
+  },
+  params,
+  run: (action) => { if (action === 'wind') movement.winder.wind(); },
+  status: () => ({
+    real: params.timeMode === 'real',
+    speed: params.speed,
+    charge: movement.winder.charge,
+    time: simT,
+  }),
+  onMode: (mode) => {
+    uiMode = mode;
+    gui.domElement.style.display = mode === 'free' ? '' : 'none';
+    // Підписи-спрайти мають сталий світовий розмір: зблизька вони закривають
+    // сам вузол. В уроці станцію називає картка, тож підписи ховаємо —
+    // у вільному режимі вони повертаються такими, як були.
+    if (mode === 'lesson') { freeLabels = labels.visible; labels.visible = false; }
+    else labels.visible = freeLabels;
+    resize();
+  },
+});
+lesson.setMode('lesson');
+document.getElementById('hint').textContent = t('hint.controls');
 
 // ── Цикл ──────────────────────────────────────────────────────────
 const clock = new THREE.Clock();
@@ -188,6 +266,7 @@ function tick() {
   }
   movement.winder.update(dt);
   powerUI.power = Math.round(movement.winder.charge * 100);
+  lesson.update();
   fly.update();
   controls.update();
   renderer.render(scene, camera);

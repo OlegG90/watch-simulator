@@ -22,6 +22,34 @@ Built with **Three.js** + **Vite**. All geometry is generated procedurally in co
 - **Time modes** — demo time (runs from the escapement) and real time (hands follow the system clock while the escapement stays visually coupled).
 - **Compact layered layout** — the train is coiled into a tight loop; balance, motion works and central seconds sit on higher Z-layers above it.
 
+## Two modes
+
+**Explore** is what opens: six stops in the order energy flows through the movement —
+winding, barrel, going train, escapement, time display, power reserve. A stop dims
+everything but its own parts, flies the camera to it, and shows a card with the key
+idea, the formula and one control to turn. Each stop leaves a sentence behind; the
+summary at the end assembles all six into a description of the going.
+
+Two markers keep the cards honest. Green names the test that backs the claim — and a
+meta-test asserts every referenced test actually exists, so the badge cannot quietly
+become a lie. Amber marks where the model departs from real horology (the same
+departures listed under *Assumptions* below).
+
+No figure in a card is typed: every one is derived from the constants that build the
+geometry, so a card cannot drift from the mechanism it describes.
+
+Each stop can be seen **from the side** — a developed section along the chain rather
+than a projection. An orthographic side view collapses Y and would drop the tourbillon
+cage onto the differential; here heights are true and arbors sit at their real centre
+distances, which is why every pinion touches its neighbour exactly at the pitch circles.
+
+**Free mode** is the movement with every control at once — run/pause, time mode, speed,
+beat rate, amplitude, per-node visibility, camera presets, winding. It is reachable from
+the header and from the end of the route, and has its own way back.
+
+The interface is Ukrainian and English, including the 3D labels; wheel names follow
+horological usage rather than literal translation.
+
 ## Mechanism elements
 
 Notation: $m$ — module, $z$ — tooth count, $s = 2\pi/z$ — angular tooth pitch, $r = mz/2$ — pitch radius, $\omega$ — angular velocity (sign = direction).
@@ -48,7 +76,7 @@ Barrel wheel 48 teeth ($m=0.35$, $r=8.4$), 5 spoke windows; open drum (wall + fl
 
 - Archimedean spiral: $r(t) = r_{in} + (r_{out}-r_{in})\,t$, $\theta(t) = 2\pi N t$, $t\in[0,1]$, $r_{in}=1.05$.
 - Wind state $c\in[0,1]$: $r_{out}(c) = 6.8 - 1.2c$, $N(c) = 3.4 + 3.6c$ (tighter = more coils, smaller radius).
-- Winding and drain are computed by the **differential** (see §12): the charge is derived from the ratchet and barrel-wheel angles; one click $= +0.375$, a full wind ≈ 214 s of demo running (2.5 beats/s); at $c=0$ the movement stops.
+- Winding and drain are computed by the **differential** (see §12): the charge is derived from the ratchet and barrel-wheel angles; one click $= +0.375$, a full wind ≈ 213 s of demo running (2.5 beats/s); at $c=0$ the movement stops.
 - Verified: the coil radius is monotonic in charge (the spring shape always agrees with the reserve hand).
 
 ### 3. Going train
@@ -133,7 +161,7 @@ Polyline of 200 points: $\alpha(f) = \theta_b(1-f) + f\Phi - \Phi + \lambda$, $r
 - While winding the lower sun stands still (the train holds the barrel); while running the upper sun stands still (the click holds the ratchet).
 - **Real-time mode acts as an auto-winder:** $dw = (R_B/R_A)\,d\beta = 4\,d\beta$ — the ratchet creeps, the reserve hand holds steady while both suns turn.
 - Stops: at $c = 1$ the crown stops taking turns; at $c = 0$ demo mode halts the movement.
-- Numbers: one click (a quarter-turn of the ratchet) = $+0.375$ charge; a full wind ($c=1$) runs ≈ 214 s (≈ 3.6 min) of demo time at 2.5 beats/s, and the default starting charge $c_0=0.75$ gives ≈ 160 s.
+- Numbers: one click (a quarter-turn of the ratchet) = $+0.375$ charge; a full wind ($c=1$) runs ≈ 213 s (≈ 3.6 min) of demo time at 2.5 beats/s, and the default starting charge $c_0=0.75$ gives ≈ 160 s.
 - Z-stack above the barrel: hub wheel 1.85 → ratchet 2.6 → compound 3.3 → suns/planets 4.4–7.8 → carrier bridge 7.95 → sector scale 8.55 → hand 8.85.
 - Verified: the differential condition holds to 12 digits; sun immobility per mode; mesh invariants of both running-path pairs = 0; auto-winder behaviour; full-wind stop.
 
@@ -149,7 +177,7 @@ Polyline of 200 points: $\alpha(f) = \theta_b(1-f) + f\Phi - \Phi + \lambda$, $r
 3. **Compressed time scale:** the seconds wheel turns once per 32 s (at 2.5 beats/s), the "minute" axis ~5.3 min, the "hour" axis ~64 min. Ratios are exact (60:1, 12:1), absolute periods are not.
 4. **Real-time mode:** hands are overlaid on top of the train (separate subgroups) and visibly "slip" against their wheels; the escapement stays coupled (a deliberate trade-off — the compressed model's mismatch is moved from the escapement to the hands).
 5. **Bevel pair:** pitch cones are geometrically exact (tangency = 0), but tooth phasing is approximate — profiles are not conjugate.
-6. **Mainspring:** its shape is interpolated from the charge; ribbon length is not conserved and spring torque is not modeled. The run time (≈ 214 s from a full wind, ≈ 160 s from the default $c_0=0.75$) follows from the differential's ratios, not from spring physics.
+6. **Mainspring:** its shape is interpolated from the charge; ribbon length is not conserved and spring torque is not modeled. The run time (≈ 213 s from a full wind, ≈ 160 s from the default $c_0=0.75$) follows from the differential's ratios, not from spring physics.
 7. **Hairspring** "breathes" in a simplified way (linear angle interpolation along the coils), without length conservation.
 8. **Winding** moves during the button animation and auto-winding; the click ratchets kinematically (angle from the tooth phase), but physical contact and locking are not modeled.
 9. **No bearings/bridges:** arbors float visually; the plate is decorative.
@@ -160,7 +188,11 @@ Polyline of 200 points: $\alpha(f) = \theta_b(1-f) + f\Phi - \Phi + \lambda$, $r
 ## Controls
 
 - Mouse: orbit (LMB), zoom (wheel), pan (RMB).
-- `lil-gui` panel: run/pause, time mode, speed, beat rate, amplitude, wireframe, per-node visibility, camera presets, and "wind the mainspring".
+- **Explore**: pick a stop in the left rail; each card carries the one control that
+  matters there. Camera presets and the top/side switch sit over the scene; the mode
+  and language switches are in the header.
+- **Free mode**: the `lil-gui` panel — run/pause, time mode, speed, beat rate,
+  amplitude, wireframe, per-node visibility, camera presets, and "wind the mainspring".
 
 ## Run locally
 
@@ -213,6 +245,24 @@ src/
   winding.js       ratchet, crown wheel, bevel pair, click, stem             §11
   powerReserve.js  bevel differential and sector scale                       §12
   ui.js            node labels and camera presets
+  i18n.js          interface strings, Ukrainian and English
+  lesson/          the guided layer (see below)
+```
+
+The lesson layer is separate from the mechanism and never reaches into it:
+
+```text
+src/lesson/
+  panel.js         header, rail, card, chain footer - knows nothing of three.js
+  stations.js      the six stops: focus, highlight set, content keys, backing test
+  content.js       card copy in both languages
+  readouts.js      every live figure, derived from the mechanism constants
+  highlight.js     dims all but a station's parts (swaps in dimmed material clones,
+                   because materials are shared across dozens of meshes)
+  section.js       the developed section as data
+  sectionView.js   and as SVG
+  cardText.js      one resolver for card text, shared with the tests
+  lesson.css       the interface; fonts.css + fonts/ ship the faces (OFL 1.1)
 ```
 
 There is no `escapement.js` — the escapement lives inside the cage in `tourbillon.js`.

@@ -1,7 +1,11 @@
 import * as THREE from 'three';
 import { makeGear, makeEscapeWheel } from './gear.js';
+import { tagModule } from './common.js';
 
 // ── Константи спуску (ті самі, що в escapement.js) ────────────────
+/** Локальні Z-рівні кліті (від її основи) — спільні з розрізом збоку. */
+export const LAYERS = { bottom: -0.55, pin: 0, escape: 0.55, fork: 0.95, balance: 1.75, hair: 2.25, top: 2.6 };
+
 const FORK_MAX = 0.14;   // розмах анкера, рад
 const FLIP_W = 0.12;     // пів-ширина вікна перекидання, частка удару
 const smooth = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
@@ -201,6 +205,8 @@ export function buildTourbillon(
   }
   update(0, 2.5, 220);
 
+  tagModule(cage, 'tourbillon');
+  tagModule(fixed, 'tourbillon');
   return { cage, fixed, update, balance, fork, escSub, hairGroup, cageR };
 }
 

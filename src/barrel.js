@@ -1,6 +1,20 @@
 import * as THREE from 'three';
 import { makeSpiralRibbon } from './gear.js';
-import { pitchR, makeAxle } from './common.js';
+import { pitchR, makeAxle, tagModule } from './common.js';
+
+// Форма пружини від заряду c ∈ [0,1]. Винесено з `setCharge`, бо ті самі числа
+// показує картка станції «Енергія» — вона мусить читати їх, а не дублювати.
+export const SPRING_INNER_R = 1.05;
+export const SPRING_SQUEEZE = 1.2;   // на скільки вінець відходить від стінки при c = 1
+export const SPRING_TURNS_0 = 3.4;   // витків у розслабленої
+export const SPRING_TURNS_C = 3.6;   // приріст витків до повного заводу
+/** Z-рівні модуля — спільні з розрізом збоку. */
+export const LAYERS = { drumCentre: -1.5, drumHeight: 2.0 };
+export const springShape = (c, relaxedOuterR) => ({
+  innerR: SPRING_INNER_R,
+  outerR: relaxedOuterR - SPRING_SQUEEZE * c,
+  turns: SPRING_TURNS_0 + SPRING_TURNS_C * c,
+});
 
 /**
  * Модуль енергії: відкритий барабан із видимою заводною пружиною.
@@ -40,13 +54,10 @@ export function buildBarrel({ brass, steel, springSteel }, { wheelTeeth }) {
 
   /** Форма пружини від заряду: тугіша = більше витків і менший зовнішній радіус. */
   function setCharge(c) {
-    spring.userData.setShape({
-      innerR: 1.05,
-      outerR: relaxedOuterR - 1.2 * c, // тугіша пружина відходить від стінки
-      turns: 3.4 + 3.6 * c,            // більше витків = щільніший пакет
-    });
+    spring.userData.setShape(springShape(c, relaxedOuterR));
   }
   setCharge(0); // розслаблена — до першого syncDiff
 
-  return { group, spring, setCharge };
+  tagModule(group, 'barrel');
+  return { group, spring, setCharge, relaxedOuterR };
 }

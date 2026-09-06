@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { makeGear } from './gear.js';
-import { M, WHEEL_T, PINION_T, Z_STEP, AXLE_R, pitchR, deg, meshPhase, makeAxle } from './common.js';
+import { M, WHEEL_T, PINION_T, Z_STEP, AXLE_R, pitchR, deg, meshPhase, makeAxle, tagModule } from './common.js';
 
 /**
  * Колісна передача: кожен вузол (arbor) несе тріб (ведений попереднім колесом)
@@ -9,11 +9,11 @@ import { M, WHEEL_T, PINION_T, Z_STEP, AXLE_R, pitchR, deg, meshPhase, makeAxle 
  * кліттю турбійона (анкерне колесо живе в кліті, див. `tourbillon.js`).
  */
 export const TRAIN = [
-  { name: 'Барабан',           wheel: 48, axleTop: 2.3, crossings: 5 },    // вище — трубки диференціала запасу ходу
-  { name: 'Центральне колесо', pinion: 12, wheel: 40, crossings: 4, axleTop: 7.4 }, // вісь до канонного триба
-  { name: 'Проміжне колесо',   pinion: 12, wheel: 36, crossings: 4 },
-  { name: 'Секундне колесо',   pinion: 12, wheel: 32, crossings: 3, axleTop: 5.15 }, // вісь під секундну стрілку
-  { name: 'Анкерний вузол',    pinion: 12, escapeTeeth: 15 },              // = кліть турбійона
+  { nameKey: 'part.barrel',      wheel: 48, axleTop: 2.3, crossings: 5 },    // вище — трубки диференціала запасу ходу
+  { nameKey: 'part.centre',      pinion: 12, wheel: 40, crossings: 4, axleTop: 7.4 }, // вісь до канонного триба
+  { nameKey: 'part.third',       pinion: 12, wheel: 36, crossings: 4 },
+  { nameKey: 'part.fourth',      pinion: 12, wheel: 32, crossings: 3, axleTop: 5.15 }, // вісь під секундну стрілку
+  { nameKey: 'part.escapeArbor', pinion: 12, escapeTeeth: 15 },              // = кліть турбійона
 ];
 
 // Напрям (у площині XY) від осі k до осі k+1 — передачу скручено в тісну петлю
@@ -49,7 +49,7 @@ export function layoutTrain() {
       phi = meshPhase(theta, ZA, ZB, prev.phi);
     }
     arbors.push({
-      name: spec.name,
+      nameKey: spec.nameKey,
       spec,
       pos,
       omega,
@@ -92,6 +92,9 @@ export function buildTrain({ brass, steel, axleMat }, arbors, root) {
       axleMat
     ));
 
+    tagModule(g, 'train');
+    // індекс вузла: дозволяє підсвітити один вузол передачі, а не весь ланцюг
+    g.traverse((o) => { if (o.userData.arbor === undefined) o.userData.arbor = k; });
     root.add(g);
     a.group = g;
   });
