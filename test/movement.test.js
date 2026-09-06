@@ -121,6 +121,49 @@ describe('турбійон (tourbillon cage)', () => {
     // Кут анкерного колеса відносно кліті дорівнює θ_cage (β) — Zf=Zp.
     expect(e1 - e0).toBeCloseTo(b1 - b0, 9);
   });
+
+  it('спіраль дихає в тій самій геометрії: вершини рухаються, буфер той самий', () => {
+    const f = buildFresh();
+    const hair = f.tourbillon.hairGroup.children[0];
+    // Моменти навмисно НЕ симетричні відносно піку балансу: при u і 1−u
+    // амплітуда однакова, і спіраль правомірно стояла б на місці.
+    f.setTime(0.05, params); // u = 0.125
+    const geo = hair.geometry;
+    const buf = geo.attributes.position.array;
+    const first = buf.slice(0, 12);
+
+    f.setTime(0.17, params); // u = 0.425
+    // Геометрію не можна перестворювати щокадру: TubeGeometry коштувала
+    // ~5.7 КБ сміття й ~285 мкс на кадр — більше за весь інший механізм.
+    expect(hair.geometry, 'геометрію спіралі перестворено').toBe(geo);
+    expect(geo.attributes.position.array, 'буфер позицій замінено').toBe(buf);
+    const later = geo.attributes.position.array.slice(0, 12);
+    expect([...later].some((v, i) => Math.abs(v - first[i]) > 1e-6),
+      'вершини спіралі не рухаються').toBe(true);
+  });
+
+  it('спіраль лишається трубкою сталої товщини при будь-якому куті балансу', () => {
+    const f = buildFresh();
+    const RADIAL = 8, VROW = RADIAL + 1, HAIR_R = 0.034;
+    const pos = f.tourbillon.hairGroup.children[0].geometry.attributes.position;
+    const rings = pos.count / VROW;
+    for (const t of [0, 0.13, 0.27, 0.41]) {
+      f.setTime(t, params);
+      for (let i = 0; i < rings; i++) {
+        let cx = 0, cy = 0, cz = 0;
+        for (let j = 0; j < RADIAL; j++) {
+          cx += pos.getX(i * VROW + j); cy += pos.getY(i * VROW + j); cz += pos.getZ(i * VROW + j);
+        }
+        cx /= RADIAL; cy /= RADIAL; cz /= RADIAL;
+        for (let j = 0; j <= RADIAL; j++) {
+          const d = Math.hypot(pos.getX(i * VROW + j) - cx,
+                               pos.getY(i * VROW + j) - cy,
+                               pos.getZ(i * VROW + j) - cz);
+          expect(d, `t=${t}, кільце ${i}`).toBeCloseTo(HAIR_R, 5);
+        }
+      }
+    }
+  });
 });
 
 // ── Моторний механізм і центральна секунда ────────────────────────
