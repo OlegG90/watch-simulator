@@ -30,7 +30,7 @@ const CHAIN_MAIN = ['chain.winding', 'chain.barrel', 'chain.train', 'chain.escap
 
 export function mountLesson({ highlighter, camera, status, onMode, params, run }) {
   const ui = document.getElementById('ui');
-  const state = { mode: 'lesson', current: null, visited: new Set(), cam: 'cam.overview', view: 'top' };
+  const state = { mode: 'lesson', current: null, visited: new Set(), cam: 'cam.overview', view: 'top', finished: false };
 
   const refs = {};   // живі вузли шапки й підвала
   let dyn = [];      // вузли картки з живими числами: {node, fn}
@@ -132,7 +132,22 @@ export function mountLesson({ highlighter, camera, status, onMode, params, run }
     rail.append(el('div', 'spacer'));
 
     const box = el('div', 'collected');
-    box.append(el('b', null, t('rail.collected')), el('p', null, t('rail.empty')));
+    box.append(el('b', null, t('rail.collected')));
+    const got = STATIONS.filter((x) => state.visited.has(x.id));
+    if (got.length === 0) {
+      box.append(el('p', null, t('rail.empty')));
+    } else {
+      const p = el('p');
+      // Показуємо два останні речення — решта чекає на підсумку.
+      got.slice(-2).forEach((x, k) => {
+        if (k) p.append(document.createElement('br'));
+        const num = el('span', null, `${STATIONS.indexOf(x) + 1}. `);
+        num.style.color = '#6f757e';
+        p.append(num, document.createTextNode(t(`st.${x.id}.line`)));
+      });
+      box.append(p);
+      if (got.length > 2) box.append(el('div', 'more', tn('rail.more', got.length - 2)));
+    }
     const bars = el('div', 'bars');
     STATIONS.forEach((s, i) => {
       const bar = el('i');
@@ -317,8 +332,7 @@ export function mountLesson({ highlighter, camera, status, onMode, params, run }
     const atEnd = i !== null && i === STATIONS.length - 1;
     const next = el('button', 'next', atEnd
       ? `${t('card.summary')} →` : `${t(STATIONS[(i ?? -1) + 1].nameKey)} →`);
-    next.disabled = atEnd; // підсумок — у своїй фазі
-    if (!next.disabled) next.addEventListener('click', () => go((i ?? -1) + 1));
+    next.addEventListener('click', () => (atEnd ? showFinish() : go((i ?? -1) + 1)));
 
     row.append(prev, next);
     return row;
@@ -345,8 +359,8 @@ export function mountLesson({ highlighter, camera, status, onMode, params, run }
   /** Ширина коробки рахується з тексту — англійські назви довші за українські. */
   const boxW = (label) => Math.max(64, Math.round(label.length * 6.7) + 24);
 
-  function chainSvg() {
-    const here = state.current === null ? null : STATIONS[state.current].chain;
+  function chainSvg({ all = false } = {}) {
+    const here = all ? null : state.current === null ? null : STATIONS[state.current].chain;
     const labels = CHAIN_MAIN.map(t);
     const w = labels.map(boxW);
     const x = [];
@@ -359,7 +373,7 @@ export function mountLesson({ highlighter, camera, status, onMode, params, run }
     const g = svgEl('g', { 'font-family': 'IBM Plex Sans, sans-serif', 'font-size': 11.5 });
     s.append(g);
 
-    const passed = (i) => here?.row !== undefined && i < here.row;
+    const passed = (i) => all || (here?.row !== undefined && i < here.row);
     const box = (bx, by, bw, label, active, dim) => {
       g.append(svgEl('rect', {
         x: bx, y: by, width: bw, height: by === 52 ? 30 : 28, rx: 4,
@@ -384,9 +398,9 @@ export function mountLesson({ highlighter, camera, status, onMode, params, run }
       fill: 'none', stroke: '#3a4048', 'stroke-width': 1.2 }));
     g.append(svgEl('path', { d: `M${mid[1]} 52 C ${mid[1]} 40, ${rx + rw - 20} 42, ${rx + rw - 34} 40`,
       fill: 'none', stroke: '#3a4048', 'stroke-width': 1.2 }));
-    box(rx, 12, rw, reserveLabel, here?.branch === 'reserve');
+    box(rx, 12, rw, reserveLabel, here?.branch === 'reserve', all);
     g.append(svgEl('path', { d: `M${mid[2]} 52 L ${mid[2]} 40`, fill: 'none', stroke: '#3a4048', 'stroke-width': 1.2 }));
-    box(hx, 12, hw, handsLabel, here?.branch === 'hands');
+    box(hx, 12, hw, handsLabel, here?.branch === 'hands', all);
 
     // головний ряд + стрілки
     labels.forEach((label, i) => box(x[i], 52, w[i], label, here?.row === i, passed(i)));
@@ -426,8 +440,84 @@ export function mountLesson({ highlighter, camera, status, onMode, params, run }
     renderChrome();
   }
 
+  // ── Підсумок маршруту ───────────────────────────────────────────
+  function renderFinish() {
+    const host = document.getElementById('finish');
+    host.replaceChildren();
+    const box = el('div', 'fin');
+
+    const head = el('div', 'fin-head');
+    head.append(el('div', 'eyebrow', t('finish.eyebrow')));
+    head.append(el('h1', null, t('finish.title')));
+    head.append(el('p', null, t('finish.lead')));
+    box.append(head);
+
+    // Шість зібраних речень — разом вони і є описом ходу.
+    const grid = el('div', 'lines');
+    STATIONS.forEach((st, i) => {
+      const row = el('div', 'line');
+      row.append(el('span', 'n', String(i + 1)));
+      const body = el('div');
+      body.append(el('i', null, t(st.nameKey).toLowerCase()), el('p', null, t(`st.${st.id}.line`)));
+      row.append(body);
+      grid.append(row);
+    });
+    box.append(grid);
+
+    const chain = el('div', 'fin-chain');
+    chain.append(chainSvg({ all: true }), el('p', null, t('finish.loop')));
+    box.append(chain);
+
+    const nextBlock = el('div', 'block');
+    nextBlock.append(el('b', null, t('finish.next')));
+    const cards = el('div', 'next-grid');
+    cards.append(nextCard('finish.side', 'finish.sideBody', () => {
+      hideFinish(); go(2); setView('side');
+    }));
+    cards.append(nextCard('mode.free', 'finish.freeBody', () => setMode('free')));
+    nextBlock.append(cards);
+    box.append(nextBlock);
+
+    const actions = el('div', 'fin-actions');
+    const again = el('button', 'primary', t('finish.again'));
+    again.addEventListener('click', () => { hideFinish(); state.visited.clear(); go(0); });
+    const toFree = el('button', null, t('finish.goFree'));
+    toFree.addEventListener('click', () => setMode('free'));
+    actions.append(again, toFree, el('span', null, t('finish.footnote')));
+    box.append(actions);
+
+    host.append(box);
+  }
+
+  function nextCard(titleKey, bodyKey, fn) {
+    const b = el('button', 'next-card');
+    const body = el('div');
+    body.append(el('b', null, t(titleKey)), el('span', null, t(bodyKey)));
+    b.append(body);
+    b.addEventListener('click', fn);
+    return b;
+  }
+
+  function showFinish() {
+    state.finished = true;
+    ui.classList.remove('mode-lesson');
+    ui.classList.add('mode-finish');
+    highlighter.clear();
+    camera.overview();
+    document.getElementById('section').hidden = true;
+    renderFinish();
+    renderHeader();
+  }
+
+  function hideFinish() {
+    state.finished = false;
+    ui.classList.remove('mode-finish');
+    ui.classList.add('mode-lesson');
+  }
+
   // ── Дії ─────────────────────────────────────────────────────────
   function go(i) {
+    if (state.finished) hideFinish();
     state.current = i;
     const s = STATIONS[i];
     state.visited.add(s.id);
@@ -439,6 +529,8 @@ export function mountLesson({ highlighter, camera, status, onMode, params, run }
 
   function setMode(mode) {
     state.mode = mode;
+    state.finished = false;
+    ui.classList.remove('mode-finish');
     ui.classList.toggle('mode-free', mode === 'free');
     ui.classList.toggle('mode-lesson', mode === 'lesson');
     if (mode === 'free') highlighter.clear();

@@ -60,6 +60,27 @@ export const CONTENT = {
     'st.powerReserve.n1': 'заряд ніде не зберігається — він похідний',
     'st.powerReserve.s1': 'заряд зараз',
     'st.powerReserve.s2': 'міжосьова пар',
+
+    // ── зібране речення станції: те саме в рейці й на підсумку ──
+    'st.winding.line': 'Собачка не пускає храповик назад — тому в енергії лишається єдиний вихід: у передачу.',
+    'st.energy.line': 'Пружина зберігає роботу руки: тугіша дає довший хід, а не швидший.',
+    'st.train.line': 'Чотири зачеплення розмінюють повільний сильний оберт на швидкий слабкий — у 107 разів.',
+    'st.escapement.line': 'Спуск ділить потік на порції — пів зубця за удар. Темп задає баланс, а не пружина.',
+    'st.timeDisplay.line': 'Моторний механізм ділить оберт на 12, а окремий місток множить на 60 — і все на одній осі.',
+    'st.powerReserve.line': 'Диференціал віднімає накручене від відходженого: стрілка показує різницю, а не залишок.',
+
+    // ── підсумок ──
+    'finish.eyebrow': 'ЛАНЦЮГ ПРОЙДЕНО',
+    'finish.title': 'Як працює цей механізм',
+    'finish.lead': 'Шість речень, які ви зібрали — по одному на кожній зупинці. Разом вони й описують хід.',
+    'finish.loop': 'Зверніть увагу на пунктир: баланс керує спуском, який його ж і живить. Це єдина петля в усьому механізмі — і саме вона робить його годинником, а не просто передачею.',
+    'finish.next': 'КУДИ ДАЛІ',
+    'finish.side': 'Розібрати по шарах',
+    'finish.sideBody': 'Перемкнути будь-яку станцію в розріз і побачити, чому колеса вільно перекриваються в плані.',
+    'finish.freeBody': 'Усі ручки одразу: швидкість, хід, амплітуда, видимість вузлів, пресети камери.',
+    'finish.again': 'Пройти ще раз',
+    'finish.goFree': 'Перейти у вільний режим',
+    'finish.footnote': 'кожне твердження вище закріплене тестом у репозиторії',
   },
 
   en: {
@@ -116,5 +137,26 @@ export const CONTENT = {
     'st.powerReserve.n1': 'the charge is stored nowhere — it is derived',
     'st.powerReserve.s1': 'charge now',
     'st.powerReserve.s2': 'pair centre distance',
+
+    // ── the sentence a stop leaves behind: same text in rail and summary ──
+    'st.winding.line': 'The click will not let the ratchet run back — so the energy has one way out: into the train.',
+    'st.energy.line': 'The mainspring stores the work of your hand: a tighter spring runs longer, not faster.',
+    'st.train.line': 'Four meshes trade a slow strong turn for a fast weak one — 107 times over.',
+    'st.escapement.line': 'The escapement breaks the flow into portions — half a tooth per beat. The balance sets the rate, not the mainspring.',
+    'st.timeDisplay.line': 'The motion works divide the turn by 12 while a separate bridge multiplies it by 60 — all on one axis.',
+    'st.powerReserve.line': 'The differential subtracts what was spent from what was wound: the hand shows the difference, not the remainder.',
+
+    // ── summary ──
+    'finish.eyebrow': 'CHAIN COMPLETE',
+    'finish.title': 'How this movement works',
+    'finish.lead': 'Six sentences you collected — one at every stop. Together they describe the going.',
+    'finish.loop': 'Note the dashed line: the balance governs the escapement that drives it. It is the only loop in the whole movement — and it is what makes this a watch rather than just a gear train.',
+    'finish.next': 'WHERE NEXT',
+    'finish.side': 'Explode the layers',
+    'finish.sideBody': 'Switch any stop to the section and see why the wheels may overlap in plan.',
+    'finish.freeBody': 'Every control at once: speed, rate, amplitude, node visibility, camera presets.',
+    'finish.again': 'Run through again',
+    'finish.goFree': 'Go to free mode',
+    'finish.footnote': 'every statement above is locked by a test in the repository',
   },
 };

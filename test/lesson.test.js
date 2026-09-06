@@ -233,3 +233,31 @@ describe('зміст карток', () => {
     setLang('ua');
   });
 });
+
+describe('підсумок маршруту', () => {
+  it('кожна станція лишає по себе речення — в обох мовах', () => {
+    for (const l of LANGS) {
+      const keys = new Set(dictKeys(l));
+      for (const s of STATIONS) {
+        expect(keys, `${l}: бракує речення станції ${s.id}`).toContain(`st.${s.id}.line`);
+      }
+    }
+  });
+
+  it('речення не порожні й не збігаються між собою', () => {
+    setLang('ua');
+    const lines = STATIONS.map((s) => t(`st.${s.id}.line`));
+    for (const x of lines) expect(x.length).toBeGreaterThan(20);
+    expect(new Set(lines).size, 'два однакові речення').toBe(STATIONS.length);
+  });
+
+  it('усі написи підсумку перекладені', () => {
+    const need = ['finish.eyebrow', 'finish.title', 'finish.lead', 'finish.loop', 'finish.next',
+                  'finish.side', 'finish.sideBody', 'finish.freeBody', 'finish.again',
+                  'finish.goFree', 'finish.footnote', 'rail.more'];
+    for (const l of LANGS) {
+      const keys = new Set(dictKeys(l));
+      for (const k of need) expect(keys, `${l}: бракує ${k}`).toContain(k);
+    }
+  });
+});
