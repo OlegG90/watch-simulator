@@ -13,6 +13,10 @@ import { CONTENT } from './lesson/content.js';
 const DICT = {
   ua: {
     // ── деталі механізму ──
+    // ── одиниці ──
+    'unit.s': 'с',
+
+    // ── деталі механізму ──
     'part.barrel': 'Барабан',
     'part.centre': 'Центральне колесо',
     'part.third': 'Проміжне колесо',
@@ -43,6 +47,10 @@ const DICT = {
     'gui.labels': 'Підписи',
     'gui.nodes': 'Вузли',
     'gui.handsAndMotionWorks': 'Стрілки + моторний мех.',
+    'gui.cageOpacity': 'Кліть — прозорість',
+    'gui.cageTopPlate': 'Кліть — верхня платівка',
+
+    // ── модалка «Варіанти»: гніздо спуску ──
     'variants.eyebrow': 'Гніздо спуску',
     'variants.title': 'Варіанти модуля',
     'variants.lead': 'У механізмі завжди рівно один спуск. Ці три виконують ту саму роботу — і коштують дуже по-різному.',
@@ -60,8 +68,6 @@ const DICT = {
     'variants.lever.desc': 'Анкерне колесо сидить прямо на анкерній осі; вилка й баланс поруч на платині. Колесо обертається рівно на приводний кут.',
     'variants.tourbillon.desc': 'Увесь спуск усередині кліті, яка сама обертається навколо нерухомого колеса. Анкерне колесо їде на кліті, тож крутиться і з нею, і відносно неї — удвічі швидше.',
     'variants.doubleAxis.desc': 'Кліть у кліті: друга вісь обертання під кутом до першої. Ще не збудовано.',
-    'gui.cageOpacity': 'Кліть — прозорість',
-    'gui.cageTopPlate': 'Кліть — верхня платівка',
     'gui.camera': 'Камера',
     'cam.overview': 'Загальний вид',
 
@@ -115,6 +121,10 @@ const DICT = {
   },
   en: {
     // ── mechanism parts ──
+    // ── units ──
+    'unit.s': 's',
+
+    // ── mechanism parts ──
     'part.barrel': 'Barrel',
     'part.centre': 'Centre wheel',
     'part.third': 'Third wheel',
@@ -145,6 +155,10 @@ const DICT = {
     'gui.labels': 'Labels',
     'gui.nodes': 'Nodes',
     'gui.handsAndMotionWorks': 'Hands + motion works',
+    'gui.cageOpacity': 'Cage opacity',
+    'gui.cageTopPlate': 'Cage top plate',
+
+    // ── the variants modal: the escapement socket ──
     'variants.eyebrow': 'Escapement socket',
     'variants.title': 'Module variants',
     'variants.lead': 'The movement always holds exactly one escapement. These three do the same job — at very different cost.',
@@ -154,7 +168,7 @@ const DICT = {
     'variants.metric.parts': 'parts',
     'variants.metric.moving': 'of them moving',
     'variants.metric.axes': 'nested rotations',
-    'variants.metric.size': 'niche, radius × height',
+    'variants.metric.size': 'footprint, radius × height',
     'variants.keep': 'Leave as is',
     'variants.apply': 'Change',
     'variants.open': 'Variants',
@@ -162,8 +176,6 @@ const DICT = {
     'variants.lever.desc': 'The escape wheel sits directly on the escape arbor; fork and balance beside it on the plate. The wheel turns by exactly the drive angle.',
     'variants.tourbillon.desc': 'The whole escapement inside a cage that itself turns around a fixed wheel. The escape wheel rides the cage, so it turns both with it and relative to it — twice as fast.',
     'variants.doubleAxis.desc': 'A cage within a cage: a second axis at an angle to the first. Not built yet.',
-    'gui.cageOpacity': 'Cage opacity',
-    'gui.cageTopPlate': 'Cage top plate',
     'gui.camera': 'Camera',
     'cam.overview': 'Overview',
 

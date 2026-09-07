@@ -113,12 +113,12 @@ export const CONTENT = {
 
     'st.escapement.prose': 'The mainspring pulls on the train continuously — but a watch has to count time in portions. The escapement breaks that flow: the escape wheel advances exactly half a tooth per beat of the balance.',
     'st.escapement.idea': 'The balance sets the rate, not the mainspring. Winding harder will not make the watch run faster — only longer.',
-    'st.escapement.hint': 'Change the rate and both figures move together: their ratio does not depend on it. And Variants changes the escapement itself — without moving either number.',
+    'st.escapement.hint': 'Change the rate and both figures move together: their ratio does not depend on it. And the Variants button changes the escapement itself — without moving either number.',
     'st.escapement.f1': 'θ_arbor = β — what drives the whole movement',
     'st.escapement.n1': 'whichever module sits in the socket, the train is driven by the same angle',
     'st.escapement.f2': '1 beat = π/15 rad = %1°',
     'st.escapement.s1': 'escape arbor turn',
-    'st.escapement.s2': 'seconds wheel',
+    'st.escapement.s2': 'fourth wheel',
     'st.escapement.simp': 'the fork flips along a smooth curve inside a ±0.12-beat window, not because a tooth strikes a pallet',
 
     'st.timeDisplay.prose': 'Three hands on one axis — and not one of them has its own. They sit on nested tubes, one inside another: the hour tube widest and lowest, the seconds tube thinnest and highest.',
