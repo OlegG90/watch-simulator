@@ -69,8 +69,8 @@ export const STATIONS = [
   {
     id: 'escapement',
     nameKey: 'station.escapement',
-    focus: 'part.tourbillon',
-    highlight: { mods: ['tourbillon'] },
+    focus: 'escapement',
+    highlight: { mods: ['escapement'] },
     chain: { row: 3 },
     test: 'θ_cage = β: спокій між ударами, +π/15 за удар',
     prose: 'st.escapement.prose',

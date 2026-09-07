@@ -1,6 +1,6 @@
 import * as THREE from 'three';
 import { makeGear, makeEscapeWheel } from '../gear.js';
-import { tagModule } from '../common.js';
+import { tagModule, tagVariant } from '../common.js';
 import { beatPhase } from './beat.js';
 
 // ── Константи спуску (ті самі, що в escapement.js) ────────────────
@@ -33,6 +33,9 @@ function bar(from, to, w, t, material) {
  * колеса). Кліть додається дочірньою до групи, що вже обертається на θ_cage
  * (у нас — arbor4.group); нерухоме колесо додається окремо, у нерухому групу.
  */
+/** Ідентифікатор варіанта в гнізді спуску. */
+export const VARIANT_ID = 'tourbillon';
+
 export function buildTourbillon(
   { steel, brass, ruby, springSteel, axleMat, plateMat },
   { escTeeth = 15, fixedTeeth = 10, pinionTeeth = 10, moduleT = 0.26, cageR = 4.3, escDirLocal = 0 }
@@ -376,11 +379,11 @@ export function buildTourbillon(
   }
   update(0, 2.5, 220);
 
-  tagModule(cage, 'tourbillon');
-  tagModule(fixed, 'tourbillon');
-  // Позначити внутрішні групи кліті теж, щоб підсвітка уроку не ламалась.
-  tagModule(bottomPlateGroup, 'tourbillon');
-  tagModule(topPlateGroup, 'tourbillon');
+  // Гніздо — 'escapement'; який саме модуль у ньому стоїть — у variant.
+  for (const g of [cage, fixed, bottomPlateGroup, topPlateGroup]) {
+    tagModule(g, 'escapement');
+    tagVariant(g, VARIANT_ID);
+  }
   return { cage, fixed, update, balance, fork, escSub, hairGroup, cageR,
            setCageOpacity, setTopPlateVisible, cagePlates, cagePillars, topPlateGroup, bottomPlateGroup };
 }

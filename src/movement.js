@@ -5,7 +5,7 @@ import { buildBarrel } from './barrel.js';
 import { layoutMotionWorks, buildMotionWorks } from './motionWorks.js';
 import { layoutWinding, buildWinding } from './winding.js';
 import { layoutPowerReserve, buildPowerReserve, chargeOf, windRoomAt, autoWindDelta } from './powerReserve.js';
-import { buildTourbillon } from './escapement/tourbillon.js';
+import { buildTourbillon, VARIANT_ID as TOURBILLON } from './escapement/tourbillon.js';
 
 /** Радіус кліті турбійона (перевірено прототипом на 170°). Розріз збоку бере його звідси. */
 export const CAGE_R = 4.3;
@@ -180,16 +180,19 @@ export function buildMovement({ brass, steel, axleMat, ruby, plateMat, bluedMat,
   }
 
   // ── Точки фокуса (для підписів і пресетів камери) ─────────────────
+  // Кожна точка має стабільний `id` (за ним адресують станції й камера) і
+  // `nameKey` (те, що читає користувач). Для більшості вони збігаються; у
+  // гнізда спуску розходяться: id сталий, а назва йде за встановленим варіантом.
   const focusPoints = [
-    // Анкерний вузол окремо не підписуємо: це і є кліть турбійона — та сама вісь,
-    // тож два підписи в одній точці накладалися б. Його позначає «Турбійон».
+    // Анкерний вузол окремо не підписуємо: це і є гніздо спуску — та сама вісь,
+    // тож два підписи в одній точці накладалися б.
     ...arbors.filter((a) => !a.spec.escapeTeeth)
-      .map((a) => ({ nameKey: a.nameKey, pos: a.pos, z: a.wheelZ, r: arborOuterR(a.spec, CAGE_R) })),
-    { nameKey: 'part.tourbillon', pos: cagePos, z: CAGE_ZBASE + 1.8, r: CAGE_R },
-    { nameKey: 'part.hands', pos: mwL.P1, z: 10.0, r: 4.5 },
-    { nameKey: 'part.winding', pos: windL.cwPos, z: 2.0, r: 4.5 },
-    { nameKey: 'part.click', pos: windL.clickPivot, z: windL.windZ, r: 1.4 },
-    { nameKey: 'part.powerReserve', pos: barrelPos, z: 8.6, r: 3.2 },
+      .map((a) => ({ id: a.nameKey, nameKey: a.nameKey, pos: a.pos, z: a.wheelZ, r: arborOuterR(a.spec, CAGE_R) })),
+    { id: 'escapement', nameKey: `part.${TOURBILLON}`, pos: cagePos, z: CAGE_ZBASE + 1.8, r: CAGE_R },
+    { id: 'part.hands', nameKey: 'part.hands', pos: mwL.P1, z: 10.0, r: 4.5 },
+    { id: 'part.winding', nameKey: 'part.winding', pos: windL.cwPos, z: 2.0, r: 4.5 },
+    { id: 'part.click', nameKey: 'part.click', pos: windL.clickPivot, z: windL.windZ, r: 1.4 },
+    { id: 'part.powerReserve', nameKey: 'part.powerReserve', pos: barrelPos, z: 8.6, r: 3.2 },
   ];
 
   return {

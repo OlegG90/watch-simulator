@@ -105,9 +105,9 @@ export function sectionParts() {
 
   // ── Кліть турбійона: вежа з двох платівок ──
   const base = arbors[4].wheelZ;
-  add({ u: u[4], z0: base + CAGE.bottom, z1: base + CAGE.top, r: CAGE_R, mod: 'tourbillon', kind: 'cage',
+  add({ u: u[4], z0: base + CAGE.bottom, z1: base + CAGE.top, r: CAGE_R, mod: 'escapement', kind: 'cage',
         labelKey: 'part.tourbillon' });
-  add({ u: u[4], z0: base + CAGE.balance - 0.1, z1: base + CAGE.balance + 0.1, r: balanceR(CAGE_R), mod: 'tourbillon', kind: 'flat' });
+  add({ u: u[4], z0: base + CAGE.balance - 0.1, z1: base + CAGE.balance + 0.1, r: balanceR(CAGE_R), mod: 'escapement', kind: 'flat' });
 
   // ── Платина ──
   const uMin = Math.min(...parts.map((p) => p.u - p.r));

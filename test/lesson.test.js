@@ -67,7 +67,9 @@ describe('i18n', () => {
 
 describe('станції уроку', () => {
   it('усі точки фокуса існують у механізмі', () => {
-    const keys = new Set(build().focusPoints.map((f) => f.nameKey));
+    // Станції адресують точки за стабільним `id`, а не за назвою: у гнізда
+    // спуску назва йде за встановленим варіантом.
+    const keys = new Set(build().focusPoints.map((f) => f.id));
     for (const s of STATIONS) {
       if (s.focus === null) continue; // загальний вид
       expect(keys, `станція ${s.id}`).toContain(s.focus);
@@ -130,7 +132,7 @@ describe('підсвітка вузла', () => {
   it('фокус приглушує решту, clear() повертає все', () => {
     const h = createHighlighter(build().root);
     expect(h.dimCount()).toBe(0);
-    h.focus({ mods: ['tourbillon'] });
+    h.focus({ mods: ['escapement'] });
     expect(h.dimCount()).toBeGreaterThan(0);
     expect(h.dimCount()).toBeLessThan(h.count); // щось таки лишилось світитись
     h.clear();
@@ -148,8 +150,8 @@ describe('підсвітка вузла', () => {
     });
     // барабан світиться, а турбійон — ні, попри спільні матеріали
     expect(lit).toContain('barrel');
-    expect(lit).not.toContain('tourbillon');
-    expect(dim).toContain('tourbillon');
+    expect(lit).not.toContain('escapement');
+    expect(dim).toContain('escapement');
   });
 
   it('кожна станція лишає щось освітленим', () => {
@@ -163,7 +165,7 @@ describe('підсвітка вузла', () => {
   it('приглушені клони йдуть за каркасом, увімкненим після їх створення', () => {
     const mv = build();
     const h = createHighlighter(mv.root);
-    h.focus({ mods: ['tourbillon'] });          // клони створюються тут
+    h.focus({ mods: ['escapement'] });          // клони створюються тут
     const dimmedMesh = [];
     mv.root.traverse((o) => { if (o.isMesh && o.material.opacity < 1) dimmedMesh.push(o); });
     expect(dimmedMesh.length).toBeGreaterThan(0);
@@ -171,7 +173,7 @@ describe('підсвітка вузла', () => {
     // Тумблер «Каркас» у вільному режимі перемикає ОРИГІНАЛИ матеріалів.
     h.clear();
     mv.root.traverse((o) => { if (o.isMesh) o.material.wireframe = true; });
-    h.focus({ mods: ['tourbillon'] });
+    h.focus({ mods: ['escapement'] });
     for (const o of dimmedMesh) {
       expect(o.material.wireframe, 'приглушений меш лишився суцільним').toBe(true);
     }
@@ -183,8 +185,8 @@ describe('розріз збоку не має власних копій розм
     sectionParts().parts.filter((p) => p.mod === mod && p.kind === kind).map((p) => p.r);
 
   it('кліть і баланс — з констант турбійона, а не вписані', () => {
-    expect(byKind('tourbillon', 'cage')).toEqual([CAGE_R]);
-    expect(byKind('tourbillon', 'flat')).toEqual([balanceR(CAGE_R)]);
+    expect(byKind('escapement', 'cage')).toEqual([CAGE_R]);
+    expect(byKind('escapement', 'flat')).toEqual([balanceR(CAGE_R)]);
   });
 
   it('стрілки й шкала — з констант своїх модулів', () => {
