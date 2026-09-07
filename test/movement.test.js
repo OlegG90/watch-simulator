@@ -60,6 +60,8 @@ describe('спуск (tourbillon escapement)', () => {
   const params = { beatHz: 2.5, amplitude: 220 };
   const Tb = 1 / params.beatHz;
   const halfStep = Math.PI / 15;
+  // Типовий варіант — анкерний спуск; ці перевірки про турбійон, тож ставимо його.
+  beforeAll(() => m.escapement.install('tourbillon'));
 
   it('θ_cage = β: спокій між ударами, +π/15 за удар', () => {
     const b = (u) => m.setTime(u * Tb, params);
@@ -95,6 +97,7 @@ describe('спуск (tourbillon escapement)', () => {
 // ── Турбійон: кліть ───────────────────────────────────────────────
 describe('турбійон (tourbillon cage)', () => {
   const params = { beatHz: 2.5, amplitude: 220 };
+  beforeAll(() => m.escapement.install('tourbillon'));
 
   it('кліть = arbor4.group і обертається на θ_cage (12 с/оберт при 2.5 уд/с)', () => {
     // Кліть — той самий вузол, що arbor4 (несе триб, що меншить секундне колесо).
@@ -106,6 +109,7 @@ describe('турбійон (tourbillon cage)', () => {
 
   it('нерухоме колесо стоїть на місці, поки кліть обертається', () => {
     const f = buildFresh();
+    f.escapement.install('tourbillon');
     const fixedR0 = f.tourbillon.fixed.rotation.z;
     f.setTime(0, params); const cage0 = f.arbors[4].group.rotation.z;
     f.setTime(30, params); const cage1 = f.arbors[4].group.rotation.z;
@@ -124,6 +128,7 @@ describe('турбійон (tourbillon cage)', () => {
 
   it('спіраль дихає в тій самій геометрії: вершини рухаються, буфер той самий', () => {
     const f = buildFresh();
+    f.escapement.install('tourbillon');
     const hair = f.tourbillon.hairGroup.children[0];
     // Моменти навмисно НЕ симетричні відносно піку балансу: при u і 1−u
     // амплітуда однакова, і спіраль правомірно стояла б на місці.
@@ -144,6 +149,7 @@ describe('турбійон (tourbillon cage)', () => {
 
   it('спіраль лишається трубкою сталої товщини при будь-якому куті балансу', () => {
     const f = buildFresh();
+    f.escapement.install('tourbillon');
     const RADIAL = 8, VROW = RADIAL + 1, HAIR_R = 0.034;
     const pos = f.tourbillon.hairGroup.children[0].geometry.attributes.position;
     const rings = pos.count / VROW;
@@ -214,6 +220,20 @@ describe('гніздо спуску (escapement socket)', () => {
         expect(n, `варіант ${k} при встановленому ${id}`).toBe(k === id ? 2 : 0);
       }
     }
+  });
+
+  it('при старті стоїть анкерний спуск — найпростіший модуль', () => {
+    // Подача веде від простого до складного, тож застосунок відкривається
+    // анкерним спуском, а не турбійоном.
+    expect(buildFresh().escapement.installed).toBe('lever');
+  });
+
+  it('вибір не переживає перезбирання механізму', () => {
+    const a = buildFresh();
+    a.escapement.install('tourbillon');
+    expect(a.escapement.installed).toBe('tourbillon');
+    // Новий механізм = новий сеанс: жодного збереженого стану.
+    expect(buildFresh().escapement.installed).toBe('lever');
   });
 
   it('усі варіанти дають однаковий β — таймінг не залежить від конструкції', () => {
