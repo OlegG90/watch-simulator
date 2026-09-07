@@ -321,6 +321,8 @@ npm test
 
 Headless [Vitest](https://vitest.dev/) suite (no browser needed — three.js builds geometry in Node). It locks in every formula from *Mechanism elements*: mesh invariants on all pairs, train/motion-works/central-seconds ratios, escapement stepping and balance phase, real-time hand angles, the winding charge model, bevel-pair tangency (analytic point-to-circle), spiral/gear/hand geometry, and a layout collision scan.
 
+The Explore layer is covered too. `test/panel.test.js` runs under **jsdom** (declared per file, so the geometry suites keep the faster Node environment): it mounts the real panel — over the real movement, in the real `index.html` grid — and asserts that the rail, the card, the chain and the developed section always agree with each other. `test/lessonHarness.js` is the rig; it is not a suite, so the runner does not collect it.
+
 ## Versions
 
 The repo keeps two versions side by side:

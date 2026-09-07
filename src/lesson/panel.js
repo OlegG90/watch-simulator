@@ -191,7 +191,7 @@ export function mountLesson({ highlighter, camera, status, onMode, params, run, 
     for (const [key, fn] of camera.presets) {
       const b = el('button', null, t(key));
       b.setAttribute('aria-pressed', String(state.cam === key));
-      b.addEventListener('click', () => { state.cam = key; fn(); renderChrome(); });
+      b.addEventListener('click', () => { state.cam = key; fn(); render(); });
       cams.append(b);
     }
     box.append(cams);
@@ -310,7 +310,7 @@ export function mountLesson({ highlighter, camera, status, onMode, params, run, 
     }
     if (c.kind === 'toggle') {
       wrapEl.append(segmented(c.options.map(([val, key]) => [
-        t(key), params[c.param] === val, () => { params[c.param] = val; renderCard(); },
+        t(key), params[c.param] === val, () => { params[c.param] = val; render(); },
       ])));
       return wrapEl;
     }
@@ -450,7 +450,7 @@ export function mountLesson({ highlighter, camera, status, onMode, params, run, 
   /** Розріз малюється з тих самих `layout…()`, що й сцена — розійтися не може. */
   function drawSection() {
     const host = document.getElementById('section');
-    const on = state.view === 'side' && state.mode === 'lesson';
+    const on = state.view === 'side' && state.mode === 'lesson' && !state.finished;
     host.hidden = !on;
     document.getElementById('hint').hidden = on; // підказка про орбіту в розрізі ні до чого
     if (!on) return;
@@ -460,8 +460,7 @@ export function mountLesson({ highlighter, camera, status, onMode, params, run, 
 
   function setView(v) {
     state.view = v;
-    drawSection();
-    renderChrome();
+    render();
   }
 
   // ── Підсумок маршруту ───────────────────────────────────────────
@@ -496,7 +495,7 @@ export function mountLesson({ highlighter, camera, status, onMode, params, run, 
     nextBlock.append(el('b', null, t('finish.next')));
     const cards = el('div', 'next-grid');
     cards.append(nextCard('finish.side', 'finish.sideBody', () => {
-      hideFinish(); go(2); setView('side');
+      go(2); setView('side');
     }));
     cards.append(nextCard('mode.free', 'finish.freeBody', () => setMode('free')));
     nextBlock.append(cards);
@@ -504,7 +503,7 @@ export function mountLesson({ highlighter, camera, status, onMode, params, run, 
 
     const actions = el('div', 'fin-actions');
     const again = el('button', 'primary', t('finish.again'));
-    again.addEventListener('click', () => { hideFinish(); state.visited.clear(); go(0); });
+    again.addEventListener('click', () => { state.visited.clear(); go(0); });
     const toFree = el('button', null, t('finish.goFree'));
     toFree.addEventListener('click', () => setMode('free'));
     actions.append(again, toFree, el('span', null, t('finish.footnote')));
@@ -524,48 +523,61 @@ export function mountLesson({ highlighter, camera, status, onMode, params, run, 
 
   function showFinish() {
     state.finished = true;
-    ui.classList.remove('mode-lesson');
-    ui.classList.add('mode-finish');
-    highlighter.clear();
     camera.overview();
-    document.getElementById('section').hidden = true;
-    renderFinish();
-    renderHeader();
-  }
-
-  function hideFinish() {
-    state.finished = false;
-    ui.classList.remove('mode-finish');
-    ui.classList.add('mode-lesson');
+    render();
   }
 
   // ── Дії ─────────────────────────────────────────────────────────
   function go(i) {
-    if (state.finished) hideFinish();
-    state.current = i;
     const s = STATIONS[i];
+    state.finished = false;
+    state.current = i;
     state.visited.add(s.id);
-    highlighter.focus(s.highlight);
     if (s.focus) { camera.toKey(s.focus); state.cam = null; }
     else { camera.overview(); state.cam = 'cam.overview'; }
-    renderRail(); renderCard(); renderChain(); renderChrome(); drawSection();
+    render();
   }
 
   function setMode(mode) {
     state.mode = mode;
-    back.hidden = mode !== 'free'; // вихід із вільного режиму — інакше двері в один бік
     state.finished = false;
-    ui.classList.remove('mode-finish');
-    ui.classList.toggle('mode-free', mode === 'free');
-    ui.classList.toggle('mode-lesson', mode === 'lesson');
-    if (mode === 'free') highlighter.clear();
-    else if (state.current !== null) highlighter.focus(STATIONS[state.current].highlight);
+    back.hidden = mode !== 'free'; // вихід із вільного режиму — інакше двері в один бік
     onMode?.(mode);
-    renderHeader();
-    drawSection();
+    render();
   }
 
-  function renderAll() { back.textContent = t('mode.back'); renderHeader(); renderRail(); renderChrome(); renderCard(); renderChain(); drawSection(); }
+  /**
+   * ЄДИНЕ місце, де вирішується, що на екрані.
+   *
+   * Дія міняє `state` і кличе `render()` — більше нічого. Доти кожна дія сама
+   * пам'ятала, які з п'яти `render…()` їй треба, і стан, до якого ніхто не
+   * додумався покликати потрібний набір, ставав недосяжним (саме так і сталося
+   * зі стартовим екраном).
+   *
+   * Камера сюди НЕ входить: політ камери — подія, а не проєкція стану;
+   * перемальовка картки не має відправляти камеру летіти заново. Підсвітка
+   * входить — вона ідемпотентна й описує саме стан.
+   */
+  function render() {
+    back.textContent = t('mode.back');
+
+    const lesson = state.mode === 'lesson';
+    ui.classList.toggle('mode-free', !lesson);
+    ui.classList.toggle('mode-finish', lesson && state.finished);
+    ui.classList.toggle('mode-lesson', lesson && !state.finished);
+
+    highlighter.focus(lesson && !state.finished && state.current !== null
+      ? STATIONS[state.current].highlight : null);
+
+    renderHeader();
+    renderRail();
+    renderChrome();
+    // Підсумок і картка ділять одне місце в сітці: показуємо той, чий зараз хід,
+    // і не чіпаємо другий — його ховає клас оболонки.
+    if (state.finished) renderFinish(); else renderCard();
+    renderChain();
+    drawSection();
+  }
 
   /** Живі числа в шапці й підвалі — оновлюються з циклу рендеру. */
   function update() {
@@ -597,14 +609,12 @@ export function mountLesson({ highlighter, camera, status, onMode, params, run, 
       // заміну на загальному виді, тож ведемо камеру до спуску.
       camera.toKey('escapement');
       state.cam = null;
-      renderCard();   // назва встановленого варіанта живе в картці й розрізі
-      renderChrome();
-      drawSection();
+      render();   // назва встановленого варіанта живе в картці й розрізі
     },
   });
 
-  onLangChange(renderAll);
-  renderAll();
+  onLangChange(render);
+  render();
 
   return { update, go, setMode, state };
 }
