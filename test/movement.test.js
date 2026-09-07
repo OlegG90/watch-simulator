@@ -166,6 +166,63 @@ describe('турбійон (tourbillon cage)', () => {
   });
 });
 
+// ── Гніздо спуску ─────────────────────────────────────────────────
+describe('гніздо спуску (escapement socket)', () => {
+  const params = { beatHz: 2.5, amplitude: 220 };
+
+  const visibleIds = (f) =>
+    f.escapement.ids.filter((id) => {
+      const v = f.escapement.variant(id);
+      return v.rotating.visible || v.fixed.visible;
+    });
+
+  it('встановлений варіант — один із відомих', () => {
+    const f = buildFresh();
+    expect(f.escapement.ids.length).toBeGreaterThan(0);
+    expect(f.escapement.ids).toContain(f.escapement.installed);
+  });
+
+  it('видимий рівно один варіант — і після кожної заміни теж', () => {
+    const f = buildFresh();
+    // Механізм завжди має рівно один вбудований модуль: вибір нічого в цьому
+    // не міняє. Це не обіцянка в нотатці, а те, що ламається тут.
+    expect(visibleIds(f)).toEqual([f.escapement.installed]);
+    for (const id of f.escapement.ids) {
+      f.escapement.install(id);
+      expect(visibleIds(f), `після install(${id})`).toEqual([id]);
+    }
+  });
+
+  it('оновлюється тільки встановлений варіант', () => {
+    const f = buildFresh();
+    // Спіраль переписує 1089 вершин щокадру — три працюючі спуски потроїли б
+    // кадровий бюджет. Рахуємо виклики: підміна на самому варіанті видима
+    // гнізду, бо воно читає `update` у момент виклику.
+    const calls = new Map();
+    for (const id of f.escapement.ids) {
+      const v = f.escapement.variant(id);
+      const real = v.update;
+      calls.set(id, 0);
+      v.update = (...a) => { calls.set(id, calls.get(id) + 1); return real(...a); };
+    }
+    for (const id of f.escapement.ids) {
+      for (const k of calls.keys()) calls.set(k, 0);
+      f.escapement.install(id);
+      f.setTime(0.3, params);
+      f.setTime(0.7, params);
+      for (const [k, n] of calls) {
+        expect(n, `варіант ${k} при встановленому ${id}`).toBe(k === id ? 2 : 0);
+      }
+    }
+  });
+
+  it('невідомий варіант відхиляється, а не мовчки ігнорується', () => {
+    const f = buildFresh();
+    expect(() => f.escapement.install('нема-такого')).toThrow();
+    expect(visibleIds(f)).toEqual([f.escapement.installed]);
+  });
+});
+
 // ── Моторний механізм і центральна секунда ────────────────────────
 describe('моторний механізм + центральна секунда', () => {
   it('годинна вісь = центральне колесо / 12, той самий напрям', () => {

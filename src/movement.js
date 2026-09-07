@@ -5,7 +5,7 @@ import { buildBarrel } from './barrel.js';
 import { layoutMotionWorks, buildMotionWorks } from './motionWorks.js';
 import { layoutWinding, buildWinding } from './winding.js';
 import { layoutPowerReserve, buildPowerReserve, chargeOf, windRoomAt, autoWindDelta } from './powerReserve.js';
-import { buildTourbillon, VARIANT_ID as TOURBILLON } from './escapement/tourbillon.js';
+import { buildEscapementSocket } from './escapement/index.js';
 
 /** Радіус кліті турбійона (перевірено прототипом на 170°). Розріз збоку бере його звідси. */
 export const CAGE_R = 4.3;
@@ -20,7 +20,7 @@ const WIND_CLICK = Math.PI / 2; // один «клік» = чверть обер
  *
  * Модулі (кожен у своєму файлі): `train` — колісна передача, `barrel` — енергія,
  * `motionWorks` — індикація часу, `winding` — заведення, `powerReserve` —
- * диференціал запасу ходу, `tourbillon` — спуск у обертовій кліті.
+ * диференціал запасу ходу, `escapement` — гніздо спуску (див. escapement/index.js).
  */
 export function buildMovement({ brass, steel, axleMat, ruby, plateMat, bluedMat, springSteel, backdropMat, cageMat }) {
   backdropMat = backdropMat || plateMat; // сумісність, якщо не передано
@@ -58,16 +58,14 @@ export function buildMovement({ brass, steel, axleMat, ruby, plateMat, bluedMat,
   const barrel = buildBarrel(mats, { wheelTeeth: TRAIN[0].wheel });
   arbors[0].group.add(barrel.group);
 
-  // Турбійон: кліть — дочірня до arbor4 (обертається на θ_cage), нерухоме
-  // колесо — окремо в root, тож стоїть на місці.
-  const tourbillon = buildTourbillon(
-    { ...mats, plateMat: cageMat },
-    { escTeeth: TRAIN[4].escapeTeeth, fixedTeeth: 10, pinionTeeth: 10, moduleT: 0.26, cageR: CAGE_R, escDirLocal: 0 }
+  // Гніздо спуску: обертова частина — дочірня до arbor4 (крутиться на θ_cage),
+  // нерухома — окремо в root, тож стоїть на місці. Варіанти зібрані всі,
+  // встановлений — один.
+  const escapement = buildEscapementSocket(
+    mats,
+    { escTeeth: TRAIN[4].escapeTeeth, cageMat, cageR: CAGE_R },
+    { arbor: arbors[4].group, root, pos: cagePos, zBase: CAGE_ZBASE }
   );
-  tourbillon.cage.position.z = CAGE_ZBASE;
-  arbors[4].group.add(tourbillon.cage);
-  tourbillon.fixed.position.set(cagePos.x, cagePos.y, CAGE_ZBASE);
-  root.add(tourbillon.fixed);
 
   const motionWorks = buildMotionWorks(mats, mwL, arbors, root);
   const winding = buildWinding(mats, windL, barrelPos);
@@ -140,7 +138,7 @@ export function buildMovement({ brass, steel, axleMat, ruby, plateMat, bluedMat,
   // Головний вхід: час → баланс/спуск у кліті → кут кліті θ_cage → вся передача.
   // θ_cage = β (Zf = Zp), і arbor4.group (кліть) обертається на phi4 + β.
   function setTime(t, { beatHz, amplitude }) {
-    const beta = tourbillon.update(t, beatHz, amplitude);
+    const beta = escapement.update(t, beatHz, amplitude);
     update(beta / arbors[4].omega);
     return beta;
   }
@@ -154,7 +152,7 @@ export function buildMovement({ brass, steel, axleMat, ruby, plateMat, bluedMat,
    */
   function setClockTime(date, beatT, { beatHz, amplitude }) {
     // 1) Спуск (у кліті) веде передачу — точно тим самим шляхом, що й демо.
-    const beta = tourbillon.update(beatT, beatHz, amplitude);
+    const beta = escapement.update(beatT, beatHz, amplitude);
     const nd = beta / arbors[4].omega;
     // Автопідзавід: докручуємо храповик рівно так, щоб стрілка запасу стояла.
     // Головка при цьому не крутиться (spinCrown: false) — як у реальному калібрі.
@@ -188,7 +186,7 @@ export function buildMovement({ brass, steel, axleMat, ruby, plateMat, bluedMat,
     // тож два підписи в одній точці накладалися б.
     ...arbors.filter((a) => !a.spec.escapeTeeth)
       .map((a) => ({ id: a.nameKey, nameKey: a.nameKey, pos: a.pos, z: a.wheelZ, r: arborOuterR(a.spec, CAGE_R) })),
-    { id: 'escapement', nameKey: `part.${TOURBILLON}`, pos: cagePos, z: CAGE_ZBASE + 1.8, r: CAGE_R },
+    { id: 'escapement', nameKey: escapement.nameKey, pos: cagePos, z: CAGE_ZBASE + 1.8, r: CAGE_R },
     { id: 'part.hands', nameKey: 'part.hands', pos: mwL.P1, z: 10.0, r: 4.5 },
     { id: 'part.winding', nameKey: 'part.winding', pos: windL.cwPos, z: 2.0, r: 4.5 },
     { id: 'part.click', nameKey: 'part.click', pos: windL.clickPivot, z: windL.windZ, r: 1.4 },
@@ -196,7 +194,8 @@ export function buildMovement({ brass, steel, axleMat, ruby, plateMat, bluedMat,
   ];
 
   return {
-    root, arbors, update, setTime, setClockTime, tourbillon, size, focusPoints, winder,
+    root, arbors, update, setTime, setClockTime, escapement, size, focusPoints, winder,
+    get tourbillon() { return escapement.variant('tourbillon').api; },
     bounds: { minX, maxX, minY, maxY, cx, cy, plateR },
     centralSeconds: {
       drive: motionWorks.csDriveGear,
