@@ -216,6 +216,50 @@ describe('гніздо спуску (escapement socket)', () => {
     }
   });
 
+  it('усі варіанти дають однаковий β — таймінг не залежить від конструкції', () => {
+    // Це головна теза всієї заміни, і вона тримається структурно: фазу рахує
+    // спільний двигун удару, тож β фізично один. Тест стереже саме це.
+    const f = buildFresh();
+    for (const t of [0, 0.13, 0.4, 1.7, 9.3]) {
+      const betas = f.escapement.ids.map((id) => {
+        f.escapement.install(id);
+        return f.setTime(t, params);
+      });
+      for (const b of betas) expect(b, `t=${t}`).toBe(betas[0]);
+    }
+  });
+
+  it('секундне колесо = 32 с при будь-якому встановленому варіанті', () => {
+    const f = buildFresh();
+    for (const id of f.escapement.ids) {
+      f.escapement.install(id);
+      f.setTime(0, params); const r0 = f.arbors[3].group.rotation.z;
+      f.setTime(60, params); const r1 = f.arbors[3].group.rotation.z;
+      expect(60 / (Math.abs(r1 - r0) / TWO), `варіант ${id}`).toBeCloseTo(32, 6);
+    }
+  });
+
+  it('баланс у всіх варіантів однакового розміру — заради чистого порівняння', () => {
+    const f = buildFresh();
+    const radii = f.escapement.ids.map((id) => f.escapement.variant(id).api.balR);
+    for (const r of radii) expect(r).toBe(radii[0]);
+  });
+
+  it('анкерне колесо: 12 с у важільному, 6 с у турбійоні (їде на кліті)', () => {
+    // Різниця справжня й видима — тому вона належить порівнянню, а не картці
+    // станції, де мають бути тільки незмінні числа.
+    const f = buildFresh();
+    const absPeriod = (mesh) => {
+      f.setTime(0, params); const a0 = worldZ(mesh, f.root);
+      f.setTime(60, params); const a1 = worldZ(mesh, f.root);
+      return 60 / (Math.abs(a1 - a0) / TWO);
+    };
+    f.escapement.install('lever');
+    expect(absPeriod(f.escapement.variant('lever').api.escWheel)).toBeCloseTo(12, 4);
+    f.escapement.install('tourbillon');
+    expect(absPeriod(f.escapement.variant('tourbillon').api.escSub)).toBeCloseTo(6, 4);
+  });
+
   it('невідомий варіант відхиляється, а не мовчки ігнорується', () => {
     const f = buildFresh();
     expect(() => f.escapement.install('нема-такого')).toThrow();
@@ -457,6 +501,9 @@ describe('компоновка (layout)', () => {
     const bodies = [];
     m.root.traverse((o) => {
       if (!o.isMesh || !o.geometry) return;
+      // Невстановлені варіанти спуску стоять у сцені схованими й у механізмі
+      // не співіснують: їхні баланси законно займають одне місце.
+      if (o.userData.variant && o.userData.variant !== m.escapement.installed) return;
       const t = o.geometry.type;
       if (t !== 'ExtrudeGeometry' && t !== 'TorusGeometry') return;
       if (!o.geometry.boundingSphere) o.geometry.computeBoundingSphere();

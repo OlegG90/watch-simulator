@@ -14,11 +14,22 @@
  * вони крутяться, його справа.
  */
 import { buildTourbillon, VARIANT_ID as TOURBILLON } from './tourbillon.js';
+import { buildLever, VARIANT_ID as LEVER } from './lever.js';
 
 /** Порядок = зростання складності. Саме в ньому їх показує порівняння. */
-export const VARIANT_IDS = [TOURBILLON];
+export const VARIANT_IDS = [LEVER, TOURBILLON];
+
+/**
+ * Який варіант стоїть при старті. Це НЕ те саме, що перший у списку: порядок —
+ * подача, типовий варіант — поведінка. Поки лишається турбійон; #9 перемкне.
+ */
+export const DEFAULT_VARIANT = TOURBILLON;
 
 const BUILDERS = {
+  [LEVER]: (mats, { escTeeth }) => {
+    const l = buildLever(mats, { escTeeth, escR: 1.5, escDirLocal: 0 });
+    return { rotating: l.rotating, fixed: l.fixed, update: l.update, api: l };
+  },
   [TOURBILLON]: (mats, { escTeeth, cageMat, cageR }) => {
     const t = buildTourbillon(
       { ...mats, plateMat: cageMat },
@@ -36,7 +47,7 @@ const BUILDERS = {
  * @param mount.pos    позиція гнізда у площині платини
  * @param mount.zBase  висота основи гнізда
  */
-export function buildEscapementSocket(mats, opts, mount, installed = VARIANT_IDS[0]) {
+export function buildEscapementSocket(mats, opts, mount, installed = DEFAULT_VARIANT) {
   const built = new Map();
 
   for (const id of VARIANT_IDS) {

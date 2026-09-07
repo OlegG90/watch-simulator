@@ -2,6 +2,7 @@ import * as THREE from 'three';
 import { makeGear, makeEscapeWheel } from '../gear.js';
 import { tagModule, tagVariant } from '../common.js';
 import { beatPhase } from './beat.js';
+import { buildHairspring } from './hairspring.js';
 
 // ── Константи спуску (ті самі, що в escapement.js) ────────────────
 /** Локальні Z-рівні кліті (від її основи) — спільні з розрізом збоку. */
@@ -180,105 +181,12 @@ export function buildTourbillon(
   balance.add(pin);
   cage.add(balance);
 
-  // ── Спіраль (волосок): об'ємна трубка з Breguet overcoil ──
-  // Зовнішній кінець на кліті (stud), внутрішній — на балансі. TubeGeometry дає
-  // реальну товщину (видно під кутом і з відстані), на відміну від Line 1px.
-  const N = 120, TURNS = 4, R0 = 0.32, R1 = Math.min(1.65, balR - 0.08);
-  const OVERCOIL_F = 0.85, OVERCOIL_H = 0.18, HAIR_R = 0.034;
-  const hairGroup = new THREE.Group();
+  // ── Спіраль (волосок) — спільна для всіх варіантів спуску ──
+  const hair = buildHairspring({ balR, dirAngle: escDirLocal, springSteel, steel });
+  const hairGroup = hair.group;
   hairGroup.position.z = zHair;
-  // Матеріал трубки — власний клон пружинної сталі: спіраль об'ємна, тож це
-  // звичайний метал, а не матеріал лінії.
-  const hairMat = springSteel.clone();
-  // Підсилюємо контраст відносно вороненої кліті — трохи світліший і холодніший
-  // відтінок, щоб тонкий дріт не губився на темному тлі.
-  hairMat.color.setHex(0xbfd4ff);
-  hairMat.roughness = 0.22;
-  hairMat.metalness = 0.95;
-  // Сітка трубки будується ОДИН раз: індекси й UV незмінні, щокадру
-  // переписуються лише позиції та нормалі. Перебудова `TubeGeometry` на кожен
-  // кадр коштувала ~5.7 КБ сміття й ~285 мкс — більше за весь інший механізм.
-  const RADIAL = 8;
-  const VROW = RADIAL + 1;
-  const hairGeo = new THREE.BufferGeometry();
-  const hairPos = new Float32Array((N + 1) * VROW * 3);
-  const hairNrm = new Float32Array((N + 1) * VROW * 3);
-  {
-    const uv = new Float32Array((N + 1) * VROW * 2);
-    const idx = [];
-    for (let i = 0; i <= N; i++) {
-      for (let j = 0; j <= RADIAL; j++) {
-        const k = i * VROW + j;
-        uv[k * 2] = i / N;
-        uv[k * 2 + 1] = j / RADIAL;
-      }
-    }
-    for (let i = 0; i < N; i++) {
-      for (let j = 0; j < RADIAL; j++) {
-        const a = i * VROW + j, b = (i + 1) * VROW + j;
-        idx.push(a, b, i * VROW + j + 1, b, (i + 1) * VROW + j + 1, i * VROW + j + 1);
-      }
-    }
-    hairGeo.setIndex(idx);
-    hairGeo.setAttribute('position', new THREE.BufferAttribute(hairPos, 3));
-    hairGeo.setAttribute('normal', new THREE.BufferAttribute(hairNrm, 3));
-    hairGeo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
-    // Спіраль дихає всередині сталих меж, тож сферу рахуємо раз і не чіпаємо —
-    // інакше довелося б обходити всі вершини щокадру заради відсікання.
-    hairGeo.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 0, OVERCOIL_H / 2), R1 + HAIR_R + 0.05);
-  }
-  const hair = new THREE.Mesh(hairGeo, hairMat);
-  hair.castShadow = true;
-  hairGroup.add(hair);
-  const stud = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.24, 0.35), steel);
-  stud.position.set(Math.cos(escDirLocal) * R1, Math.sin(escDirLocal) * R1, OVERCOIL_H);
-  hairGroup.add(stud);
   cage.add(hairGroup);
-  const PHI_TOT = TURNS * Math.PI * 2;
-  // Осьова крива спіралі. Радіус і висота від кута балансу НЕ залежать —
-  // θ_b лише підкручує кут, і то тим слабше, чим ближче до зовнішнього кінця.
-  const _axis = Array.from({ length: N + 1 }, () => new THREE.Vector3());
-  const _t = new THREE.Vector3(), _n = new THREE.Vector3(), _b = new THREE.Vector3();
-  const _up = new THREE.Vector3(0, 0, 1);
-
-  function updateHair(thetaB) {
-    for (let i = 0; i <= N; i++) {
-      const f = i / N;
-      const ang = thetaB * (1 - f) + f * PHI_TOT - PHI_TOT + escDirLocal;
-      let r = R0 + (R1 - R0) * f;
-      let z = 0;
-      if (f > OVERCOIL_F) {
-        const t = (f - OVERCOIL_F) / (1 - OVERCOIL_F);
-        const s = t * t * (3 - 2 * t); // smoothstep
-        z = s * OVERCOIL_H;
-        r = THREE.MathUtils.lerp(r, R1 * 0.92, s * 0.35);
-      }
-      _axis[i].set(Math.cos(ang) * r, Math.sin(ang) * r, z);
-    }
-    for (let i = 0; i <= N; i++) {
-      // Кадр перерізу будуємо від осі Z, а не за Френе: дотична спіралі ніде
-      // не стає вертикальною, тож так стабільніше й без зайвої математики.
-      const prev = _axis[i > 0 ? i - 1 : 0], next = _axis[i < N ? i + 1 : N];
-      _t.subVectors(next, prev).normalize();
-      _n.crossVectors(_t, _up).normalize();
-      _b.crossVectors(_t, _n);
-      const p = _axis[i];
-      for (let j = 0; j <= RADIAL; j++) {
-        const v = (j / RADIAL) * Math.PI * 2;
-        const c = Math.cos(v), s = Math.sin(v);
-        const nx = c * _n.x + s * _b.x, ny = c * _n.y + s * _b.y, nz = c * _n.z + s * _b.z;
-        const k = (i * VROW + j) * 3;
-        hairPos[k] = p.x + HAIR_R * nx;
-        hairPos[k + 1] = p.y + HAIR_R * ny;
-        hairPos[k + 2] = p.z + HAIR_R * nz;
-        hairNrm[k] = nx;
-        hairNrm[k + 1] = ny;
-        hairNrm[k + 2] = nz;
-      }
-    }
-    hairGeo.attributes.position.needsUpdate = true;
-    hairGeo.attributes.normal.needsUpdate = true;
-  }
+  const updateHair = hair.update;
 
   // ── Кліть: дві платівки з об'ємом і фаскою + 3 колони з оголовками ──
   const cagePlateMat = plateMat.clone();
@@ -384,7 +292,7 @@ export function buildTourbillon(
     tagModule(g, 'escapement');
     tagVariant(g, VARIANT_ID);
   }
-  return { cage, fixed, update, balance, fork, escSub, hairGroup, cageR,
+  return { cage, fixed, update, balance, fork, escSub, hairGroup, cageR, balR,
            setCageOpacity, setTopPlateVisible, cagePlates, cagePillars, topPlateGroup, bottomPlateGroup };
 }
 
