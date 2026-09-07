@@ -1,3 +1,5 @@
+import { t } from '../i18n.js';
+
 /**
  * Шість станцій ланцюга енергії — порядок дорівнює напряму потоку енергії,
  * а не зростанню складності.
@@ -48,7 +50,7 @@ export const STATIONS = [
     ],
     stats: (r) => [
       ['st.energy.s1', `${r.spring.turns}`],
-      ['st.energy.s2', `${r.fullRun} с`],
+      ['st.energy.s2', `${r.fullRun} ${t('unit.s')}`],
     ],
     controls: [{ kind: 'slider', param: 'speed', labelKey: 'gui.speed', min: 0, max: 10, step: 0.1, fmt: (v) => `×${v.toFixed(1)}` }],
   },
@@ -69,10 +71,11 @@ export const STATIONS = [
   {
     id: 'escapement',
     nameKey: 'station.escapement',
-    focus: 'part.tourbillon',
-    highlight: { mods: ['tourbillon'] },
+    focus: 'escapement',
+    highlight: { mods: ['escapement'] },
     chain: { row: 3 },
-    test: 'θ_cage = β: спокій між ударами, +π/15 за удар',
+    // Теза станції — «темп задає баланс, а не конструкція», тож і тест саме той.
+    test: 'усі варіанти дають однаковий β — таймінг не залежить від конструкції',
     prose: 'st.escapement.prose',
     idea: 'st.escapement.idea',
     hint: 'st.escapement.hint',
@@ -83,12 +86,13 @@ export const STATIONS = [
       { key: 'st.escapement.f2', vals: [r.halfStepDeg] },
     ],
     stats: (r) => [
-      ['st.escapement.s1', `${r.cagePeriod} с`],
-      ['st.escapement.s2', `${r.secondsPeriod} с`],
+      ['st.escapement.s1', `${r.cagePeriod} ${t('unit.s')}`],
+      ['st.escapement.s2', `${r.secondsPeriod} ${t('unit.s')}`],
     ],
     controls: [
       { kind: 'slider', param: 'beatHz', labelKey: 'gui.beat', min: 0.5, max: 6, step: 0.1, fmt: (v) => v.toFixed(1) },
       { kind: 'slider', param: 'amplitude', labelKey: 'gui.amplitude', min: 90, max: 270, step: 5, fmt: (v) => `${v}°` },
+      { kind: 'variants', labelKey: 'variants.open' },
     ],
   },
   {

@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import * as THREE from 'three';
-import { buildMovement } from '../src/movement.js';
+import { buildMovement, CAGE_R } from '../src/movement.js';
+import { buildEscapementSocket } from '../src/escapement/index.js';
+import { BALANCE_OFF, BALANCE_R } from '../src/escapement/lever.js';
 
 // ── Хелпери ───────────────────────────────────────────────────────
 const TWO = Math.PI * 2;
@@ -60,6 +62,8 @@ describe('спуск (tourbillon escapement)', () => {
   const params = { beatHz: 2.5, amplitude: 220 };
   const Tb = 1 / params.beatHz;
   const halfStep = Math.PI / 15;
+  // Типовий варіант — анкерний спуск; ці перевірки про турбійон, тож ставимо його.
+  beforeAll(() => m.escapement.install('tourbillon'));
 
   it('θ_cage = β: спокій між ударами, +π/15 за удар', () => {
     const b = (u) => m.setTime(u * Tb, params);
@@ -95,6 +99,7 @@ describe('спуск (tourbillon escapement)', () => {
 // ── Турбійон: кліть ───────────────────────────────────────────────
 describe('турбійон (tourbillon cage)', () => {
   const params = { beatHz: 2.5, amplitude: 220 };
+  beforeAll(() => m.escapement.install('tourbillon'));
 
   it('кліть = arbor4.group і обертається на θ_cage (12 с/оберт при 2.5 уд/с)', () => {
     // Кліть — той самий вузол, що arbor4 (несе триб, що меншить секундне колесо).
@@ -106,6 +111,7 @@ describe('турбійон (tourbillon cage)', () => {
 
   it('нерухоме колесо стоїть на місці, поки кліть обертається', () => {
     const f = buildFresh();
+    f.escapement.install('tourbillon');
     const fixedR0 = f.tourbillon.fixed.rotation.z;
     f.setTime(0, params); const cage0 = f.arbors[4].group.rotation.z;
     f.setTime(30, params); const cage1 = f.arbors[4].group.rotation.z;
@@ -124,6 +130,7 @@ describe('турбійон (tourbillon cage)', () => {
 
   it('спіраль дихає в тій самій геометрії: вершини рухаються, буфер той самий', () => {
     const f = buildFresh();
+    f.escapement.install('tourbillon');
     const hair = f.tourbillon.hairGroup.children[0];
     // Моменти навмисно НЕ симетричні відносно піку балансу: при u і 1−u
     // амплітуда однакова, і спіраль правомірно стояла б на місці.
@@ -144,6 +151,7 @@ describe('турбійон (tourbillon cage)', () => {
 
   it('спіраль лишається трубкою сталої товщини при будь-якому куті балансу', () => {
     const f = buildFresh();
+    f.escapement.install('tourbillon');
     const RADIAL = 8, VROW = RADIAL + 1, HAIR_R = 0.034;
     const pos = f.tourbillon.hairGroup.children[0].geometry.attributes.position;
     const rings = pos.count / VROW;
@@ -163,6 +171,174 @@ describe('турбійон (tourbillon cage)', () => {
         }
       }
     }
+  });
+});
+
+// ── Гніздо спуску ─────────────────────────────────────────────────
+describe('гніздо спуску (escapement socket)', () => {
+  const params = { beatHz: 2.5, amplitude: 220 };
+
+  const visibleIds = (f) =>
+    f.escapement.ids.filter((id) => {
+      const v = f.escapement.variant(id);
+      return v.rotating.visible || v.fixed.visible;
+    });
+
+  it('встановлений варіант — один із відомих', () => {
+    const f = buildFresh();
+    expect(f.escapement.ids.length).toBeGreaterThan(0);
+    expect(f.escapement.ids).toContain(f.escapement.installed);
+  });
+
+  it('видимий рівно один варіант — і після кожної заміни теж', () => {
+    const f = buildFresh();
+    // Механізм завжди має рівно один вбудований модуль: вибір нічого в цьому
+    // не міняє. Це не обіцянка в нотатці, а те, що ламається тут.
+    expect(visibleIds(f)).toEqual([f.escapement.installed]);
+    for (const id of f.escapement.ids) {
+      f.escapement.install(id);
+      expect(visibleIds(f), `після install(${id})`).toEqual([id]);
+    }
+  });
+
+  it('оновлюється тільки встановлений варіант', () => {
+    const f = buildFresh();
+    // Спіраль переписує 1089 вершин щокадру — три працюючі спуски потроїли б
+    // кадровий бюджет. Рахуємо виклики: підміна на самому варіанті видима
+    // гнізду, бо воно читає `update` у момент виклику.
+    const calls = new Map();
+    for (const id of f.escapement.ids) {
+      const v = f.escapement.variant(id);
+      const real = v.update;
+      calls.set(id, 0);
+      v.update = (...a) => { calls.set(id, calls.get(id) + 1); return real(...a); };
+    }
+    for (const id of f.escapement.ids) {
+      for (const k of calls.keys()) calls.set(k, 0);
+      f.escapement.install(id);
+      f.setTime(0.3, params);
+      f.setTime(0.7, params);
+      for (const [k, n] of calls) {
+        expect(n, `варіант ${k} при встановленому ${id}`).toBe(k === id ? 2 : 0);
+      }
+    }
+  });
+
+  it('при старті стоїть анкерний спуск — найпростіший модуль', () => {
+    // Подача веде від простого до складного, тож застосунок відкривається
+    // анкерним спуском, а не турбійоном.
+    expect(buildFresh().escapement.installed).toBe('lever');
+  });
+
+  it('вибір не переживає перезбирання механізму', () => {
+    const a = buildFresh();
+    a.escapement.install('tourbillon');
+    expect(a.escapement.installed).toBe('tourbillon');
+    // Новий механізм = новий сеанс: жодного збереженого стану.
+    expect(buildFresh().escapement.installed).toBe('lever');
+  });
+
+  it('усі варіанти дають однаковий β — таймінг не залежить від конструкції', () => {
+    // Це головна теза всієї заміни, і вона тримається структурно: фазу рахує
+    // спільний двигун удару, тож β фізично один. Тест стереже саме це.
+    const f = buildFresh();
+    for (const t of [0, 0.13, 0.4, 1.7, 9.3]) {
+      const betas = f.escapement.ids.map((id) => {
+        f.escapement.install(id);
+        return f.setTime(t, params);
+      });
+      for (const b of betas) expect(b, `t=${t}`).toBe(betas[0]);
+    }
+  });
+
+  it('секундне колесо = 32 с при будь-якому встановленому варіанті', () => {
+    const f = buildFresh();
+    for (const id of f.escapement.ids) {
+      f.escapement.install(id);
+      f.setTime(0, params); const r0 = f.arbors[3].group.rotation.z;
+      f.setTime(60, params); const r1 = f.arbors[3].group.rotation.z;
+      expect(60 / (Math.abs(r1 - r0) / TWO), `варіант ${id}`).toBeCloseTo(32, 6);
+    }
+  });
+
+  it('баланс у всіх варіантів однакового розміру — заради чистого порівняння', () => {
+    const f = buildFresh();
+    const radii = f.escapement.ids.map((id) => f.escapement.variant(id).api.balR);
+    for (const r of radii) expect(r).toBe(radii[0]);
+  });
+
+  it('анкерне колесо: 12 с у важільному, 6 с у турбійоні (їде на кліті)', () => {
+    // Різниця справжня й видима — тому вона належить порівнянню, а не картці
+    // станції, де мають бути тільки незмінні числа.
+    const f = buildFresh();
+    const absPeriod = (mesh) => {
+      f.setTime(0, params); const a0 = worldZ(mesh, f.root);
+      f.setTime(60, params); const a1 = worldZ(mesh, f.root);
+      return 60 / (Math.abs(a1 - a0) / TWO);
+    };
+    f.escapement.install('lever');
+    expect(absPeriod(f.escapement.variant('lever').api.escWheel)).toBeCloseTo(12, 4);
+    f.escapement.install('tourbillon');
+    expect(absPeriod(f.escapement.variant('tourbillon').api.escSub)).toBeCloseTo(6, 4);
+  });
+
+  it('ціна складності виміряна, а не вписана: деталі рахуються обходом', () => {
+    const f = buildFresh();
+    for (const id of f.escapement.ids) {
+      const v = f.escapement.variant(id);
+      let n = 0;
+      for (const root of [v.rotating, v.fixed]) root.traverse((o) => { if (o.isMesh) n++; });
+      expect(v.cost.parts, `варіант ${id}`).toBe(n);
+    }
+  });
+
+  it('габарит іде за геометрією: більша кліть — більша ніша', () => {
+    // Найпряміший доказ, що число не вписане: міняємо констант і дивимось,
+    // чи піде міра за нею.
+    const socket = (cageR) => buildEscapementSocket(
+      { brass: mat(), steel: mat(), axleMat: mat(), ruby: mat(), springSteel: mat(), plateMat: mat() },
+      { escTeeth: 15, cageMat: mat(), cageR },
+      { arbor: new THREE.Group(), root: new THREE.Group(), pos: { x: 0, y: 0 }, zBase: 0 }
+    );
+    const small = socket(4.3).variant('tourbillon').cost.r;
+    const big = socket(5.5).variant('tourbillon').cost.r;
+    expect(big).toBeGreaterThan(small);
+  });
+
+  it('турбійон дорожчий за всіма мірами, крім ширини', () => {
+    const f = buildFresh();
+    const lever = f.escapement.variant('lever').cost;
+    const tb = f.escapement.variant('tourbillon').cost;
+    expect(tb.parts).toBeGreaterThan(lever.parts);      // 50 проти 18
+    expect(tb.axes).toBe(lever.axes + 1);               // кліть — зайвий рівень
+    expect(tb.h).toBeGreaterThan(lever.h);              // вища вежа
+    // А от ніша в анкерного ШИРША: баланс винесений убік виступає далі, ніж
+    // край кліті. Ціна складності — у деталях і висоті, не в ширині.
+    expect(lever.r).toBeGreaterThan(tb.r);
+  });
+
+  it('у турбійоні в русі більша частка деталей — кліть везе весь спуск', () => {
+    const f = buildFresh();
+    const tb = f.escapement.variant('tourbillon').cost;
+    const lever = f.escapement.variant('lever').cost;
+    // Нерухомим у турбійоні лишається рівно нерухоме колесо з колонкою — у
+    // цьому й суть вузла: анкерний триб обкочується САМЕ навколо нерухомого.
+    expect(tb.parts - tb.moving).toBe(2);
+    expect(tb.moving / tb.parts).toBeGreaterThan(lever.moving / lever.parts);
+    expect(lever.moving).toBeGreaterThan(0);
+  });
+
+  it('ніша анкерного варіанта = винесений баланс, турбійона = край кліті', () => {
+    const f = buildFresh();
+    expect(f.escapement.variant('lever').cost.r)
+      .toBeGreaterThanOrEqual(BALANCE_OFF + BALANCE_R);
+    expect(f.escapement.variant('tourbillon').cost.r).toBeCloseTo(CAGE_R, 0);
+  });
+
+  it('невідомий варіант відхиляється, а не мовчки ігнорується', () => {
+    const f = buildFresh();
+    expect(() => f.escapement.install('нема-такого')).toThrow();
+    expect(visibleIds(f)).toEqual([f.escapement.installed]);
   });
 });
 
@@ -400,6 +576,9 @@ describe('компоновка (layout)', () => {
     const bodies = [];
     m.root.traverse((o) => {
       if (!o.isMesh || !o.geometry) return;
+      // Невстановлені варіанти спуску стоять у сцені схованими й у механізмі
+      // не співіснують: їхні баланси законно займають одне місце.
+      if (o.userData.variant && o.userData.variant !== m.escapement.installed) return;
       const t = o.geometry.type;
       if (t !== 'ExtrudeGeometry' && t !== 'TorusGeometry') return;
       if (!o.geometry.boundingSphere) o.geometry.computeBoundingSphere();

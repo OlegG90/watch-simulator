@@ -1,5 +1,84 @@
 # Changelog
 
+## v3.0.0 — 2026-09-07
+
+The escapement stops being one module and becomes a **socket** holding one of
+several. The app now opens with a plain Swiss lever escapement; a tourbillon
+can be installed in its place, and a double-axis tourbillon is shown as the
+next step without pretending to exist.
+
+The point is not configurability. It is that one function can be filled by
+units of wildly different complexity — and that in this model the extra
+complexity buys nothing. Swapping the escapement in front of the viewer moves
+**no number on the station card**, because the card now shows only what a swap
+cannot move. That is the strongest statement of the station's own claim.
+
+### Added
+
+- **The escapement socket.** All modules are built at startup, exactly one is
+  installed, and only the installed one is updated. A module hands the socket
+  a rotating group, a fixed group and `update() → β`; how many nested cages it
+  has, and about which axes, is its own business — which is what lets a
+  double-axis module arrive later without touching the socket.
+- **The Swiss lever escapement**, restored from v0.5.0 (the tourbillon had
+  deleted it) and adapted to the two-phase contract. The parts swap places: in
+  a tourbillon the balance is central and the escape wheel orbits; in a lever
+  the escape wheel is central — the train drives it directly — and the balance
+  moves out to that same 2.6.
+- **The Варіанти modal** on station 4: three modules with silhouettes, the cost
+  table, one honesty line, and Лишити як є / Змінити. The mechanism keeps
+  running while it is open — pausing would break the very thing being shown —
+  and the camera flies to the escapement after a change.
+- **The cost of complexity, measured.** parts · of them moving · nested
+  rotations · footprint, all obtained by walking each module's own scene graph.
+
+  | | parts | moving | nested | footprint |
+  |---|---|---|---|---|
+  | Lever escapement | 18 | 16 | 1 | 4.73 × 2.95 |
+  | Tourbillon | 50 | 48 | 2 | 4.32 × 5.20 |
+
+  The lever's footprint is *wider*: its balance is carried out to one side
+  while the cage keeps everything inside its rim. The cost shows in part
+  count, in how much of it moves, in nesting and in height — not in width. A
+  test says so, so it does not get tidied into a neater story later.
+
+### Changed
+
+- **The app opens with the lever**, not the tourbillon, so the progression
+  reads simplest-first. The choice belongs to the mechanism rather than to a
+  mode or a session, and nothing about it is stored: every reload starts over.
+- **Station 4 shows only variant-independent figures.** "Cage turn" becomes
+  "escape arbor turn" — the same 12 s, but named after what is actually
+  invariant. The escape *wheel* does differ (12 s against 6 s) and that moved
+  into the module descriptions, in words rather than as a typed figure.
+- **The developed section follows the installed module.** The lever draws
+  three bodies at their true heights and no plates, which is the cost of
+  complexity shown without a number.
+- **The beat maths lives once**, in `escapement/beat.js`. It had already been
+  copy-pasted verbatim between v0.5.0's escapement and the tourbillon — same
+  constants, same smoothstep. Identical timing across modules is now
+  structural rather than a rule someone has to remember. The hairspring moved
+  out for the same reason.
+- The escapement socket owns its scene chrome (`part.escapement`), because the
+  camera preset, the 3D label and the node toggle are built once and would
+  otherwise keep the previous module's name after a swap.
+
+### Fixed
+
+- **Units were never translated.** "12 с" stayed Cyrillic in English: the unit
+  was written into `stations.js` rather than the dictionary, and key parity
+  cannot see a string that never reaches one. A test now scans every station
+  stat for Cyrillic. This predates the release.
+- **"seconds wheel" contradicted "Fourth wheel"** — the same part named two
+  ways, which the design notes warn about specifically. Also predates it.
+
+### Notes
+
+Stage 1 of the branch was a pure refactor, and every commit in it was verified
+by a scene-graph diff against `main`: 704 meshes across idle, demo, manual
+wind and auto-wind, zero differences. That is how a crown-spin regression was
+caught once before, and tests alone had missed it.
+
 ## v2.1.2 — 2026-09-07
 
 Housekeeping. Nothing in the running app changes — same scene, same

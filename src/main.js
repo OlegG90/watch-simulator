@@ -3,6 +3,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import GUI from 'lil-gui';
 import { buildMovement } from './movement.js';
+import { PLANNED_IDS } from './escapement/index.js';
 import { buildLabels, createCameraFly } from './ui.js';
 import { t, getLang, setLang, onLangChange, LANGS } from './i18n.js';
 import { createHighlighter } from './lesson/highlight.js';
@@ -70,9 +71,9 @@ cageMat.envMapIntensity = 1.15;
 const movement = buildMovement({ brass, steel, axleMat, ruby, plateMat, bluedMat, springSteel, backdropMat, cageMat });
 scene.add(movement.root);
 // Націлити спот на центр кліті (після центрування root).
+const escFocus = movement.focusPoints.find((f) => f.id === 'escapement');
 {
-  const cageWorld = new THREE.Vector3(movement.focusPoints.find((f) => f.nameKey === 'part.tourbillon').pos.x,
-                                      movement.focusPoints.find((f) => f.nameKey === 'part.tourbillon').pos.y, 2.0)
+  const cageWorld = new THREE.Vector3(escFocus.pos.x, escFocus.pos.y, 2.0)
                                       .add(movement.root.position);
   cageSpot.position.set(cageWorld.x + 6, cageWorld.y + 8, cageWorld.z + 14);
   cageSpot.target.position.set(cageWorld.x, cageWorld.y, cageWorld.z + 1.0);
@@ -162,7 +163,7 @@ const CAMS = [
   ['cam.overview', overview],
   ['part.hands', () => goto(worldOf('part.hands'), 22, 4)],
   ['part.powerReserve', () => goto(worldOf('part.powerReserve'), 13, 1)],
-  ['part.tourbillon', () => goto(worldOf('part.tourbillon'), 15, 3)],
+  [escFocus.nameKey, () => goto(worldOf(escFocus.nameKey), 15, 3)],
 ];
 
 /** lil-gui вшиває підписи при створенні, тож зміна мови = перебудова панелі. */
@@ -189,7 +190,7 @@ function buildGui() {
   for (const a of movement.arbors) {
     if (a !== cageArbor) nodes.add(a.group, 'visible').name(t(a.nameKey));
   }
-  nodes.add(cageArbor.group, 'visible').name(t('part.tourbillon'));
+  nodes.add(cageArbor.group, 'visible').name(t(escFocus.nameKey));
   nodes.add(movement.tourbillon.fixed, 'visible').name(t('part.fixedWheel'));
   nodes.add(movement.tourbillon.balance, 'visible').name(t('part.balance'));
   nodes.add(tourbillonVis, 'cageOpacity', 0.15, 1.0, 0.05).name(t('gui.cageOpacity')).onChange((v) => movement.tourbillon.setCageOpacity(v));
@@ -239,10 +240,16 @@ const highlighter = createHighlighter(movement.root);
 const statusOut = { real: false, speed: 1, charge: 0, time: 0 };
 const lesson = mountLesson({
   highlighter,
+  escapement: movement.escapement,
+  planned: PLANNED_IDS,
   camera: {
     presets: CAMS,
     overview,
-    toKey: (key) => (CAMS.find(([k]) => k === key)?.[1] ?? overview)(),
+    toKey: (key) => {
+      // Станція просить гніздо ('escapement'), а не конкретний варіант.
+      const k = key === 'escapement' ? escFocus.nameKey : key;
+      return (CAMS.find(([c]) => c === k)?.[1] ?? overview)();
+    },
   },
   params,
   run: (action) => { if (action === 'wind') movement.winder.wind(); },

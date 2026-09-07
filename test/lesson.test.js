@@ -6,10 +6,12 @@ import { createHighlighter } from '../src/lesson/highlight.js';
 import { STATIONS } from '../src/lesson/stations.js';
 import { LANGS, dictKeys, t, tf, getLang, setLang, onLangChange } from '../src/i18n.js';
 import { readouts } from '../src/lesson/readouts.js';
+import { VARIANT_IDS } from '../src/escapement/index.js';
 import { lineText, maybe } from '../src/lesson/cardText.js';
 import { sectionParts } from '../src/lesson/section.js';
 import { CAGE_R } from '../src/movement.js';
-import { balanceR } from '../src/tourbillon.js';
+import { balanceR } from '../src/escapement/tourbillon.js';
+import { BALANCE_R, ESC_R, FORK_REACH } from '../src/escapement/lever.js';
 import { HAND_L, CS_DRIVE, layoutMotionWorks } from '../src/motionWorks.js';
 import { SUN_T, DIFF_M, DIAL_R, PR_HAND_L } from '../src/powerReserve.js';
 import { layoutTrain } from '../src/train.js';
@@ -67,7 +69,9 @@ describe('i18n', () => {
 
 describe('станції уроку', () => {
   it('усі точки фокуса існують у механізмі', () => {
-    const keys = new Set(build().focusPoints.map((f) => f.nameKey));
+    // Станції адресують точки за стабільним `id`, а не за назвою: у гнізда
+    // спуску назва йде за встановленим варіантом.
+    const keys = new Set(build().focusPoints.map((f) => f.id));
     for (const s of STATIONS) {
       if (s.focus === null) continue; // загальний вид
       expect(keys, `станція ${s.id}`).toContain(s.focus);
@@ -130,7 +134,7 @@ describe('підсвітка вузла', () => {
   it('фокус приглушує решту, clear() повертає все', () => {
     const h = createHighlighter(build().root);
     expect(h.dimCount()).toBe(0);
-    h.focus({ mods: ['tourbillon'] });
+    h.focus({ mods: ['escapement'] });
     expect(h.dimCount()).toBeGreaterThan(0);
     expect(h.dimCount()).toBeLessThan(h.count); // щось таки лишилось світитись
     h.clear();
@@ -148,8 +152,8 @@ describe('підсвітка вузла', () => {
     });
     // барабан світиться, а турбійон — ні, попри спільні матеріали
     expect(lit).toContain('barrel');
-    expect(lit).not.toContain('tourbillon');
-    expect(dim).toContain('tourbillon');
+    expect(lit).not.toContain('escapement');
+    expect(dim).toContain('escapement');
   });
 
   it('кожна станція лишає щось освітленим', () => {
@@ -163,7 +167,7 @@ describe('підсвітка вузла', () => {
   it('приглушені клони йдуть за каркасом, увімкненим після їх створення', () => {
     const mv = build();
     const h = createHighlighter(mv.root);
-    h.focus({ mods: ['tourbillon'] });          // клони створюються тут
+    h.focus({ mods: ['escapement'] });          // клони створюються тут
     const dimmedMesh = [];
     mv.root.traverse((o) => { if (o.isMesh && o.material.opacity < 1) dimmedMesh.push(o); });
     expect(dimmedMesh.length).toBeGreaterThan(0);
@@ -171,10 +175,62 @@ describe('підсвітка вузла', () => {
     // Тумблер «Каркас» у вільному режимі перемикає ОРИГІНАЛИ матеріалів.
     h.clear();
     mv.root.traverse((o) => { if (o.isMesh) o.material.wireframe = true; });
-    h.focus({ mods: ['tourbillon'] });
+    h.focus({ mods: ['escapement'] });
     for (const o of dimmedMesh) {
       expect(o.material.wireframe, 'приглушений меш лишився суцільним').toBe(true);
     }
+  });
+});
+
+describe('станція «Спуск і регулятор» не залежить від встановленого модуля', () => {
+  const station = STATIONS.find((s) => s.id === 'escapement');
+  const at = (charge) => readouts({ beatHz: 2.5, amplitude: 220, speed: 1, charge });
+
+  it('усі числа картки — з тих, що заміна не чіпає', () => {
+    // Найсильніший доказ тези станції: замінюєш спуск на очах у глядача, а на
+    // картці не ворухнеться жодне число. Тому картка й не має права показувати
+    // нічого, що залежить від конструкції.
+    const r = at(0.75);
+    const shown = [
+      ...station.formula(r).map((l) => (l.vals ?? []).join('|')),
+      ...station.stats(r).map(([, v]) => v),
+    ].join(' ');
+    // Ці величини однакові при будь-якому варіанті: пів-кроку зубця, оберт
+    // анкерної осі (це кут приводу, а не кліті) і секундне колесо.
+    expect(shown).toContain(String(r.halfStepDeg));
+    expect(shown).toContain(`${r.cagePeriod} с`);
+    expect(shown).toContain(`${r.secondsPeriod} с`);
+  });
+
+  it('картка не називає жодного конкретного варіанта', () => {
+    const keys = [station.prose, station.idea, station.hint, station.simplification,
+                  ...station.formula(at(0.75)).map((l) => l.key ?? l.note)];
+    for (const lang of LANGS) {
+      setLang(lang);
+      const text = keys.map((k) => t(k)).join(' ').toLowerCase();
+      for (const id of VARIANT_IDS) {
+        const name = t(`part.${id}`).toLowerCase();
+        expect(text, `${lang}: картка згадує «${name}»`).not.toContain(name);
+      }
+    }
+    setLang('ua');
+  });
+
+  it('жодна станція не вписує одиниць повз словник', () => {
+    // «12 с» лишалося кириличним і в англійській: одиниця була вшита в
+    // stations.js, а не взята з t(). Ключі-парність такого не бачать.
+    const r = at(0.75);
+    setLang('en');
+    for (const st of STATIONS) {
+      for (const [, value] of st.stats?.(r) ?? []) {
+        expect(value, `станція ${st.id}: «${value}»`).not.toMatch(/[Ѐ-ӿ]/);
+      }
+    }
+    setLang('ua');
+  });
+
+  it('станція спирається на тест про незалежність від конструкції', () => {
+    expect(station.test).toContain('однаковий β');
   });
 });
 
@@ -183,8 +239,24 @@ describe('розріз збоку не має власних копій розм
     sectionParts().parts.filter((p) => p.mod === mod && p.kind === kind).map((p) => p.r);
 
   it('кліть і баланс — з констант турбійона, а не вписані', () => {
-    expect(byKind('tourbillon', 'cage')).toEqual([CAGE_R]);
-    expect(byKind('tourbillon', 'flat')).toEqual([balanceR(CAGE_R)]);
+    expect(byKind('escapement', 'cage')).toEqual([CAGE_R]);
+    expect(byKind('escapement', 'flat')).toEqual([balanceR(CAGE_R)]);
+  });
+
+  it('анкерний варіант малює свої три тіла з власних констант', () => {
+    // Розгортка — єдина діаграма, яку тут тримають правдивою: вона мусить
+    // показувати ТЕ, ЩО СТОЇТЬ, і брати розміри з того ж модуля.
+    const parts = sectionParts('lever').parts.filter((p) => p.mod === 'escapement');
+    expect(parts.map((p) => p.r)).toEqual([ESC_R, FORK_REACH, BALANCE_R]);
+    expect(parts.some((p) => p.kind === 'cage'), 'кліті в анкерному спуску немає').toBe(false);
+  });
+
+  it('силует анкерного варіанта нижчий за турбійонний — це і є ціна складності', () => {
+    const span = (v) => {
+      const p = sectionParts(v).parts.filter((x) => x.mod === 'escapement');
+      return Math.max(...p.map((x) => x.z1)) - Math.min(...p.map((x) => x.z0));
+    };
+    expect(span('lever')).toBeLessThan(span('tourbillon'));
   });
 
   it('стрілки й шкала — з констант своїх модулів', () => {

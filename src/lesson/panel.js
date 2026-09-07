@@ -4,6 +4,7 @@ import { readouts } from './readouts.js';
 import { renderSection } from './sectionView.js';
 import { lineText, maybe } from './cardText.js';
 import { STATIONS } from './stations.js';
+import { mountVariantsModal } from './variantsModal.js';
 
 /**
  * Оболонка уроку: шапка, ліва рейка зі станціями, картка й підвал-ланцюг.
@@ -28,7 +29,7 @@ const svgEl = (tag, attrs = {}) => {
 /** Ланцюг у підвалі: головний ряд + два відгалуження + петля ритму. */
 const CHAIN_MAIN = ['chain.winding', 'chain.barrel', 'chain.train', 'chain.escape', 'chain.balance'];
 
-export function mountLesson({ highlighter, camera, status, onMode, params, run }) {
+export function mountLesson({ highlighter, camera, status, onMode, params, run, escapement, planned = [] }) {
   const ui = document.getElementById('ui');
   const state = { mode: 'lesson', current: null, visited: new Set(), cam: 'cam.overview', view: 'top', finished: false };
 
@@ -301,6 +302,12 @@ export function mountLesson({ highlighter, camera, status, onMode, params, run }
       wrapEl.append(b);
       return wrapEl;
     }
+    if (c.kind === 'variants') {
+      const b = el('button', 'act', t(c.labelKey));
+      b.addEventListener('click', () => variants.show());
+      wrapEl.append(b);
+      return wrapEl;
+    }
     if (c.kind === 'toggle') {
       wrapEl.append(segmented(c.options.map(([val, key]) => [
         t(key), params[c.param] === val, () => { params[c.param] = val; renderCard(); },
@@ -448,7 +455,7 @@ export function mountLesson({ highlighter, camera, status, onMode, params, run }
     document.getElementById('hint').hidden = on; // підказка про орбіту в розрізі ні до чого
     if (!on) return;
     const s = state.current === null ? null : STATIONS[state.current];
-    renderSection(host, s ? new Set(s.highlight.mods ?? []) : null);
+    renderSection(host, s ? new Set(s.highlight.mods ?? []) : null, escapement.installed);
   }
 
   function setView(v) {
@@ -579,6 +586,22 @@ export function mountLesson({ highlighter, camera, status, onMode, params, run }
       refs.clock.textContent = `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;
     }
   }
+
+  // ── Модалка «Варіанти» ──────────────────────────────────────────
+  const variants = mountVariantsModal({
+    escapement,
+    planned,
+    onApply(id) {
+      escapement.install(id);
+      // Механізм не зупинявся й нічого не помітив — але око могло проґавити
+      // заміну на загальному виді, тож ведемо камеру до спуску.
+      camera.toKey('escapement');
+      state.cam = null;
+      renderCard();   // назва встановленого варіанта живе в картці й розрізі
+      renderChrome();
+      drawSection();
+    },
+  });
 
   onLangChange(renderAll);
   renderAll();
