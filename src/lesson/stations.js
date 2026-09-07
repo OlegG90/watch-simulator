@@ -72,7 +72,8 @@ export const STATIONS = [
     focus: 'escapement',
     highlight: { mods: ['escapement'] },
     chain: { row: 3 },
-    test: 'θ_cage = β: спокій між ударами, +π/15 за удар',
+    // Теза станції — «темп задає баланс, а не конструкція», тож і тест саме той.
+    test: 'усі варіанти дають однаковий β — таймінг не залежить від конструкції',
     prose: 'st.escapement.prose',
     idea: 'st.escapement.idea',
     hint: 'st.escapement.hint',
