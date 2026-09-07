@@ -287,13 +287,16 @@ src/lesson/
   readouts.js      every live figure, derived from the mechanism constants
   highlight.js     dims all but a station's parts (swaps in dimmed material clones,
                    because materials are shared across dozens of meshes)
-  section.js       the developed section as data
+  section.js       the developed section as data - a composer over module profiles
   sectionView.js   and as SVG
+  variantsModal.js the escapement comparison: silhouettes, the cost table, the swap
   cardText.js      one resolver for card text, shared with the tests
   lesson.css       the interface; fonts.css + fonts/ ship the faces (OFL 1.1)
 ```
 
-There is no `escapement.js` — the escapement lives inside the cage in `tourbillon.js`.
+There is no `escapement.js` — the escapement is a **socket**, `escapement/`, holding one
+interchangeable module at a time (§*The escapement socket*). Nothing outside it names a
+variant: the socket is the only door.
 
 Every module is **three-phase**:
 
