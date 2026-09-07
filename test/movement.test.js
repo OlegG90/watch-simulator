@@ -1,6 +1,8 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import * as THREE from 'three';
-import { buildMovement } from '../src/movement.js';
+import { buildMovement, CAGE_R } from '../src/movement.js';
+import { buildEscapementSocket } from '../src/escapement/index.js';
+import { BALANCE_OFF, BALANCE_R } from '../src/escapement/lever.js';
 
 // ── Хелпери ───────────────────────────────────────────────────────
 const TWO = Math.PI * 2;
@@ -278,6 +280,59 @@ describe('гніздо спуску (escapement socket)', () => {
     expect(absPeriod(f.escapement.variant('lever').api.escWheel)).toBeCloseTo(12, 4);
     f.escapement.install('tourbillon');
     expect(absPeriod(f.escapement.variant('tourbillon').api.escSub)).toBeCloseTo(6, 4);
+  });
+
+  it('ціна складності виміряна, а не вписана: деталі рахуються обходом', () => {
+    const f = buildFresh();
+    for (const id of f.escapement.ids) {
+      const v = f.escapement.variant(id);
+      let n = 0;
+      for (const root of [v.rotating, v.fixed]) root.traverse((o) => { if (o.isMesh) n++; });
+      expect(v.cost.parts, `варіант ${id}`).toBe(n);
+    }
+  });
+
+  it('габарит іде за геометрією: більша кліть — більша ніша', () => {
+    // Найпряміший доказ, що число не вписане: міняємо констант і дивимось,
+    // чи піде міра за нею.
+    const socket = (cageR) => buildEscapementSocket(
+      { brass: mat(), steel: mat(), axleMat: mat(), ruby: mat(), springSteel: mat(), plateMat: mat() },
+      { escTeeth: 15, cageMat: mat(), cageR },
+      { arbor: new THREE.Group(), root: new THREE.Group(), pos: { x: 0, y: 0 }, zBase: 0 }
+    );
+    const small = socket(4.3).variant('tourbillon').cost.r;
+    const big = socket(5.5).variant('tourbillon').cost.r;
+    expect(big).toBeGreaterThan(small);
+  });
+
+  it('турбійон дорожчий за всіма мірами, крім ширини', () => {
+    const f = buildFresh();
+    const lever = f.escapement.variant('lever').cost;
+    const tb = f.escapement.variant('tourbillon').cost;
+    expect(tb.parts).toBeGreaterThan(lever.parts);      // 50 проти 18
+    expect(tb.axes).toBe(lever.axes + 1);               // кліть — зайвий рівень
+    expect(tb.h).toBeGreaterThan(lever.h);              // вища вежа
+    // А от ніша в анкерного ШИРША: баланс винесений убік виступає далі, ніж
+    // край кліті. Ціна складності — у деталях і висоті, не в ширині.
+    expect(lever.r).toBeGreaterThan(tb.r);
+  });
+
+  it('у турбійоні в русі більша частка деталей — кліть везе весь спуск', () => {
+    const f = buildFresh();
+    const tb = f.escapement.variant('tourbillon').cost;
+    const lever = f.escapement.variant('lever').cost;
+    // Нерухомим у турбійоні лишається рівно нерухоме колесо з колонкою — у
+    // цьому й суть вузла: анкерний триб обкочується САМЕ навколо нерухомого.
+    expect(tb.parts - tb.moving).toBe(2);
+    expect(tb.moving / tb.parts).toBeGreaterThan(lever.moving / lever.parts);
+    expect(lever.moving).toBeGreaterThan(0);
+  });
+
+  it('ніша анкерного варіанта = винесений баланс, турбійона = край кліті', () => {
+    const f = buildFresh();
+    expect(f.escapement.variant('lever').cost.r)
+      .toBeGreaterThanOrEqual(BALANCE_OFF + BALANCE_R);
+    expect(f.escapement.variant('tourbillon').cost.r).toBeCloseTo(CAGE_R, 0);
   });
 
   it('невідомий варіант відхиляється, а не мовчки ігнорується', () => {

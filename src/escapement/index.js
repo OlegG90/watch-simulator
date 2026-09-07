@@ -15,6 +15,7 @@
  */
 import { buildTourbillon, VARIANT_ID as TOURBILLON } from './tourbillon.js';
 import { buildLever, VARIANT_ID as LEVER } from './lever.js';
+import { measureVariant } from './metrics.js';
 
 /** Порядок = зростання складності. Саме в ньому їх показує порівняння. */
 export const VARIANT_IDS = [LEVER, TOURBILLON];
@@ -59,7 +60,9 @@ export function buildEscapementSocket(mats, opts, mount, installed = DEFAULT_VAR
     mount.arbor.add(v.rotating);
     v.fixed.position.set(mount.pos.x, mount.pos.y, mount.zBase);
     mount.root.add(v.fixed);
-    built.set(id, { id, nameKey: `part.${id}`, ...v });
+    // Ціна складності міряється ОДИН раз, тут: механізм ще не рухається, тож
+    // можна безпечно поставити варіантові дві пози й порівняти їх.
+    built.set(id, { id, nameKey: `part.${id}`, ...v, cost: measureVariant(v) });
   }
 
   let current = installed;
