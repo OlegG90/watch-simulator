@@ -14,6 +14,7 @@ import { buildMovement } from '../src/movement.js';
 import { createHighlighter } from '../src/lesson/highlight.js';
 import { mountLesson } from '../src/lesson/panel.js';
 import { setLang } from '../src/i18n.js';
+import { createSettings } from '../src/settings.js';
 
 /** Тіло `index.html` без скрипта — та сама сітка, що й у застосунку. */
 export function mountStage() {
@@ -43,7 +44,8 @@ export function mountTestLesson({ lang = 'ua' } = {}) {
   });
   const highlighter = createHighlighter(movement.root);
 
-  const params = { running: true, timeMode: 'demo', speed: 1.0, beatHz: 2.5, amplitude: 220 };
+  const settings = createSettings();
+  const params = settings.values;
   const statusOut = { real: false, speed: 1, charge: 0.75, time: 0 };
   const cam = { calls: [], key: null };
 
@@ -61,13 +63,13 @@ export function mountTestLesson({ lang = 'ua' } = {}) {
       return statusOut;
     },
     onMode: () => {},
-    params,
+    settings,
     run: (action) => cam.calls.push(`run:${action}`),
     escapement: movement.escapement,
     planned: ['doubleAxis'],
   });
 
-  return { lesson, cam, params, statusOut, movement, highlighter, ui: document.getElementById('ui') };
+  return { lesson, cam, settings, params, statusOut, movement, highlighter, ui: document.getElementById('ui') };
 }
 
 /**
