@@ -1,6 +1,7 @@
 import * as THREE from 'three';
 import { makeGear, makeEscapeWheel } from './gear.js';
 import { tagModule } from './common.js';
+import { beatPhase } from './escapement/beat.js';
 
 // ── Константи спуску (ті самі, що в escapement.js) ────────────────
 /** Локальні Z-рівні кліті (від її основи) — спільні з розрізом збоку. */
@@ -9,9 +10,6 @@ export const LAYERS = { bottom: -0.55, pin: 0, escape: 0.55, fork: 0.95, balance
 /** Радіус обода балансу: або власний розмір, або скільки лишає кліть. */
 export const balanceR = (cageR) => Math.min(1.95, cageR - 1.95);
 
-const FORK_MAX = 0.14;   // розмах анкера, рад
-const FLIP_W = 0.12;     // пів-ширина вікна перекидання, частка удару
-const smooth = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
 const dir2 = (a) => new THREE.Vector2(Math.cos(a), Math.sin(a));
 
 function bar(from, to, w, t, material) {
@@ -41,7 +39,6 @@ export function buildTourbillon(
 ) {
   const cage = new THREE.Group();   // обертова частина (додати до arbor4.group)
   const fixed = new THREE.Group();  // нерухома частина (додати до root у cagePos)
-  const halfStep = Math.PI / escTeeth;
 
   // Z-рівні (локальні; кліть ставиться на zBase у movement).
   const zPin = 0;      // площина нерухомого колеса й анкерного триба (зачеплення)
@@ -366,21 +363,16 @@ export function buildTourbillon(
   escWheel.rotation.z = mod(escDirLocal + Math.PI + Math.PI / 6, stepE);
 
   // ── Кінематика удару (та сама, що в escapement.js) ──
-  function update(t, beatHz, ampDeg) {
-    const u = t * beatHz;
-    const A = (ampDeg * Math.PI) / 180;
-    const thetaB = A * Math.sin(Math.PI * u);
-    const n = Math.round(u);
-    const x = (u - n) / (2 * FLIP_W) + 0.5;
-    const ss = smooth(x);
-    const sigma = ((n % 2) + 2) % 2 === 0 ? 1 : -1;
+  // Буфер фази: `update()` у циклі рендеру, новий об'єкт на кадр був би сміттям.
+  const phase = {};
 
-    const beta = halfStep * (n - 1 + ss); // кут анкерного колеса відносно кліті = θ_cage
-    escSub.rotation.z = beta;             // анкерне колесо обкочується (Zf = Zp → відносно кліті = β)
-    fork.rotation.z = -FORK_MAX * sigma * (2 * ss - 1);
+  function update(t, beatHz, ampDeg) {
+    const { thetaB, beta, forkAngle } = beatPhase(t, beatHz, ampDeg, escTeeth, phase);
+    escSub.rotation.z = beta;   // анкерне колесо обкочується (Zf = Zp → відносно кліті = β)
+    fork.rotation.z = forkAngle;
     balance.rotation.z = thetaB;
     updateHair(thetaB);
-    return beta;                          // = θ_cage
+    return beta;                // = θ_cage
   }
   update(0, 2.5, 220);
 
