@@ -11,6 +11,26 @@ export const LAYERS = { bottom: -0.55, pin: 0, escape: 0.55, fork: 0.95, balance
 /** Радіус обода балансу: або власний розмір, або скільки лишає кліть. */
 export const balanceR = (cageR) => Math.min(1.95, cageR - 1.95);
 
+/** Товщини тіл — ті самі числа в мешах і в розгортці. */
+const T = { balRim: 0.18 };
+
+/**
+ * Що варіант каже про себе в розгортці — до появи мешів.
+ *
+ * Вежа з двох платівок: усе інше всередині неї, тож у розгортці видно саме
+ * кліть, а не начинку. `u` — від анкерної осі, `z` — від основи гнізда.
+ */
+export function profile(zBase = 0, { cageR } = {}) {
+  return {
+    parts: [
+      { anchor: 'escape', u: 0, z0: zBase + LAYERS.bottom, z1: zBase + LAYERS.top, r: cageR, kind: 'cage',
+        labelKey: `part.${VARIANT_ID}` },
+      { anchor: 'escape', u: 0, z0: zBase + LAYERS.balance - T.balRim, z1: zBase + LAYERS.balance + T.balRim,
+        r: balanceR(cageR), kind: 'flat' },
+    ],
+  };
+}
+
 const dir2 = (a) => new THREE.Vector2(Math.cos(a), Math.sin(a));
 
 function bar(from, to, w, t, material) {
@@ -137,7 +157,7 @@ export function buildTourbillon(
   const balance = new THREE.Group();
   balance.position.z = zBal;
   const balR = balanceR(cageR);
-  const rim = new THREE.Mesh(new THREE.TorusGeometry(balR, 0.18, 16, 64), brass);
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(balR, T.balRim, 16, 64), brass);
   rim.castShadow = true;
   rim.receiveShadow = true;
   balance.add(rim);

@@ -15,12 +15,9 @@ import { TRAIN, layoutTrain } from '../train.js';
 import { pitchR, WHEEL_T, PINION_T } from '../common.js';
 import { LAYERS as BARREL } from '../barrel.js';
 import { LAYERS as WIND, RATCHET_T, CROWN_T, RATCH_M } from '../winding.js';
-import { LAYERS as PR, PRT_HUB, PRT_P, PRT_W, PRT_G, PRT_M, SUN_T, DIFF_M, DIAL_R, PR_HAND_L } from '../powerReserve.js';
-import { LAYERS as MW, CANNON_T, MINUTE_T, MW_PINION_T, HOUR_T, MW_M1, MW_M2,
-         CS_DRIVE, CS_IDLER, CS_PINION, HAND_L, layoutMotionWorks } from '../motionWorks.js';
-import { LAYERS as CAGE, balanceR, VARIANT_ID as TOURBILLON } from '../escapement/tourbillon.js';
-import { LAYERS as LEVER_L, BALANCE_OFF, BALANCE_R, ESC_R, FORK_PIVOT, FORK_REACH,
-         VARIANT_ID as LEVER } from '../escapement/lever.js';
+import { profile as reserveProfile } from '../powerReserve.js';
+import { profile as motionProfile } from '../motionWorks.js';
+import { variantProfile } from '../escapement/index.js';
 import { CAGE_R } from '../movement.js';
 
 const V_EXAGGERATION = 2; // інакше шари в 1.1 зливаються; підписано у в'юпорті
@@ -28,8 +25,15 @@ const V_EXAGGERATION = 2; // інакше шари в 1.1 зливаються; 
 /**
  * Деталі розрізу: `u` — місце вздовж ланцюга, `z0..z1` — висота, `r` — півширина.
  * Усе в одиницях механізму.
+ *
+ * Це КОМПОЗИТОР: власних чисел вузлів він не виводить. Кожен модуль сам каже,
+ * з чого складається (`profile()`) і від якої осі висить (`anchor`) — тут лише
+ * розставляються осі вздовж ланцюга.
+ *
+ * @param variant яку конструкцію спуску малювати — обов'язково: типовий
+ *                варіант знає гніздо, і другої думки про нього тут не буде
  */
-export function sectionParts(variant = TOURBILLON) {
+export function sectionParts(variant) {
   const arbors = layoutTrain();
   const u = [0];
   for (let k = 1; k < TRAIN.length; k++) {
@@ -72,58 +76,22 @@ export function sectionParts(variant = TOURBILLON) {
   add({ u: uCrown, z0: WIND.deck, z1: WIND.deck + 0.5, r: pitchR(CROWN_T, RATCH_M), mod: 'winding', kind: 'wheel',
         labelKey: 'part.winding' });
 
-  // ── Запас ходу: маточинне на осі барабана, компаунд збоку, сонця й шкала ──
-  add({ u: 0, z0: PR.hubWheel, z1: PR.hubWheel + 0.5, r: pitchR(PRT_HUB, PRT_M), mod: 'powerReserve', kind: 'wheel' });
-  const uIdler = ((PRT_HUB + PRT_P) / 2) * PRT_M;
-  add({ u: uIdler, z0: PR.hubWheel, z1: PR.hubWheel + 0.5, r: pitchR(PRT_P, PRT_M), mod: 'powerReserve', kind: 'pinion' });
-  add({ u: uIdler, z0: PR.idlerWheel, z1: PR.idlerWheel + 0.5, r: pitchR(PRT_W, PRT_M), mod: 'powerReserve', kind: 'wheel' });
-  add({ u: 0, z0: PR.idlerWheel, z1: PR.idlerWheel + 0.5, r: pitchR(PRT_G, PRT_M), mod: 'powerReserve', kind: 'wheel' });
-  add({ u: 0, z0: PR.suns - 0.2, z1: PR.suns + 0.2, r: pitchR(SUN_T, DIFF_M), mod: 'powerReserve', kind: 'sun' });
-  add({ u: 0, z0: PR.dial, z1: PR.dial + 0.1, r: DIAL_R, mod: 'powerReserve', kind: 'flat' });
-  add({ u: 0, z0: PR.hand, z1: PR.hand + 0.14, r: PR_HAND_L, mod: 'powerReserve', kind: 'hand', labelKey: 'part.powerReserve' });
+  // ── Решта вузлів: кожен розповідає про себе сам ──
+  // Осі ланцюга — тут; що на них висить — справа самих модулів.
+  const anchorU = { barrel: u[0], centre: u[1], seconds: u[3], escape: u[4] };
+  const place = (mod, prof) => {
+    // `anchor` — це те, що модуль каже композиторові, а не властивість деталі:
+    // після розстановки він уже нічого не означає й у розгортку не йде.
+    for (const { anchor, ...p } of prof.parts) add({ ...p, u: anchorU[anchor] + p.u, mod });
+  };
 
-  // ── Індикація: канон і годинне на центральній осі, хвилинний вузол збоку ──
-  const uc = u[1];
-  add({ u: uc, z0: MW.minuteWheel, z1: MW.minuteWheel + 0.8, r: pitchR(CANNON_T, MW_M1), mod: 'motionWorks', kind: 'pinion' });
-  const uMinute = uc + ((CANNON_T + MINUTE_T) / 2) * MW_M1;
-  add({ u: uMinute, z0: MW.minuteWheel, z1: MW.minuteWheel + 0.55, r: pitchR(MINUTE_T, MW_M1), mod: 'motionWorks', kind: 'wheel' });
-  add({ u: uMinute, z0: MW.hourWheel, z1: MW.hourWheel + 0.7, r: pitchR(MW_PINION_T, MW_M2), mod: 'motionWorks', kind: 'pinion' });
-  add({ u: uc, z0: MW.hourWheel, z1: MW.hourWheel + 0.5, r: pitchR(HOUR_T, MW_M2), mod: 'motionWorks', kind: 'wheel' });
-
-  // Центральна секунда: ведуче на секундній осі, проміжне між ними, тріб у центрі.
-  // Модуль центральної секунди підганяється під фактичну відстань осей —
-  // беремо його з розкладки, а не переписуємо число сюди.
-  const csM = layoutMotionWorks(arbors).CS_M;
-  add({ u: u[3], z0: MW.centralSeconds, z1: MW.centralSeconds + 0.45, r: pitchR(CS_DRIVE, csM), mod: 'motionWorks', kind: 'wheel' });
-  add({ u: uc, z0: MW.centralSeconds, z1: MW.centralSeconds + 0.55, r: pitchR(CS_PINION, csM), mod: 'motionWorks', kind: 'pinion' });
-  const uCsIdler = uc + ((CS_IDLER + CS_PINION) / 2) * csM;
-  add({ u: uCsIdler, z0: MW.centralSeconds, z1: MW.centralSeconds + 0.45, r: pitchR(CS_IDLER, csM), mod: 'motionWorks', kind: 'wheel' });
-
-  // Три стрілки на одній осі — вкладені трубки видно саме тут.
-  add({ u: uc, z0: MW.hands.hour, z1: MW.hands.hour + 0.14, r: HAND_L.hour, mod: 'motionWorks', kind: 'hand' });
-  add({ u: uc, z0: MW.hands.minute, z1: MW.hands.minute + 0.14, r: HAND_L.minute, mod: 'motionWorks', kind: 'hand' });
-  add({ u: uc, z0: MW.hands.second, z1: MW.hands.second + 0.14, r: HAND_L.second, mod: 'motionWorks', kind: 'hand',
-        labelKey: 'part.hands' });
+  place('powerReserve', reserveProfile());
+  place('motionWorks', motionProfile(arbors));
 
   // ── Гніздо спуску: показуємо ТЕ, ЩО СТОЇТЬ ──
   // Розгортка — єдина діаграма, яку тут тримають правдивою, тож вона мусить
   // малювати встановлений варіант, а не один назавжди обраний.
-  const base = arbors[4].wheelZ;
-  if (variant === LEVER) {
-    // Три тіла на своїх висотах, без платівок — звідси низький плаский силует.
-    add({ u: u[4], z0: base + LEVER_L.escape - 0.18, z1: base + LEVER_L.escape + 0.18,
-          r: ESC_R, mod: 'escapement', kind: 'wheel', labelKey: `part.${LEVER}` });
-    add({ u: u[4] + FORK_PIVOT, z0: base + LEVER_L.fork - 0.14, z1: base + LEVER_L.fork + 0.14,
-          r: FORK_REACH, mod: 'escapement', kind: 'flat' });
-    add({ u: u[4] + BALANCE_OFF, z0: base + LEVER_L.balance - 0.1, z1: base + LEVER_L.balance + 0.1,
-          r: BALANCE_R, mod: 'escapement', kind: 'flat' });
-  } else {
-    // Вежа з двох платівок — усе всередині неї.
-    add({ u: u[4], z0: base + CAGE.bottom, z1: base + CAGE.top, r: CAGE_R, mod: 'escapement', kind: 'cage',
-          labelKey: `part.${TOURBILLON}` });
-    add({ u: u[4], z0: base + CAGE.balance - 0.1, z1: base + CAGE.balance + 0.1,
-          r: balanceR(CAGE_R), mod: 'escapement', kind: 'flat' });
-  }
+  place('escapement', variantProfile(variant, arbors[4].wheelZ, { cageR: CAGE_R }));
 
   // ── Платина ──
   const uMin = Math.min(...parts.map((p) => p.u - p.r));
@@ -136,9 +104,11 @@ export function sectionParts(variant = TOURBILLON) {
 /** Z-рівні для шкали ліворуч — беруться з тих самих даних. */
 export function zTicks() {
   const arbors = layoutTrain();
-  const t = arbors.map((a) => a.wheelZ);
-  return [...new Set([...t, PR.suns, MW.minuteWheel, MW.centralSeconds, MW.hands.second])]
-    .sort((a, b) => a - b);
+  return [...new Set([
+    ...arbors.map((a) => a.wheelZ),
+    ...reserveProfile().zTicks,
+    ...motionProfile(arbors).zTicks,
+  ])].sort((a, b) => a - b);
 }
 
 export const V_SCALE = V_EXAGGERATION;

@@ -44,7 +44,30 @@ export const FORK_PIVOT = BALANCE_OFF * 0.48;
 /** Найдальша точка вилки від її осі — розгортка бере півширину звідси. */
 export const FORK_REACH = BALANCE_OFF - FORK_PIVOT - ROLLER_R;
 
+/**
+ * Товщини тіл. Ті самі числа йдуть у меші й у розгортку — доти розгортка мала
+ * власні окомірні ±0.18 / ±0.14 / ±0.1, і вони вже розійшлися з мешами.
+ */
+const T = { escape: 0.35, fork: 0.4, balRim: 0.18 };
+
 const dir2 = (a) => new THREE.Vector2(Math.cos(a), Math.sin(a));
+
+/**
+ * Що варіант каже про себе в розгортці — до появи мешів.
+ *
+ * `u` — від анкерної осі, `z` — від основи гнізда (`zBase` додає композитор).
+ * Три тіла на своїх висотах, без платівок — звідси низький плаский силует.
+ */
+export function profile(zBase = 0) {
+  const band = (z, half) => ({ z0: zBase + z - half, z1: zBase + z + half });
+  return {
+    parts: [
+      { anchor: 'escape', u: 0, ...band(LAYERS.escape, T.escape / 2), r: ESC_R, kind: 'wheel', labelKey: `part.${VARIANT_ID}` },
+      { anchor: 'escape', u: FORK_PIVOT, ...band(LAYERS.fork, T.fork / 2), r: FORK_REACH, kind: 'flat' },
+      { anchor: 'escape', u: BALANCE_OFF, ...band(LAYERS.balance, T.balRim), r: BALANCE_R, kind: 'flat' },
+    ],
+  };
+}
 
 /** Коробка між двома точками у площині XY (плечі й стрижень вилки). */
 function bar(from, to, w, t, material) {
@@ -65,7 +88,7 @@ export function buildLever(
 
   // ── Анкерне колесо: у центрі осі, жорстко на ній ──
   const escWheel = makeEscapeWheel(
-    { teeth: escTeeth, outerR: escR, rootR: escR - 0.5, thickness: 0.35, bore: 0.18, crossings: 3 },
+    { teeth: escTeeth, outerR: escR, rootR: escR - 0.5, thickness: T.escape, bore: 0.18, crossings: 3 },
     brass
   );
   escWheel.position.z = LAYERS.escape;
@@ -82,7 +105,7 @@ export function buildLever(
   // має просвічуватись, а не бути матовим блоком.
   const palletMat = new THREE.MeshPhysicalMaterial({
     color: 0xc0304a, roughness: 0.12, metalness: 0.0,
-    transmission: 0.28, thickness: 0.4, ior: 1.76,
+    transmission: 0.28, thickness: T.fork, ior: 1.76,
     emissive: 0x1a050a, emissiveIntensity: 0.25,
     clearcoat: 0.6, clearcoatRoughness: 0.15,
   });
@@ -136,7 +159,7 @@ export function buildLever(
   const balance = new THREE.Group();
   balance.position.set(balCenter.x, balCenter.y, LAYERS.balance);
   const balR = BALANCE_R;
-  const rim = new THREE.Mesh(new THREE.TorusGeometry(balR, 0.18, 16, 64), brass);
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(balR, T.balRim, 16, 64), brass);
   rim.castShadow = true;
   rim.receiveShadow = true;
   balance.add(rim);

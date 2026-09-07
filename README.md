@@ -287,22 +287,30 @@ src/lesson/
   readouts.js      every live figure, derived from the mechanism constants
   highlight.js     dims all but a station's parts (swaps in dimmed material clones,
                    because materials are shared across dozens of meshes)
-  section.js       the developed section as data
+  section.js       the developed section as data - a composer over module profiles
   sectionView.js   and as SVG
+  variantsModal.js the escapement comparison: silhouettes, the cost table, the swap
   cardText.js      one resolver for card text, shared with the tests
   lesson.css       the interface; fonts.css + fonts/ ship the faces (OFL 1.1)
 ```
 
-There is no `escapement.js` — the escapement lives inside the cage in `tourbillon.js`.
+There is no `escapement.js` — the escapement is a **socket**, `escapement/`, holding one
+interchangeable module at a time (§*The escapement socket*). Nothing outside it names a
+variant: the socket is the only door.
 
-Every module is **two-phase**:
+Every module is **three-phase**:
 
 - `layout…()` returns positions **and its own `extents`** (centre + radius pairs). It runs
   before any mesh exists, so `movement.js` can size the main plate from the whole mechanism
   while no module needs to know about its neighbours.
 - `build…()` creates the meshes and returns its own `update()`.
+- `profile()` returns the module's own figures — centre distances, z-spans, radii, label
+  keys — for the station cards and the developed section. No mesh needed, and no outsider
+  re-derives them: the same centre-distance expression used to be typed in three places at
+  once, in the module, in `lesson/readouts.js` and in `lesson/section.js`.
 
-Keep that split: it is what lets a module move or grow without touching the rest.
+Keep that split: it is what lets a module move or grow without touching the rest. A module's
+interface is those three functions — not its constant table.
 
 Two cautions for anyone refactoring the kinematics:
 
