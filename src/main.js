@@ -239,6 +239,7 @@ const highlighter = createHighlighter(movement.root);
 const statusOut = { real: false, speed: 1, charge: 0, time: 0 };
 const lesson = mountLesson({
   highlighter,
+  escapement: movement.escapement,
   camera: {
     presets: CAMS,
     overview,

@@ -33,8 +33,16 @@ export const BALANCE_OFF = 2.6;
 /** Радіус обода балансу — навмисно той самий, що в турбійоні (див. допущення). */
 export const BALANCE_R = 1.95;
 
+/** Радіус анкерного колеса — той самий, що в кліті турбійона. */
+export const ESC_R = 1.5;
+
 const PALLET_HALF = (30 * Math.PI) / 180; // палети на ±30° від лінії центрів
 const ROLLER_R = 0.55;                    // радіус ролика з імпульсним каменем
+
+/** Вісь вилки — між анкерним колесом і балансом. */
+export const FORK_PIVOT = BALANCE_OFF * 0.48;
+/** Найдальша точка вилки від її осі — розгортка бере півширину звідси. */
+export const FORK_REACH = BALANCE_OFF - FORK_PIVOT - ROLLER_R;
 
 const dir2 = (a) => new THREE.Vector2(Math.cos(a), Math.sin(a));
 
@@ -50,7 +58,7 @@ function bar(from, to, w, t, material) {
 
 export function buildLever(
   { steel, brass, springSteel, axleMat },
-  { escTeeth = 15, escR = 1.5, escDirLocal = 0 }
+  { escTeeth = 15, escR = ESC_R, escDirLocal = 0 }
 ) {
   const rotating = new THREE.Group(); // на анкерній осі — крутиться на β
   const fixed = new THREE.Group();    // на платині — власні осі обертання
@@ -82,7 +90,7 @@ export function buildLever(
   impulseRubyMat.emissiveIntensity = 0.18;
 
   const fork = new THREE.Group();
-  const forkPivot = dir2(escDirLocal).multiplyScalar(BALANCE_OFF * 0.48);
+  const forkPivot = dir2(escDirLocal).multiplyScalar(FORK_PIVOT);
   fork.position.set(forkPivot.x, forkPivot.y, LAYERS.fork);
   {
     for (const s of [+1, -1]) {
@@ -108,7 +116,7 @@ export function buildLever(
       fork.add(stone);
     }
     // Стрижень до ролика балансу + ріжки.
-    const stemEnd = dir2(escDirLocal).multiplyScalar(BALANCE_OFF - forkPivot.length() - ROLLER_R);
+    const stemEnd = dir2(escDirLocal).multiplyScalar(FORK_REACH);
     fork.add(bar(new THREE.Vector2(0, 0), stemEnd, 0.26, 0.28, steel));
     for (const s of [+1, -1]) {
       const horn = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.14, 0.28), steel);

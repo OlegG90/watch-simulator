@@ -18,7 +18,9 @@ import { LAYERS as WIND, RATCHET_T, CROWN_T, RATCH_M } from '../winding.js';
 import { LAYERS as PR, PRT_HUB, PRT_P, PRT_W, PRT_G, PRT_M, SUN_T, DIFF_M, DIAL_R, PR_HAND_L } from '../powerReserve.js';
 import { LAYERS as MW, CANNON_T, MINUTE_T, MW_PINION_T, HOUR_T, MW_M1, MW_M2,
          CS_DRIVE, CS_IDLER, CS_PINION, HAND_L, layoutMotionWorks } from '../motionWorks.js';
-import { LAYERS as CAGE, balanceR } from '../escapement/tourbillon.js';
+import { LAYERS as CAGE, balanceR, VARIANT_ID as TOURBILLON } from '../escapement/tourbillon.js';
+import { LAYERS as LEVER_L, BALANCE_OFF, BALANCE_R, ESC_R, FORK_PIVOT, FORK_REACH,
+         VARIANT_ID as LEVER } from '../escapement/lever.js';
 import { CAGE_R } from '../movement.js';
 
 const V_EXAGGERATION = 2; // інакше шари в 1.1 зливаються; підписано у в'юпорті
@@ -27,7 +29,7 @@ const V_EXAGGERATION = 2; // інакше шари в 1.1 зливаються; 
  * Деталі розрізу: `u` — місце вздовж ланцюга, `z0..z1` — висота, `r` — півширина.
  * Усе в одиницях механізму.
  */
-export function sectionParts() {
+export function sectionParts(variant = TOURBILLON) {
   const arbors = layoutTrain();
   const u = [0];
   for (let k = 1; k < TRAIN.length; k++) {
@@ -103,11 +105,25 @@ export function sectionParts() {
   add({ u: uc, z0: MW.hands.second, z1: MW.hands.second + 0.14, r: HAND_L.second, mod: 'motionWorks', kind: 'hand',
         labelKey: 'part.hands' });
 
-  // ── Кліть турбійона: вежа з двох платівок ──
+  // ── Гніздо спуску: показуємо ТЕ, ЩО СТОЇТЬ ──
+  // Розгортка — єдина діаграма, яку тут тримають правдивою, тож вона мусить
+  // малювати встановлений варіант, а не один назавжди обраний.
   const base = arbors[4].wheelZ;
-  add({ u: u[4], z0: base + CAGE.bottom, z1: base + CAGE.top, r: CAGE_R, mod: 'escapement', kind: 'cage',
-        labelKey: 'part.tourbillon' });
-  add({ u: u[4], z0: base + CAGE.balance - 0.1, z1: base + CAGE.balance + 0.1, r: balanceR(CAGE_R), mod: 'escapement', kind: 'flat' });
+  if (variant === LEVER) {
+    // Три тіла на своїх висотах, без платівок — звідси низький плаский силует.
+    add({ u: u[4], z0: base + LEVER_L.escape - 0.18, z1: base + LEVER_L.escape + 0.18,
+          r: ESC_R, mod: 'escapement', kind: 'wheel', labelKey: `part.${LEVER}` });
+    add({ u: u[4] + FORK_PIVOT, z0: base + LEVER_L.fork - 0.14, z1: base + LEVER_L.fork + 0.14,
+          r: FORK_REACH, mod: 'escapement', kind: 'flat' });
+    add({ u: u[4] + BALANCE_OFF, z0: base + LEVER_L.balance - 0.1, z1: base + LEVER_L.balance + 0.1,
+          r: BALANCE_R, mod: 'escapement', kind: 'flat' });
+  } else {
+    // Вежа з двох платівок — усе всередині неї.
+    add({ u: u[4], z0: base + CAGE.bottom, z1: base + CAGE.top, r: CAGE_R, mod: 'escapement', kind: 'cage',
+          labelKey: `part.${TOURBILLON}` });
+    add({ u: u[4], z0: base + CAGE.balance - 0.1, z1: base + CAGE.balance + 0.1,
+          r: balanceR(CAGE_R), mod: 'escapement', kind: 'flat' });
+  }
 
   // ── Платина ──
   const uMin = Math.min(...parts.map((p) => p.u - p.r));

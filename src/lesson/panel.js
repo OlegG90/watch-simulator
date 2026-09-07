@@ -28,7 +28,7 @@ const svgEl = (tag, attrs = {}) => {
 /** Ланцюг у підвалі: головний ряд + два відгалуження + петля ритму. */
 const CHAIN_MAIN = ['chain.winding', 'chain.barrel', 'chain.train', 'chain.escape', 'chain.balance'];
 
-export function mountLesson({ highlighter, camera, status, onMode, params, run }) {
+export function mountLesson({ highlighter, camera, status, onMode, params, run, escapement }) {
   const ui = document.getElementById('ui');
   const state = { mode: 'lesson', current: null, visited: new Set(), cam: 'cam.overview', view: 'top', finished: false };
 
@@ -448,7 +448,7 @@ export function mountLesson({ highlighter, camera, status, onMode, params, run }
     document.getElementById('hint').hidden = on; // підказка про орбіту в розрізі ні до чого
     if (!on) return;
     const s = state.current === null ? null : STATIONS[state.current];
-    renderSection(host, s ? new Set(s.highlight.mods ?? []) : null);
+    renderSection(host, s ? new Set(s.highlight.mods ?? []) : null, escapement.installed);
   }
 
   function setView(v) {

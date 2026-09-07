@@ -27,8 +27,8 @@ const STYLE = {
   plate: { fill: '#2b3038', stroke: 'none' },
 };
 
-export function renderSection(host, focusMods) {
-  const { parts, meshes, bounds } = sectionParts();
+export function renderSection(host, focusMods, variant) {
+  const { parts, meshes, bounds } = sectionParts(variant);
   const zMin = Math.min(...parts.map((p) => p.z0));
   const zMax = Math.max(...parts.map((p) => p.z1));
   const sx = (W - 2 * PAD) / (bounds.uMax - bounds.uMin);

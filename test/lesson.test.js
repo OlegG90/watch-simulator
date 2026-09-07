@@ -10,6 +10,7 @@ import { lineText, maybe } from '../src/lesson/cardText.js';
 import { sectionParts } from '../src/lesson/section.js';
 import { CAGE_R } from '../src/movement.js';
 import { balanceR } from '../src/escapement/tourbillon.js';
+import { BALANCE_R, ESC_R, FORK_REACH } from '../src/escapement/lever.js';
 import { HAND_L, CS_DRIVE, layoutMotionWorks } from '../src/motionWorks.js';
 import { SUN_T, DIFF_M, DIAL_R, PR_HAND_L } from '../src/powerReserve.js';
 import { layoutTrain } from '../src/train.js';
@@ -187,6 +188,22 @@ describe('розріз збоку не має власних копій розм
   it('кліть і баланс — з констант турбійона, а не вписані', () => {
     expect(byKind('escapement', 'cage')).toEqual([CAGE_R]);
     expect(byKind('escapement', 'flat')).toEqual([balanceR(CAGE_R)]);
+  });
+
+  it('анкерний варіант малює свої три тіла з власних констант', () => {
+    // Розгортка — єдина діаграма, яку тут тримають правдивою: вона мусить
+    // показувати ТЕ, ЩО СТОЇТЬ, і брати розміри з того ж модуля.
+    const parts = sectionParts('lever').parts.filter((p) => p.mod === 'escapement');
+    expect(parts.map((p) => p.r)).toEqual([ESC_R, FORK_REACH, BALANCE_R]);
+    expect(parts.some((p) => p.kind === 'cage'), 'кліті в анкерному спуску немає').toBe(false);
+  });
+
+  it('силует анкерного варіанта нижчий за турбійонний — це і є ціна складності', () => {
+    const span = (v) => {
+      const p = sectionParts(v).parts.filter((x) => x.mod === 'escapement');
+      return Math.max(...p.map((x) => x.z1)) - Math.min(...p.map((x) => x.z0));
+    };
+    expect(span('lever')).toBeLessThan(span('tourbillon'));
   });
 
   it('стрілки й шкала — з констант своїх модулів', () => {

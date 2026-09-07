@@ -27,7 +27,7 @@ export const DEFAULT_VARIANT = TOURBILLON;
 
 const BUILDERS = {
   [LEVER]: (mats, { escTeeth }) => {
-    const l = buildLever(mats, { escTeeth, escR: 1.5, escDirLocal: 0 });
+    const l = buildLever(mats, { escTeeth, escDirLocal: 0 });
     return { rotating: l.rotating, fixed: l.fixed, update: l.update, api: l };
   },
   [TOURBILLON]: (mats, { escTeeth, cageMat, cageR }) => {
