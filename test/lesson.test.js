@@ -6,16 +6,15 @@ import { createHighlighter } from '../src/lesson/highlight.js';
 import { STATIONS } from '../src/lesson/stations.js';
 import { LANGS, dictKeys, t, tf, getLang, setLang, onLangChange } from '../src/i18n.js';
 import { readouts } from '../src/lesson/readouts.js';
-import { VARIANT_IDS } from '../src/escapement/index.js';
+import { VARIANT_IDS, DEFAULT_VARIANT } from '../src/escapement/index.js';
 import { lineText, maybe } from '../src/lesson/cardText.js';
 import { sectionParts } from '../src/lesson/section.js';
 import { CAGE_R } from '../src/movement.js';
 import { balanceR } from '../src/escapement/tourbillon.js';
 import { BALANCE_R, ESC_R, FORK_REACH } from '../src/escapement/lever.js';
-import { HAND_L, CS_DRIVE, layoutMotionWorks } from '../src/motionWorks.js';
-import { SUN_T, DIFF_M, DIAL_R, PR_HAND_L } from '../src/powerReserve.js';
+import { profile as motionProfile } from '../src/motionWorks.js';
+import { profile as reserveProfile } from '../src/powerReserve.js';
 import { layoutTrain } from '../src/train.js';
-import { pitchR } from '../src/common.js';
 
 const mat = () => new THREE.MeshStandardMaterial();
 const build = () => buildMovement({
@@ -235,12 +234,17 @@ describe('станція «Спуск і регулятор» не залежи�
 });
 
 describe('розріз збоку не має власних копій розмірів', () => {
-  const byKind = (mod, kind) =>
-    sectionParts().parts.filter((p) => p.mod === mod && p.kind === kind).map((p) => p.r);
+  const byKind = (mod, kind, variant = DEFAULT_VARIANT) =>
+    sectionParts(variant).parts.filter((p) => p.mod === mod && p.kind === kind).map((p) => p.r);
+
+  it('без варіанта розгортка не малюється — типовий знає гніздо', () => {
+    // Друге замовчування розійшлося б із гніздом і показало б те, чого не стоїть.
+    expect(() => sectionParts()).toThrow();
+  });
 
   it('кліть і баланс — з констант турбійона, а не вписані', () => {
-    expect(byKind('escapement', 'cage')).toEqual([CAGE_R]);
-    expect(byKind('escapement', 'flat')).toEqual([balanceR(CAGE_R)]);
+    expect(byKind('escapement', 'cage', 'tourbillon')).toEqual([CAGE_R]);
+    expect(byKind('escapement', 'flat', 'tourbillon')).toEqual([balanceR(CAGE_R)]);
   });
 
   it('анкерний варіант малює свої три тіла з власних констант', () => {
@@ -259,18 +263,69 @@ describe('розріз збоку не має власних копій розм
     expect(span('lever')).toBeLessThan(span('tourbillon'));
   });
 
-  it('стрілки й шкала — з констант своїх модулів', () => {
-    expect(byKind('motionWorks', 'hand')).toEqual([HAND_L.hour, HAND_L.minute, HAND_L.second]);
-    expect(byKind('powerReserve', 'hand')).toEqual([PR_HAND_L]);
-    expect(byKind('powerReserve', 'flat')).toEqual([DIAL_R]);
-    expect(byKind('powerReserve', 'sun')).toEqual([pitchR(SUN_T, DIFF_M)]);
+  it('розгортка ставить рівно те, що оголосив профіль вузла', () => {
+    // Композитор не має власних чисел: він лише розставляє осі. Що на них
+    // висить — і якого розміру — каже сам вузол. (Що модуль центральної
+    // секунди справді виведений із відстані осей, тримають інваріанти
+    // зачеплення в `movement.test.js`.)
+    const arbors = layoutTrain();
+    const shape = (p) => `${p.kind} r=${p.r} z=${p.z0}..${p.z1}`;
+    const drawn = sectionParts(DEFAULT_VARIANT).parts;
+    for (const [mod, prof] of [['powerReserve', reserveProfile()],
+                               ['motionWorks', motionProfile(arbors)]]) {
+      expect(drawn.filter((p) => p.mod === mod).map(shape), mod).toEqual(prof.parts.map(shape));
+    }
+  });
+});
+
+describe('вузол — єдине джерело своїх чисел', () => {
+  // Міжосьову кожної пари виводить сам модуль (`profile()`). Доти той самий
+  // вираз стояв у трьох місцях — у модулі, у картках і в розгортці, — і будь-яке
+  // з них могло тихо розійтися з іншими.
+
+  const src = (rel) => readFileSync(new URL(`../src/${rel}`, import.meta.url), 'utf8');
+  const snap = { beatHz: 2.5, amplitude: 220, speed: 1, charge: 0.5 };
+
+  it('вираз міжосьової не повторюється поза своїм модулем', () => {
+    const guarded = [
+      ['powerReserve.js', 'PRT_HUB + PRT_P'],
+      ['motionWorks.js', 'CANNON_T + MINUTE_T'],
+      ['motionWorks.js', 'MW_PINION_T + HOUR_T'],
+    ];
+    for (const [owner, expr] of guarded) {
+      for (const rel of ['lesson/readouts.js', 'lesson/section.js']) {
+        expect(src(rel), `${expr} має жити тільки в ${owner}`).not.toContain(expr);
+      }
+    }
   });
 
-  it('модуль центральної секунди береться з розкладки', () => {
-    // Він виводиться з фактичної відстані осей: варто зрушити передачу —
-    // і вписане число розвело б діаграму з механізмом.
-    const csM = layoutMotionWorks(layoutTrain()).CS_M;
-    expect(byKind('motionWorks', 'wheel')).toContain(pitchR(CS_DRIVE, csM));
+  it('картка, профіль і зібраний механізм кажуть ту саму міжосьову', () => {
+    // Найсильніша звірка: число з картки проти відстані між осями у мешах.
+    const m = build();
+    // Група проміжного стоїть відносно осі барабана, тож її зсув і Є міжосьова.
+    const { x, y } = m.powerReserve.idler.position;
+    const built = Math.hypot(x, y);
+
+    expect(reserveProfile().centres.hub).toBeCloseTo(built, 9);
+    expect(readouts(snap).reserve.centreA).toBeCloseTo(built, 3);
+  });
+
+  it('обидві пари моторного механізму мають однакову міжосьову', () => {
+    // Саме тому `MW_M2` виведений із `MW_M1`, а не заданий окремо.
+    const prof = motionProfile(layoutTrain());
+    expect(prof.centres.equal).toBe(true);
+    expect(readouts(snap).mw.equal).toBe(true);
+  });
+
+  it('розгортка малює баланс однакової товщини в обох варіантах', () => {
+    // Обід балансу той самий у кожному варіанті, тож і смуга та сама. Доти
+    // кожен варіант мав у розгортці власне окомірне число.
+    const band = (v) => {
+      const p = sectionParts(v).parts
+        .filter((x) => x.mod === 'escapement' && x.kind === 'flat').at(-1);
+      return p.z1 - p.z0;
+    };
+    expect(band('lever')).toBeCloseTo(band('tourbillon'), 9);
   });
 });
 

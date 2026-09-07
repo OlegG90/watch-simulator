@@ -6,12 +6,12 @@
  * що обіцяє «перевірено тестом», почне брехати при першій же зміні коду —
  * наприклад, варто зрушити `beatHz`, і зашите «12.0 с» стане неправдою.
  */
-import { TRAIN } from '../train.js';
+import { TRAIN, layoutTrain } from '../train.js';
 import { M, pitchR } from '../common.js';
 import { SPRING_TURNS_0, SPRING_TURNS_C, SPRING_SQUEEZE } from '../barrel.js';
-import { CANNON_T, MINUTE_T, MW_PINION_T, HOUR_T, MW_M1, MW_M2, CS_DRIVE, CS_IDLER, CS_PINION } from '../motionWorks.js';
+import { profile as motionProfile } from '../motionWorks.js';
 import { RATCHET_T, CROWN_T, BEVEL_W, BEVEL_P, RATCH_M } from '../winding.js';
-import { PRT_HUB, PRT_P, PRT_W, PRT_G, PRT_M, RA, RB, SWEEP } from '../powerReserve.js';
+import { profile as reserveProfile, RA, RB, SWEEP } from '../powerReserve.js';
 
 // Арифметичне округлення, а не `toFixed`: той створює рядок на кожен виклик,
 // а це гарячий шлях. Усі величини тут додатні, тож розбіжності між
@@ -59,31 +59,35 @@ export function runTime(beatHz, c = 1) {
 /** Приріст заряду за один клік (чверть оберту храповика). */
 export const chargePerClick = () => (RA * (Math.PI / 2)) / (2 * SWEEP);
 
-/** Моторний механізм: обидві пари й доказ, що міжосьова в них однакова. */
+/**
+ * Моторний механізм: обидві пари й доказ, що міжосьова в них однакова.
+ *
+ * Числа приходять із самого модуля — тут лишається тільки округлення для
+ * показу. Доти цей самий вираз міжосьової був вписаний тричі: у модулі, тут і
+ * в розгортці.
+ */
 export function motionWorks() {
-  const a1 = ((CANNON_T + MINUTE_T) / 2) * MW_M1;
-  const a2 = ((MW_PINION_T + HOUR_T) / 2) * MW_M2;
+  const { hourRatio, centres, modules } = motionProfile(layoutTrain());
   return {
-    hourRatio: (CANNON_T / MINUTE_T) * (MW_PINION_T / HOUR_T), // = 1/12
-    centreA: round(a1, 3),
-    centreB: round(a2, 3),
-    equal: Math.abs(a1 - a2) < 1e-9,
-    modules: [MW_M1, round(MW_M2, 4)],
+    hourRatio,
+    centreA: round(centres.mw1, 3),
+    centreB: round(centres.mw2, 3),
+    equal: centres.equal,
+    modules: [modules[0], round(modules[1], 4)],
   };
 }
 
 /** Центральна секунда: 48→20→8 множить швидкість секундної осі на 6. */
 export function centralSeconds() {
   const r = trainRatios();
-  const step = CS_DRIVE / CS_PINION;
-  return { step, total: Math.abs(r[3].omega / r[1].omega) * step, idler: CS_IDLER };
+  const { step, idler } = motionProfile(layoutTrain()).cs;
+  return { step, total: Math.abs(r[3].omega / r[1].omega) * step, idler };
 }
 
 /** Передача запасу ходу: та сама міжосьова в обох пар — тому проміжне колесо одне. */
 export function reserveTrain() {
-  const a1 = ((PRT_HUB + PRT_P) / 2) * PRT_M;
-  const a2 = ((PRT_W + PRT_G) / 2) * PRT_M;
-  return { ratio: RB, centreA: round(a1, 3), centreB: round(a2, 3), equal: Math.abs(a1 - a2) < 1e-9 };
+  const { ratio, centres } = reserveProfile();
+  return { ratio, centreA: round(centres.hub, 3), centreB: round(centres.sun, 3), equal: centres.equal };
 }
 
 /** Заведення: скільки обертів робить головка на один оберт храповика. */

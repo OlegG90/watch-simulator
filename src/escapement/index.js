@@ -13,8 +13,8 @@
  * варіант гніздо не знає — скільки в ньому вкладених клітей і навколо чого
  * вони крутяться, його справа.
  */
-import { buildTourbillon, VARIANT_ID as TOURBILLON } from './tourbillon.js';
-import { buildLever, VARIANT_ID as LEVER } from './lever.js';
+import { buildTourbillon, profile as tourbillonProfile, VARIANT_ID as TOURBILLON } from './tourbillon.js';
+import { buildLever, profile as leverProfile, VARIANT_ID as LEVER } from './lever.js';
 import { measureVariant } from './metrics.js';
 
 /** Порядок = зростання складності. Саме в ньому їх показує порівняння. */
@@ -34,6 +34,28 @@ export const DEFAULT_VARIANT = LEVER;
  * але вибрати не дає й чисел не вигадує — міряти нема чого.
  */
 export const PLANNED_IDS = ['doubleAxis'];
+
+const PROFILES = {
+  [LEVER]: leverProfile,
+  [TOURBILLON]: tourbillonProfile,
+};
+
+/**
+ * Розгортка варіанта — без збирання мешів.
+ *
+ * Гніздо і тут лишається єдиними дверима до варіантів: доти розгортка
+ * імпортувала `lever.js` і `tourbillon.js` навпростець, тримала власне
+ * уявлення про те, який варіант типовий, і сама вписувала товщини їхніх тіл.
+ *
+ * @param id     який варіант малювати — без замовчування: типовий варіант
+ *               знає гніздо (`DEFAULT_VARIANT`), і другої думки тут бути не має
+ * @param zBase  висота основи гнізда
+ */
+export function variantProfile(id, zBase, opts = {}) {
+  const fn = PROFILES[id];
+  if (!fn) throw new Error(`невідомий варіант спуску: ${id}`);
+  return fn(zBase, opts);
+}
 
 const BUILDERS = {
   [LEVER]: (mats, { escTeeth }) => {

@@ -1,36 +1,47 @@
 import * as THREE from 'three';
 import { makeGear, makeBevelGear } from './gear.js';
-import { deg, dir2, meshPhase, makeAxle, makeHandAssembly, tagModule } from './common.js';
+import { deg, dir2, meshPhase, makeAxle, makeHandAssembly, tagModule, pitchR } from './common.js';
 
 // ── Коаксіальний конічний диференціал над барабаном ───────────────
 // Обидва входи вже на осі барабана: храповик (w) веде верхнє сонце прямою
 // трубкою (RA = 1), барабанне колесо (β) — нижнє через маточинне колесо (32)
 // → компаунд-проміжне (8/20) → колесо трубки нижнього сонця (20), RB = 4.
 // Міжосьова однакова для обох пар: (32+8)·m/2 = (20+20)·m/2 = 6.0.
-export const PRT_M = 0.3;
-export const PRT_HUB = 32;
-export const PRT_P = 8;
-export const PRT_W = 20;
-export const PRT_G = 20;
+const PRT_M = 0.3;
+const PRT_HUB = 32;
+const PRT_P = 8;
+const PRT_W = 20;
+const PRT_G = 20;
 export const RA = 1;                                   // храповик → верхнє сонце
 export const RB = (PRT_HUB / PRT_P) * (PRT_W / PRT_G); // барабан → нижнє сонце = 4
 const PRT_ANGLE = deg(160);                            // напрям компаунд-проміжного від барабана
+
+/**
+ * Міжосьові вузла. Обидві пари мають ОДНАКОВУ — саме тому проміжне колесо
+ * одне, а не два. Виводяться тут один раз: доти цей самий вираз стояв ще й у
+ * `readouts.js`, і ще й у `section.js`.
+ */
+const CENTRE_HUB = ((PRT_HUB + PRT_P) / 2) * PRT_M;   // маточинне ↔ проміжне
+const CENTRE_SUN = ((PRT_W + PRT_G) / 2) * PRT_M;     // проміжне ↔ колесо сонця
 
 export const PR_EMPTY = deg(150);            // «порожньо»
 export const PR_FULL = deg(30);              // повний завод
 export const SWEEP = PR_EMPTY - PR_FULL;     // 120°
 const C0 = 0.75;                             // початковий заряд
 
-export const DIFF_M = 0.28;              // модуль конічних коліс диференціала
-export const SUN_T = 16;          // δ_сонця = atan(16/10) ≈ 58°
+const DIFF_M = 0.28;              // модуль конічних коліс диференціала
+const SUN_T = 16;          // δ_сонця = atan(16/10) ≈ 58°
 const PLANET_T = 10;              // δ_планети ≈ 32°
 /** Радіуси шкали й стрілки — розріз збоку бере їх звідси, а не вписує. */
-export const DIAL_R = 3.05, PR_HAND_L = 2.5;
+const DIAL_R = 3.05, PR_HAND_L = 2.5;
 const DELTA_SUN = Math.atan(SUN_T / PLANET_T);
 const DELTA_PL = Math.atan(PLANET_T / SUN_T);
 const Z_DIFF = 5.8;               // спільний апекс сонць/планет
 /** Z-рівні модуля — спільні з розрізом збоку. */
-export const LAYERS = { hubWheel: 1.85, idlerWheel: 3.3, suns: Z_DIFF, arm: Z_DIFF + 2.15, dial: Z_DIFF + 2.75, hand: Z_DIFF + 3.05 };
+const LAYERS = { hubWheel: 1.85, idlerWheel: 3.3, suns: Z_DIFF, arm: Z_DIFF + 2.15, dial: Z_DIFF + 2.75, hand: Z_DIFF + 3.05 };
+
+/** Товщини тіл. Одні й ті самі для мешів і для розрізу — інакше розійдуться. */
+const T = { wheel: 0.5, sun: 0.4, planet: 0.38, dial: 0.1, hand: 0.14 };
 
 /** Заряд — ПОХІДНИЙ від двох входів диференціала, а не окрема змінна стану. */
 export const chargeOf = (w, beta) => C0 + (RA * w - RB * beta) / (2 * SWEEP);
@@ -43,11 +54,40 @@ export const autoWindDelta = (dBeta) => (RB / RA) * dBeta;
 
 /** Розкладка вузла (позиції + внесок у межі сцени). */
 export function layoutPowerReserve(barrelPos) {
-  const idlerPos = barrelPos.clone()
-    .add(dir2(PRT_ANGLE).multiplyScalar(((PRT_HUB + PRT_P) / 2) * PRT_M));
+  const idlerPos = barrelPos.clone().add(dir2(PRT_ANGLE).multiplyScalar(CENTRE_HUB));
   return {
     idlerPos,
     extents: [{ pos: idlerPos, r: ((PRT_W * PRT_M) / 2) + PRT_M * 1.3 }],
+  };
+}
+
+/**
+ * Що вузол може сказати про себе ДО того, як з'явиться хоч один меш.
+ *
+ * Третя фаза поряд із `layout…()` і `build…()`: розкладка відповідає на «де
+ * стоїть», збірка — «з чого зроблено», а це — «які в нього числа». Доти на ці
+ * питання відповідали `readouts.js` і `section.js`, кожен своїм списком
+ * констант і своєю копією формул.
+ *
+ * Деталі кажуть, ВІД ЧОГО вони висять (`anchor`) і на скільки зміщені (`u`) —
+ * де насправді стоїть цей вузол, знає композитор розрізу, а не модуль.
+ */
+export function profile() {
+  const L = LAYERS;
+  return {
+    ratio: RB,
+    centres: { hub: CENTRE_HUB, sun: CENTRE_SUN, equal: Math.abs(CENTRE_HUB - CENTRE_SUN) < 1e-9 },
+    sweep: SWEEP,
+    parts: [
+      { anchor: 'barrel', u: 0, z0: L.hubWheel, z1: L.hubWheel + T.wheel, r: pitchR(PRT_HUB, PRT_M), kind: 'wheel' },
+      { anchor: 'barrel', u: CENTRE_HUB, z0: L.hubWheel, z1: L.hubWheel + T.wheel, r: pitchR(PRT_P, PRT_M), kind: 'pinion' },
+      { anchor: 'barrel', u: CENTRE_HUB, z0: L.idlerWheel, z1: L.idlerWheel + T.wheel, r: pitchR(PRT_W, PRT_M), kind: 'wheel' },
+      { anchor: 'barrel', u: 0, z0: L.idlerWheel, z1: L.idlerWheel + T.wheel, r: pitchR(PRT_G, PRT_M), kind: 'wheel' },
+      { anchor: 'barrel', u: 0, z0: L.suns - T.sun / 2, z1: L.suns + T.sun / 2, r: pitchR(SUN_T, DIFF_M), kind: 'sun' },
+      { anchor: 'barrel', u: 0, z0: L.dial, z1: L.dial + T.dial, r: DIAL_R, kind: 'flat' },
+      { anchor: 'barrel', u: 0, z0: L.hand, z1: L.hand + T.hand, r: PR_HAND_L, kind: 'hand', labelKey: 'part.powerReserve' },
+    ],
+    zTicks: [L.suns],
   };
 }
 
@@ -67,7 +107,7 @@ export function buildPowerReserve({ brass, steel, axleMat, ruby, plateMat, blued
   // ── Маточинне колесо (вхід ходу, β) — на трубці барабанного колеса ──
   const hubParts = [];
   {
-    const hubWheel = makeGear({ teeth: PRT_HUB, module: PRT_M, thickness: 0.5, bore: 0.62, crossings: 4 }, brass);
+    const hubWheel = makeGear({ teeth: PRT_HUB, module: PRT_M, thickness: T.wheel, bore: 0.62, crossings: 4 }, brass);
     hubWheel.position.z = 1.85;
     barrelGroup.add(hubWheel);
     const hubPipe = makeAxle({ r: 0.42, len: 1.3, z: 1.05 }, brass);
@@ -79,10 +119,10 @@ export function buildPowerReserve({ brass, steel, axleMat, ruby, plateMat, blued
   const idlerG = new THREE.Group();
   idlerG.position.set(idlerPos.x - barrelPos.x, idlerPos.y - barrelPos.y, 0);
   {
-    const p = makeGear({ teeth: PRT_P, module: PRT_M, thickness: 0.5, bore: 0.14 }, steel);
+    const p = makeGear({ teeth: PRT_P, module: PRT_M, thickness: T.wheel, bore: 0.14 }, steel);
     p.position.z = 1.85;
     idlerG.add(p);
-    const w = makeGear({ teeth: PRT_W, module: PRT_M, thickness: 0.5, bore: 0.14, crossings: 3 }, steel);
+    const w = makeGear({ teeth: PRT_W, module: PRT_M, thickness: T.wheel, bore: 0.14, crossings: 3 }, steel);
     w.position.z = 3.3;
     idlerG.add(w);
     idlerG.add(makeAxle({ r: 0.13, len: 3.1, z: 2.45, segments: 10 }, axleMat));
@@ -93,13 +133,13 @@ export function buildPowerReserve({ brass, steel, axleMat, ruby, plateMat, blued
   const sunLow = new THREE.Group();
   {
     const sun = makeBevelGear(
-      { teeth: SUN_T, module: DIFF_M, thickness: 0.4, bore: 0.72, pitchAngleDeg: (DELTA_SUN * 180) / Math.PI },
+      { teeth: SUN_T, module: DIFF_M, thickness: T.sun, bore: 0.72, pitchAngleDeg: (DELTA_SUN * 180) / Math.PI },
       steel
     );
     sun.position.z = Z_DIFF;
     sun.rotation.x = Math.PI; // перевернуте: вінець знизу, зубці до планет
     sunLow.add(sun);
-    const g = makeGear({ teeth: PRT_G, module: PRT_M, thickness: 0.5, bore: 0.72, crossings: 3 }, steel);
+    const g = makeGear({ teeth: PRT_G, module: PRT_M, thickness: T.wheel, bore: 0.72, crossings: 3 }, steel);
     g.position.z = 3.3;
     sunLow.add(g);
     sunLow.add(makeAxle({ r: 0.68, len: 1.6, z: 4.2, segments: 14 }, steel));
@@ -110,7 +150,7 @@ export function buildPowerReserve({ brass, steel, axleMat, ruby, plateMat, blued
   const sunUp = new THREE.Group();
   {
     const sun = makeBevelGear(
-      { teeth: SUN_T, module: DIFF_M, thickness: 0.4, bore: 0.5, pitchAngleDeg: (DELTA_SUN * 180) / Math.PI },
+      { teeth: SUN_T, module: DIFF_M, thickness: T.sun, bore: 0.5, pitchAngleDeg: (DELTA_SUN * 180) / Math.PI },
       steel
     );
     sun.position.z = Z_DIFF; // апекс у центрі, вінець зверху
@@ -136,7 +176,7 @@ export function buildPowerReserve({ brass, steel, axleMat, ruby, plateMat, blued
       pg.position.z = Z_DIFF;
       pg.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), new THREE.Vector3(s, 0, 0));
       const planet = makeBevelGear(
-        { teeth: PLANET_T, module: DIFF_M, thickness: 0.38, bore: 0.4, pitchAngleDeg: (DELTA_PL * 180) / Math.PI },
+        { teeth: PLANET_T, module: DIFF_M, thickness: T.planet, bore: 0.4, pitchAngleDeg: (DELTA_PL * 180) / Math.PI },
         brass
       );
       planet.userData.dir = s;

@@ -295,14 +295,19 @@ src/lesson/
 
 There is no `escapement.js` — the escapement lives inside the cage in `tourbillon.js`.
 
-Every module is **two-phase**:
+Every module is **three-phase**:
 
 - `layout…()` returns positions **and its own `extents`** (centre + radius pairs). It runs
   before any mesh exists, so `movement.js` can size the main plate from the whole mechanism
   while no module needs to know about its neighbours.
 - `build…()` creates the meshes and returns its own `update()`.
+- `profile()` returns the module's own figures — centre distances, z-spans, radii, label
+  keys — for the station cards and the developed section. No mesh needed, and no outsider
+  re-derives them: the same centre-distance expression used to be typed in three places at
+  once, in the module, in `lesson/readouts.js` and in `lesson/section.js`.
 
-Keep that split: it is what lets a module move or grow without touching the rest.
+Keep that split: it is what lets a module move or grow without touching the rest. A module's
+interface is those three functions — not its constant table.
 
 Two cautions for anyone refactoring the kinematics:
 
