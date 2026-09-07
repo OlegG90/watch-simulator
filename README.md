@@ -13,8 +13,7 @@ Built with **Three.js** + **Vite**. All geometry is generated procedurally in co
 ## Features
 
 - **Going train** — barrel → centre → third → fourth → escape arbor, with correct gear ratios.
-- **Swiss lever escapement** — escape wheel, pallet fork with ruby pallets, balance wheel with hairspring; the whole movement is driven stepwise by the balance ("tick–tock").
-- **Tourbillon** — the entire escapement rides in a rotating cage (blued steel, 12 s/rev) whose pinion rolls around a fixed wheel; timing is unchanged.
+- **Escapement socket** — the movement always holds exactly one escapement, and it can be swapped: a **Swiss lever escapement** (escape wheel, pallet fork with ruby pallets, balance with hairspring) or a **tourbillon**, where the whole escapement rides in a rotating cage around a fixed wheel. A double-axis tourbillon is planned. The rate is identical in all of them — what differs is the cost, and that is measured rather than claimed.
 - **Motion works & hands** — hour, minute and central seconds hands (12:1), raised to the top of the central staff.
 - **Winding** — ratchet, crown wheel and winding crown; "wind the mainspring" animation.
 - **Open barrel** — the drum is open so the coiled mainspring is visible inside.
@@ -108,7 +107,27 @@ Pallets at $\pm30°$ from the line of centers (span 2.5 teeth), fork throw $F_{m
 - In the tourbillon the balance is at the **cage center** (coaxial with the fixed wheel). Its radius is derived from the cage, not set on its own: $r_{bal} = \min(1.95,\ r_{cage} - 1.95) = 1.95$, exported as `balanceR(cageR)` because the developed section draws from the same number.
 - Verified: $\theta_b$ at half-beat $=A$ exactly, at beat $=0$ exactly; seconds-wheel period $= 32$ s at $f_{beat}=2.5$ (the tourbillon does not change timing).
 
-### 6a. Tourbillon
+### 6a. The escapement socket
+
+The escapement is a **socket** holding exactly one module at a time. Whatever is in it, the train is driven by the same angle — the escape arbor's — so swapping the module changes no timing and no figure on the station card. That is the point of the thing: one function, units of wildly different complexity.
+
+The beat maths lives once, in `escapement/beat.js`, and a module only maps that phase onto its own geometry. `β` is therefore physically one, and identical timing cannot be broken by accident.
+
+| | parts | of them moving | nested rotations | footprint (r × h) |
+|---|---|---|---|---|
+| Lever escapement | 18 | 16 | 1 | 4.73 × 2.95 |
+| Tourbillon | 50 | 48 | 2 | 4.32 × 5.20 |
+| Double-axis tourbillon | — | — | — | — |
+
+Every figure is measured by walking the module's own scene graph (`escapement/metrics.js`), never typed; the planned module has none because there is nothing to walk yet. Note that the **lever's footprint is wider** — its balance is carried out to one side, while the cage keeps everything inside its rim. The cost of complexity shows in part count, in how much of it moves, in nesting and in height, not in width.
+
+What the model does **not** show is what a tourbillon is *for*: a scripted kinematic has no positional error to average away (see assumption 12).
+
+#### Lever escapement
+
+The escape wheel sits directly on the escape arbor (arbor4), so it turns by exactly $\beta$ — once per 12 s at 2.5 beats/s. The fork and balance stand on the plate and turn about their own axes. The balance sits 2.6 from the arbor with radius 1.95 — deliberately the same position and size the tourbillon gives it, so that a swap moves only the construction (assumption 11).
+
+#### Tourbillon
 
 The entire escapement (escape wheel + pallet fork + balance + hairspring) lives inside a **rotating cage**. The cage IS the escape arbor (arbor4): it carries the pinion (12) that meshes the seconds wheel and turns as the cage. The escape pinion ($Z_p$) rolls around a **fixed wheel** ($Z_f$) at the cage center.
 
@@ -182,8 +201,9 @@ Polyline of 200 points: $\alpha(f) = \theta_b(1-f) + f\Phi - \Phi + \lambda$, $r
 8. **Winding** moves during the button animation and auto-winding; the click ratchets kinematically (angle from the tooth phase), but physical contact and locking are not modeled.
 9. **No bearings/bridges:** arbors float visually; the plate is decorative.
 10. **Power reserve differential:** the kinematics are exact (carrier condition, sun immobility, mesh invariants), but sun↔planet bevel tooth phasing is approximate (profiles are not conjugate), the sector scale floats without bridges, and the winding input is taken off the ratchet rather than the barrel arbor (equivalent — they are rigidly coupled).
-11. **Tourbillon:** kinematics are exact (cage angle = $\beta$ with $Z_f=Z_p$, timing unchanged, escape pinion rolls around the fixed wheel), but escape-pinion↔fixed-wheel tooth phasing is approximate and the physical purpose of a tourbillon (averaging the balance's positional error) is not reproduced in a scripted model — it is a purely visual/kinematic complication. The fixed wheel's post and the cage arbor are coaxial and interpenetrate; a real calibre would use a hollow cage arbor.
-12. **Verification precision:** mesh invariants, gear ratios, hand angles and cone tangency are exact to machine precision (<1e−6); layout collisions are checked by bounding-sphere scans (threshold: XY overlap > 1.3 units with Z intersection).
+11. **The lever's balance placement:** the balance sits 2.6 from the escape arbor with radius 1.95 — exactly where and how big the tourbillon's is. A real lever escapement would put it further out and make it larger. This is deliberate: swapping the module should change **only the module**, and if the balance moved too, the viewer would be comparing two pictures rather than two solutions.
+12. **Tourbillon:** kinematics are exact (cage angle = $\beta$ with $Z_f=Z_p$, timing unchanged, escape pinion rolls around the fixed wheel), but escape-pinion↔fixed-wheel tooth phasing is approximate and the physical purpose of a tourbillon (averaging the balance's positional error) is not reproduced in a scripted model — it is a purely visual/kinematic complication. The fixed wheel's post and the cage arbor are coaxial and interpenetrate; a real calibre would use a hollow cage arbor.
+13. **Verification precision:** mesh invariants, gear ratios, hand angles and cone tangency are exact to machine precision (<1e−6); layout collisions are checked by bounding-sphere scans (threshold: XY overlap > 1.3 units with Z intersection).
 
 ## Controls
 
@@ -243,7 +263,11 @@ src/
   train.js         going train (TRAIN table, MESH_ANGLES)                    §3
   barrel.js        barrel and mainspring                                     §1, §2
   escapement/      the escapement socket — one module installed at a time    §4–§7
-    beat.js        the beat phase, shared by every variant
+    index.js       the registry, install(), and "only the installed one runs"
+    beat.js        the beat phase, shared by every module
+    hairspring.js  the balance spring, shared by every module
+    metrics.js     cost of complexity, measured by walking the graph
+    lever.js       Swiss lever escapement
     tourbillon.js  cage: escape wheel, fork, balance, hairspring
   motionWorks.js   motion works, central seconds, hands                      §8–§10
   winding.js       ratchet, crown wheel, bevel pair, click, stem             §11
