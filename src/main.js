@@ -8,6 +8,7 @@ import { buildLabels, createCameraFly } from './ui.js';
 import { t, getLang, setLang, onLangChange, LANGS } from './i18n.js';
 import { createHighlighter } from './lesson/highlight.js';
 import { mountLesson } from './lesson/panel.js';
+import { createSettings } from './settings.js';
 
 // ── Сцена / рендер ────────────────────────────────────────────────
 const canvas = document.getElementById('app');
@@ -123,14 +124,10 @@ function fitCamera() {
 }
 
 // ── UI ────────────────────────────────────────────────────────────
-const params = {
-  running: true,
-  timeMode: 'demo',
-  speed: 1.0,
-  beatHz: 2.5,
-  amplitude: 220,
-  wireframe: false,
-};
+// Панель вільного режиму — адаптер над таблицею налаштувань: межі, крок і
+// підпис бере звідти, а не тримає власну копію.
+const settings = createSettings();
+const params = settings.values;
 let gui = null;
 let uiMode = 'lesson'; // панель вільного режиму схована, поки триває урок
 const powerUI = { power: 75 };
@@ -166,22 +163,26 @@ const CAMS = [
   [escFocus.nameKey, () => goto(worldOf(escFocus.nameKey), 15, 3)],
 ];
 
+/** Одна ручка з таблиці налаштувань: вид, межі й підпис — усе звідти. */
+function addParam(gui, name) {
+  const s = settings.spec(name);
+  const c = s.kind === 'range' ? gui.add(params, name, s.min, s.max, s.step)
+    : s.kind === 'choice' ? gui.add(params, name,
+      Object.fromEntries(s.options.map(([value, key]) => [t(key), value])))
+      : gui.add(params, name);
+  return c.name(t(s.labelKey));
+}
+
 /** lil-gui вшиває підписи при створенні, тож зміна мови = перебудова панелі. */
 function buildGui() {
   gui?.destroy();
   gui = new GUI({ title: 'SimWatch' });
-  gui.add(params, 'running').name(t('gui.running'));
-  gui.add(params, 'timeMode', {
-    [t('gui.timeDemo')]: 'demo',
-    [t('gui.timeReal')]: 'real',
-  }).name(t('gui.timeMode'));
-  gui.add(params, 'speed', 0, 10, 0.1).name(t('gui.speed'));
-  gui.add(params, 'beatHz', 0.5, 6, 0.1).name(t('gui.beat'));
-  gui.add(params, 'amplitude', 90, 270, 5).name(t('gui.amplitude'));
-  gui.add(params, 'wireframe').name(t('gui.wireframe')).onChange((v) => {
-    brass.wireframe = v;
-    steel.wireframe = v;
-  });
+  for (const name of settings.names) {
+    const c = addParam(gui, name);
+    if (name === 'wireframe') {
+      c.onChange((v) => { brass.wireframe = v; steel.wireframe = v; });
+    }
+  }
   gui.add({ wind: () => movement.winder.wind() }, 'wind').name(t('gui.wind'));
   gui.add(powerUI, 'power', 0, 100, 1).name(t('gui.charge')).listen().disable();
   gui.add(labels, 'visible').name(t('gui.labels'));
@@ -251,7 +252,7 @@ const lesson = mountLesson({
       return (CAMS.find(([c]) => c === k)?.[1] ?? overview)();
     },
   },
-  params,
+  settings,
   run: (action) => { if (action === 'wind') movement.winder.wind(); },
   // Кличеться з циклу рендеру, тому заповнює той самий об'єкт: читають його
   // синхронно й не зберігають.

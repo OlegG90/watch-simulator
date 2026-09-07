@@ -15,6 +15,7 @@ import { BALANCE_R, ESC_R, FORK_REACH } from '../src/escapement/lever.js';
 import { profile as motionProfile } from '../src/motionWorks.js';
 import { profile as reserveProfile } from '../src/powerReserve.js';
 import { layoutTrain } from '../src/train.js';
+import { createSettings } from '../src/settings.js';
 
 const mat = () => new THREE.MeshStandardMaterial();
 const build = () => buildMovement({
@@ -275,6 +276,61 @@ describe('розріз збоку не має власних копій розм
                                ['motionWorks', motionProfile(arbors)]]) {
       expect(drawn.filter((p) => p.mod === mod).map(shape), mod).toEqual(prof.parts.map(shape));
     }
+  });
+});
+
+describe('налаштування ходу — одна таблиця', () => {
+  // Доти три повзунки були оголошені двічі: у панелі вільного режиму й у
+  // картках станцій, з межами, зведеними вручну. Ніщо не звіряло їх між собою.
+  const settings = createSettings();
+
+  it('кожна ручка станції називає наявний параметр', () => {
+    // `params[c.param] = …` мовчки створював новий ключ: повзунок їздив, а в
+    // механізмі не відбувалося нічого.
+    for (const st of STATIONS) {
+      for (const c of st.controls ?? []) {
+        if (!c.param) continue;                       // кнопка або «Варіанти»
+        expect(() => settings.spec(c.param), `станція ${st.id}`).not.toThrow();
+      }
+    }
+  });
+
+  it('станція не тримає власних меж і форматів', () => {
+    // Вид ручки — справа станції; межі, крок, формат і підпис — таблиці.
+    const src = readFileSync(new URL('../src/lesson/stations.js', import.meta.url), 'utf8');
+    for (const own of ['min:', 'max:', 'step:', 'fmt:']) {
+      expect(src, `у stations.js лишилося власне «${own}»`).not.toContain(own);
+    }
+  });
+
+  it('панель вільного режиму будується з тієї ж таблиці', () => {
+    // Якщо ручку додадуть повз таблицю, вона розійдеться з карткою мовчки.
+    const src = readFileSync(new URL('../src/main.js', import.meta.url), 'utf8');
+    expect(src).toContain('for (const name of settings.names)');
+    // Ручка, вписана повз таблицю, впізнається за літералом імені параметра:
+    // адаптер завжди передає імʼя змінною.
+    const byHand = src.match(/gui\.add\(params,\s*['"]/g) ?? [];
+    expect(byHand, 'ручка повз таблицю: ' + byHand.join(' | ')).toHaveLength(0);
+  });
+
+  it('кожен підпис таблиці має переклад в обох мовах', () => {
+    const keys = new Set(dictKeys('ua'));
+    for (const name of settings.names) {
+      const spec = settings.spec(name);
+      expect(keys, name).toContain(spec.labelKey);
+      for (const [, key] of spec.options ?? []) expect(keys, name).toContain(key);
+    }
+  });
+
+  it('значення поза межами затискається за тією ж таблицею', () => {
+    expect(settings.set('beatHz', 99)).toBe(settings.spec('beatHz').max);
+    expect(settings.set('beatHz', -1)).toBe(settings.spec('beatHz').min);
+    expect(settings.set('beatHz', '3.5')).toBe(3.5);   // з повзунка приходить рядок
+  });
+
+  it('невідомий параметр — помилка, а не тиша', () => {
+    expect(() => settings.spec('нема')).toThrow();
+    expect(() => settings.set('нема', 1)).toThrow();
   });
 });
 

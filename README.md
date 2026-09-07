@@ -274,6 +274,7 @@ src/
   powerReserve.js  bevel differential and sector scale                       §12
   ui.js            node labels and camera presets
   i18n.js          interface strings, Ukrainian and English
+  settings.js      the one table of running parameters: range, step, format, label
   lesson/          the guided layer (see below)
 ```
 
@@ -311,6 +312,12 @@ Every module is **three-phase**:
 
 Keep that split: it is what lets a module move or grow without touching the rest. A module's
 interface is those three functions — not its constant table.
+
+The running parameters follow the same rule from the other side. `settings.js` holds the one
+table — range, step, formatter, label key — and both the free-mode panel and the station cards
+are adapters over it. Two adapters, so the seam is real: a control declared in one place and
+not the other cannot drift, and a card naming a parameter that does not exist now throws
+instead of moving a slider that changes nothing.
 
 Two cautions for anyone refactoring the kinematics:
 

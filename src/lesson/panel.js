@@ -29,7 +29,8 @@ const svgEl = (tag, attrs = {}) => {
 /** Ланцюг у підвалі: головний ряд + два відгалуження + петля ритму. */
 const CHAIN_MAIN = ['chain.winding', 'chain.barrel', 'chain.train', 'chain.escape', 'chain.balance'];
 
-export function mountLesson({ highlighter, camera, status, onMode, params, run, escapement, planned = [] }) {
+export function mountLesson({ highlighter, camera, status, onMode, settings, run, escapement, planned = [] }) {
+  const params = settings.values;   // читає цикл рендеру; запис — тільки через settings.set()
   const ui = document.getElementById('ui');
   const state = { mode: 'lesson', current: null, visited: new Set(), cam: 'cam.overview', view: 'top', finished: false };
 
@@ -308,21 +309,25 @@ export function mountLesson({ highlighter, camera, status, onMode, params, run, 
       wrapEl.append(b);
       return wrapEl;
     }
+    // Далі — ручки над налаштуваннями. Станція називає лише параметр; вид,
+    // межі, крок, формат і підпис приходять із таблиці — тієї самої, з якої
+    // будується панель вільного режиму, тож розійтися вони не можуть.
+    const spec = settings.spec(c.param);
+
     if (c.kind === 'toggle') {
-      wrapEl.append(segmented(c.options.map(([val, key]) => [
-        t(key), params[c.param] === val, () => { params[c.param] = val; render(); },
+      wrapEl.append(segmented(spec.options.map(([val, key]) => [
+        t(key), params[c.param] === val, () => { settings.set(c.param, val); render(); },
       ])));
       return wrapEl;
     }
     const row = el('div', 'row');
-    const val = el('b', null, c.fmt(params[c.param]));
-    row.append(el('span', null, t(c.labelKey)), val);
+    const val = el('b', null, spec.fmt(params[c.param]));
+    row.append(el('span', null, t(spec.labelKey)), val);
     const input = document.createElement('input');
     input.type = 'range';
-    Object.assign(input, { min: c.min, max: c.max, step: c.step, value: params[c.param] });
+    Object.assign(input, { min: spec.min, max: spec.max, step: spec.step, value: params[c.param] });
     input.addEventListener('input', () => {
-      params[c.param] = Number(input.value);
-      val.textContent = c.fmt(params[c.param]);
+      val.textContent = spec.fmt(settings.set(c.param, input.value));
       update(); // числа в картці залежать від ходу — оновити, не перемальовуючи
     });
     wrapEl.append(row, input);

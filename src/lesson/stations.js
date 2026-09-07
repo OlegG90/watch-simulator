@@ -52,7 +52,7 @@ export const STATIONS = [
       ['st.energy.s1', `${r.spring.turns}`],
       ['st.energy.s2', `${r.fullRun} ${t('unit.s')}`],
     ],
-    controls: [{ kind: 'slider', param: 'speed', labelKey: 'gui.speed', min: 0, max: 10, step: 0.1, fmt: (v) => `×${v.toFixed(1)}` }],
+    controls: [{ kind: 'slider', param: 'speed' }],
   },
   {
     id: 'train',
@@ -66,7 +66,7 @@ export const STATIONS = [
     hint: 'st.train.hint',
     formula: () => [{ key: 'st.train.f1' }],
     ladder: true, // драбина передавальних відношень замість пари чисел
-    controls: [{ kind: 'slider', param: 'speed', labelKey: 'gui.speed', min: 0, max: 10, step: 0.1, fmt: (v) => `×${v.toFixed(1)}` }],
+    controls: [{ kind: 'slider', param: 'speed' }],
   },
   {
     id: 'escapement',
@@ -90,8 +90,8 @@ export const STATIONS = [
       ['st.escapement.s2', `${r.secondsPeriod} ${t('unit.s')}`],
     ],
     controls: [
-      { kind: 'slider', param: 'beatHz', labelKey: 'gui.beat', min: 0.5, max: 6, step: 0.1, fmt: (v) => v.toFixed(1) },
-      { kind: 'slider', param: 'amplitude', labelKey: 'gui.amplitude', min: 90, max: 270, step: 5, fmt: (v) => `${v}°` },
+      { kind: 'slider', param: 'beatHz' },
+      { kind: 'slider', param: 'amplitude' },
       { kind: 'variants', labelKey: 'variants.open' },
     ],
   },
@@ -111,10 +111,7 @@ export const STATIONS = [
       { key: 'st.timeDisplay.f2' },
       { note: 'st.timeDisplay.n1', vals: [r.mw.centreA, r.mw.centreB] },
     ],
-    controls: [{
-      kind: 'toggle', param: 'timeMode',
-      options: [['demo', 'gui.timeDemo'], ['real', 'gui.timeReal']],
-    }],
+    controls: [{ kind: 'toggle', param: 'timeMode' }],
   },
   {
     id: 'powerReserve',
