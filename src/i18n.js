@@ -12,7 +12,6 @@ import { CONTENT } from './lesson/content.js';
  */
 const DICT = {
   ua: {
-    // ── деталі механізму ──
     // ── одиниці ──
     'unit.s': 'с',
 
@@ -120,7 +119,6 @@ const DICT = {
     'hint.controls': 'ЛКМ — обертання · колесо — зум · ПКМ — панорама',
   },
   en: {
-    // ── mechanism parts ──
     // ── units ──
     'unit.s': 's',
 
