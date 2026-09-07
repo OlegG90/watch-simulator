@@ -186,7 +186,11 @@ export function buildMovement({ brass, steel, axleMat, ruby, plateMat, bluedMat,
     // тож два підписи в одній точці накладалися б.
     ...arbors.filter((a) => !a.spec.escapeTeeth)
       .map((a) => ({ id: a.nameKey, nameKey: a.nameKey, pos: a.pos, z: a.wheelZ, r: arborOuterR(a.spec, CAGE_R) })),
-    { id: 'escapement', nameKey: escapement.nameKey, pos: cagePos, z: CAGE_ZBASE + 1.8, r: CAGE_R },
+    // Хром сцени (підпис, пресет камери, тумблер вузла) називає ГНІЗДО, а не
+    // те, що в ньому стоїть: інакше після заміни всі троє лишилися б із
+    // назвою попереднього варіанта, бо будуються один раз. Назва варіанта
+    // з'являється там, де про нього справді йдеться — у картці й розрізі.
+    { id: 'escapement', nameKey: 'part.escapement', pos: cagePos, z: CAGE_ZBASE + 1.8, r: CAGE_R },
     { id: 'part.hands', nameKey: 'part.hands', pos: mwL.P1, z: 10.0, r: 4.5 },
     { id: 'part.winding', nameKey: 'part.winding', pos: windL.cwPos, z: 2.0, r: 4.5 },
     { id: 'part.click', nameKey: 'part.click', pos: windL.clickPivot, z: windL.windZ, r: 1.4 },

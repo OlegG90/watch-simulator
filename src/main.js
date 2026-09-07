@@ -3,6 +3,7 @@ import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import GUI from 'lil-gui';
 import { buildMovement } from './movement.js';
+import { PLANNED_IDS } from './escapement/index.js';
 import { buildLabels, createCameraFly } from './ui.js';
 import { t, getLang, setLang, onLangChange, LANGS } from './i18n.js';
 import { createHighlighter } from './lesson/highlight.js';
@@ -240,6 +241,7 @@ const statusOut = { real: false, speed: 1, charge: 0, time: 0 };
 const lesson = mountLesson({
   highlighter,
   escapement: movement.escapement,
+  planned: PLANNED_IDS,
   camera: {
     presets: CAMS,
     overview,

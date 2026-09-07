@@ -89,6 +89,7 @@ export const STATIONS = [
     controls: [
       { kind: 'slider', param: 'beatHz', labelKey: 'gui.beat', min: 0.5, max: 6, step: 0.1, fmt: (v) => v.toFixed(1) },
       { kind: 'slider', param: 'amplitude', labelKey: 'gui.amplitude', min: 90, max: 270, step: 5, fmt: (v) => `${v}°` },
+      { kind: 'variants', labelKey: 'variants.open' },
     ],
   },
   {

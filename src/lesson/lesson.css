@@ -286,3 +286,47 @@ body { font-family: var(--ui); color: var(--body); }
   background: var(--chip); color: var(--body); font: 500 12px/1 var(--ui);
 }
 #to-lesson:hover { background: var(--raised); color: var(--ink); }
+
+/* ── Модалка «Варіанти» ────────────────────────────────────────── */
+/* Атрибут hidden прибирає елемент лише поки його не перебили display-ом —
+   тому вимикаємо явно, інакше оверлей висів би завжди. */
+#variants[hidden] { display: none; }
+#variants { position: absolute; inset: 0; z-index: 40; display: grid; place-items: center;
+  background: rgba(10, 11, 13, 0.72); backdrop-filter: blur(2px); }
+.v-sheet { width: min(680px, calc(100% - 48px)); max-height: calc(100% - 48px);
+  background: var(--panel); border: 1px solid var(--line); border-radius: 10px;
+  padding: 18px 22px 14px; display: flex; flex-direction: column; min-height: 0; }
+.v-body { overflow-y: auto; min-height: 0; display: flex; flex-direction: column; gap: 10px; }
+.v-lead { margin: -4px 0 0; font: 400 12px/1.45 var(--ui); color: var(--muted); }
+
+.v-list { display: flex; flex-direction: column; gap: 8px; }
+.v-row { display: flex; align-items: center; gap: 13px; text-align: left; padding: 8px 10px;
+  background: var(--sunk); border: 1px solid var(--line); border-radius: 8px; cursor: pointer; }
+.v-row:hover:not(:disabled) { border-color: var(--line-soft); background: var(--raised); }
+.v-row[aria-pressed="true"] { border-color: var(--brass); background: var(--raised); }
+.v-row.planned { cursor: default; opacity: 0.55; }
+.v-row .sil { flex: 0 0 auto; width: 120px; height: 66px; background: var(--ground); border-radius: 5px; }
+.v-txt { min-width: 0; }
+.v-head { display: flex; align-items: baseline; gap: 8px; }
+.v-head b { font: 600 13.5px var(--ui); color: var(--ink); }
+.v-txt p { margin: 4px 0 0; font: 400 12px/1.5 var(--ui); color: var(--muted); }
+.v-now, .v-planned { font: 400 10px/1 var(--mono); padding: 3px 6px; border-radius: 3px; }
+.v-now { color: #8fbfa2; background: #1c2620; }
+.v-planned { color: var(--faint); background: var(--chip); }
+
+.v-table { width: 100%; border-collapse: collapse; font: 400 12px var(--mono); }
+.v-table th, .v-table td { padding: 5px 8px; text-align: right; border-top: 1px solid var(--line); }
+.v-table th { font: 400 10.5px var(--mono); color: var(--faint); text-transform: uppercase;
+  letter-spacing: 0.04em; border-top: none; }
+.v-table th:first-child, .v-table td.k { text-align: left; color: var(--muted); }
+.v-table td { color: var(--body); }
+.v-table .on { color: var(--brass); }
+
+/* Підвал поза областю гортання — видимий за будь-якої висоти вікна. */
+.v-actions { display: flex; justify-content: flex-end; gap: 8px; flex: none;
+  padding-top: 12px; margin-top: 10px; border-top: 1px solid var(--line); }
+.v-actions button { padding: 9px 18px; border-radius: 6px; font: 500 12.5px var(--ui); cursor: pointer; }
+.v-actions .ghost { background: transparent; border: 1px solid var(--line-soft); color: var(--body); }
+.v-actions .ghost:hover { border-color: var(--muted); }
+.v-actions .act { background: var(--brass); border: none; color: #1a1508; }
+.v-actions .act:disabled { background: var(--chip); color: var(--faint); cursor: default; }

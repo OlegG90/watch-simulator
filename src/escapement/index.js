@@ -29,6 +29,12 @@ export const VARIANT_IDS = [LEVER, TOURBILLON];
  */
 export const DEFAULT_VARIANT = LEVER;
 
+/**
+ * Варіанти, яких ще немає. Порівняння показує їх третім щаблем складності,
+ * але вибрати не дає й чисел не вигадує — міряти нема чого.
+ */
+export const PLANNED_IDS = ['doubleAxis'];
+
 const BUILDERS = {
   [LEVER]: (mats, { escTeeth }) => {
     const l = buildLever(mats, { escTeeth, escDirLocal: 0 });
