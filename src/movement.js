@@ -5,7 +5,7 @@ import { buildBarrel } from './barrel.js';
 import { layoutMotionWorks, buildMotionWorks } from './motionWorks.js';
 import { layoutWinding, buildWinding } from './winding.js';
 import { layoutPowerReserve, buildPowerReserve, chargeOf, windRoomAt, autoWindDelta } from './powerReserve.js';
-import { buildTourbillon } from './tourbillon.js';
+import { buildTourbillon } from './escapement/tourbillon.js';
 
 /** Радіус кліті турбійона (перевірено прототипом на 170°). Розріз збоку бере його звідси. */
 export const CAGE_R = 4.3;

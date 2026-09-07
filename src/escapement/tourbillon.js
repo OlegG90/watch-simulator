@@ -1,7 +1,7 @@
 import * as THREE from 'three';
-import { makeGear, makeEscapeWheel } from './gear.js';
-import { tagModule } from './common.js';
-import { beatPhase } from './escapement/beat.js';
+import { makeGear, makeEscapeWheel } from '../gear.js';
+import { tagModule } from '../common.js';
+import { beatPhase } from './beat.js';
 
 // ── Константи спуску (ті самі, що в escapement.js) ────────────────
 /** Локальні Z-рівні кліті (від її основи) — спільні з розрізом збоку. */

@@ -9,7 +9,7 @@ import { readouts } from '../src/lesson/readouts.js';
 import { lineText, maybe } from '../src/lesson/cardText.js';
 import { sectionParts } from '../src/lesson/section.js';
 import { CAGE_R } from '../src/movement.js';
-import { balanceR } from '../src/tourbillon.js';
+import { balanceR } from '../src/escapement/tourbillon.js';
 import { HAND_L, CS_DRIVE, layoutMotionWorks } from '../src/motionWorks.js';
 import { SUN_T, DIFF_M, DIAL_R, PR_HAND_L } from '../src/powerReserve.js';
 import { layoutTrain } from '../src/train.js';

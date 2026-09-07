@@ -18,7 +18,7 @@ import { LAYERS as WIND, RATCHET_T, CROWN_T, RATCH_M } from '../winding.js';
 import { LAYERS as PR, PRT_HUB, PRT_P, PRT_W, PRT_G, PRT_M, SUN_T, DIFF_M, DIAL_R, PR_HAND_L } from '../powerReserve.js';
 import { LAYERS as MW, CANNON_T, MINUTE_T, MW_PINION_T, HOUR_T, MW_M1, MW_M2,
          CS_DRIVE, CS_IDLER, CS_PINION, HAND_L, layoutMotionWorks } from '../motionWorks.js';
-import { LAYERS as CAGE, balanceR } from '../tourbillon.js';
+import { LAYERS as CAGE, balanceR } from '../escapement/tourbillon.js';
 import { CAGE_R } from '../movement.js';
 
 const V_EXAGGERATION = 2; // інакше шари в 1.1 зливаються; підписано у в'юпорті

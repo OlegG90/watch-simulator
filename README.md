@@ -231,7 +231,8 @@ python -m http.server 8642 --directory dist
 ## Source layout
 
 One file per mechanism module, mirroring *Mechanism elements* above. `movement.js` is a
-composer, not a monolith.
+composer, not a monolith. The escapement is the exception: it is a socket rather than a
+single module, so it gets a folder — the shared beat maths and one file per variant.
 
 ```text
 src/
@@ -241,7 +242,9 @@ src/
   gear.js          procedural geometry: gears, bevel gears, hands, spirals
   train.js         going train (TRAIN table, MESH_ANGLES)                    §3
   barrel.js        barrel and mainspring                                     §1, §2
-  tourbillon.js    cage: escape wheel, fork, balance, hairspring             §4–§7
+  escapement/      the escapement socket — one module installed at a time    §4–§7
+    beat.js        the beat phase, shared by every variant
+    tourbillon.js  cage: escape wheel, fork, balance, hairspring
   motionWorks.js   motion works, central seconds, hands                      §8–§10
   winding.js       ratchet, crown wheel, bevel pair, click, stem             §11
   powerReserve.js  bevel differential and sector scale                       §12
