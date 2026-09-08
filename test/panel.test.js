@@ -13,6 +13,7 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { mountTestLesson } from './lessonHarness.js';
 import { STATIONS } from '../src/lesson/stations.js';
 import { t, setLang } from '../src/i18n.js';
+import { sectionParts } from '../src/lesson/section.js';
 
 const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => [...document.querySelectorAll(sel)];
@@ -158,6 +159,31 @@ describe('панель уроку (jsdom)', () => {
     btn('#card', t('variants.open')).click();
     expect(row('variants.metric.escapeTurn')).toEqual([s(6), s(3), '—']);
     expect(row('variants.metric.cageTurn')).toEqual(['—', s(6), '—']);
+  });
+
+  it('силуети модулів намальовані в одному масштабі', () => {
+    // Обіцянка модалки: різницю у висоті видно чесно. Тримається вона на
+    // тому, що всі три силуети проєктуються одним відображенням з одними
+    // числами — окремі `X()`/`Y()` на кожен малюнок цю обіцянку не тримали б.
+    const { lesson } = mountTestLesson();
+    lesson.go(3);
+    btn('#card', t('variants.open')).click();
+
+    const escOf = (v) => sectionParts(v).parts.filter((x) => x.mod === 'escapement');
+    const zBase = Math.min(...['lever', 'tourbillon'].flatMap((v) => escOf(v).map((x) => x.z0)));
+    const realAbove = (v) => Math.max(...escOf(v).map((x) => x.z1)) - zBase;
+
+    // Верх найвищої деталі над спільною основою — чиста позиція, без округлень.
+    // Основу беремо з лінії платини, яку малює сам силует, а не вписуємо.
+    const drawnAbove = (i) => {
+      const sil = $$('#variants .v-row')[i].querySelector('.sil');
+      const base = Number(sil.querySelector('line').getAttribute('y1')) - 1;
+      const ys = [...sil.querySelectorAll('rect')].map((r) => Number(r.getAttribute('y')));
+      return base - Math.min(...ys);
+    };
+
+    expect(drawnAbove(1) / drawnAbove(0))
+      .toBeCloseTo(realAbove('tourbillon') / realAbove('lever'), 6);
   });
 
   it('останній крок веде на підсумок, а «ще раз» починає з початку', () => {

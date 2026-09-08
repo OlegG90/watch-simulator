@@ -5,6 +5,7 @@ import { renderSection } from './sectionView.js';
 import { lineText, maybe } from './cardText.js';
 import { STATIONS } from './stations.js';
 import { mountVariantsModal } from './variantsModal.js';
+import { el, svgEl } from './draw.js';
 
 /**
  * Оболонка уроку: шапка, ліва рейка зі станціями, картка й підвал-ланцюг.
@@ -13,18 +14,6 @@ import { mountVariantsModal } from './variantsModal.js';
  * Підсвітка й камера приходять ззовні, тож урок можна перевіряти без сцени.
  */
 
-const SVG = 'http://www.w3.org/2000/svg';
-const el = (tag, cls, text) => {
-  const n = document.createElement(tag);
-  if (cls) n.className = cls;
-  if (text !== undefined) n.textContent = text;
-  return n;
-};
-const svgEl = (tag, attrs = {}) => {
-  const n = document.createElementNS(SVG, tag);
-  for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, String(v));
-  return n;
-};
 
 /** Ланцюг у підвалі: головний ряд + два відгалуження + петля ритму. */
 const CHAIN_MAIN = ['chain.winding', 'chain.barrel', 'chain.train', 'chain.escape', 'chain.balance'];
@@ -398,8 +387,18 @@ export function mountLesson({ highlighter, camera, status, onMode, settings, run
     foot.append(clock);
   }
 
-  /** Ширина коробки рахується з тексту — англійські назви довші за українські. */
-  const boxW = (label) => Math.max(64, Math.round(label.length * 6.7) + 24);
+  /**
+   * Ширина коробки з тексту.
+   *
+   * ДОПУЩЕННЯ на дві мови: шрифт свій, розмір сталий (11.5 px IBM Plex Sans),
+   * а латиниця й кирилиця в ньому приблизно однакової ширини — звідси 6.7 px
+   * на знак. Справжній обмір (`getComputedTextLength`) вимагає вже вкладеного
+   * в документ вузла, тож коробку довелося б малювати двічі. Третя мова з
+   * ширшими знаками (скажімо, CJK) цього припущення не витримає — тоді сюди
+   * приходить обмір, а не більший коефіцієнт.
+   */
+  const CHAR_W = 6.7, BOX_PAD = 24, BOX_MIN = 64;
+  const boxW = (label) => Math.max(BOX_MIN, Math.round(label.length * CHAR_W) + BOX_PAD);
 
   function chainSvg({ all = false } = {}) {
     const here = all ? null : state.current === null ? null : STATIONS[state.current].chain;
