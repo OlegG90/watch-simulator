@@ -218,5 +218,9 @@ export function buildLever(
     { kind: 'flag', labelKey: 'part.balance', obj: balance, prop: 'visible' },
   ];
 
-  return { rotating, fixed, update, nodes, balance, fork, escWheel, hairGroup: hair.group, balR };
+  // Анкерне колесо сидить прямо на анкерній осі — оберт рівно один на оберт
+  // осі; кліті немає, тож і періоду її обертання немає.
+  const motion = { escapeTurns: 1, hasCage: false };
+
+  return { rotating, fixed, update, nodes, motion, balance, fork, escWheel, hairGroup: hair.group, balR };
 }

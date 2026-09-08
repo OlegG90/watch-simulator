@@ -1,5 +1,6 @@
 import { t } from '../i18n.js';
 import { sectionParts } from './section.js';
+import { cagePeriod as arborPeriod } from './readouts.js';
 
 /**
  * Модалка «Варіанти» — порівняння модулів спуску.
@@ -8,7 +9,8 @@ import { sectionParts } from './section.js';
  * і тут же видно, у що обходиться складніший.
  *
  * ЩО ТУТ ЧЕСНО, А ЩО НІ. Числа ціни виміряні обходом графа (`escapement/
- * metrics.js`) — жодне не вписане. А от вигоду турбійона модель не відтворює
+ * metrics.js`), числа поведінки виведені з тих самих зачеплень, що рухають
+ * меші, — жодне не вписане. А от вигоду турбійона модель не відтворює
  * взагалі, і про це сказано окремим рядком під бурштиновою позначкою.
  *
  * Третій варіант показано, але не вибрати: його ще не збудовано, тож і міряти
@@ -92,9 +94,11 @@ function silhouetteScale(ids) {
 /**
  * @param escapement гніздо з `movement`
  * @param planned    ідентифікатори ще не збудованих варіантів
+ * @param beatHz     поточний хід — періоди залежать від нього, тож беремо його
+ *                   в момент показу, а не запамʼятовуємо
  * @param onApply    викликається з обраним id, коли натиснули «Змінити»
  */
-export function mountVariantsModal({ escapement, planned = [], onApply }) {
+export function mountVariantsModal({ escapement, planned = [], beatHz, onApply }) {
   const host = document.getElementById('variants');
   let picked = escapement.installed;
   let open = false;
@@ -139,32 +143,43 @@ export function mountVariantsModal({ escapement, planned = [], onApply }) {
     }
     body.append(list);
 
-    // ── Таблиця ціни ──
-    const ROWS = [
+    // ── Дві таблиці: що модуль робить і чого коштує ──
+    const table = (headKey, rows, sourceOf) => {
+      const tbl = el('table', 'v-table');
+      const head = el('tr');
+      head.append(el('th', null, t(headKey)));
+      for (const id of ids) head.append(el('th', picked === id ? 'on' : null, t(`part.${id}`)));
+      tbl.append(head);
+      for (const [key, fmt] of rows) {
+        const tr = el('tr');
+        tr.append(el('td', 'k', t(key)));
+        for (const id of ids) {
+          // У ще не збудованого варіанта немає чого міряти — прочерк, а не
+          // вигадане число: правило «не вписувати виведене» діє й тут.
+          const v = isPlanned(id) ? '—' : fmt(sourceOf(id));
+          tr.append(el('td', picked === id ? 'on' : null, v));
+        }
+        tbl.append(tr);
+      }
+      return tbl;
+    };
+
+    // Період анкерної осі — спільний для всіх модулів (його задає баланс).
+    // Різниця в тому, скільки обертів робить анкерне колесо на один оберт осі,
+    // і чи є взагалі кліть, якій є що обертати.
+    const arborT = arborPeriod(beatHz());
+    const secs = (x) => `${Math.round(x * 10) / 10} ${t('unit.s')}`;
+    body.append(table('variants.behaviour', [
+      ['variants.metric.escapeTurn', (m) => secs(arborT / m.escapeTurns)],
+      ['variants.metric.cageTurn', (m) => (m.hasCage ? secs(arborT) : '—')],
+    ], (id) => escapement.variant(id).motion));
+
+    body.append(table('variants.metric', [
       ['variants.metric.parts', (c) => String(c.parts)],
       ['variants.metric.moving', (c) => String(c.moving)],
       ['variants.metric.axes', (c) => String(c.axes)],
       ['variants.metric.size', (c) => `${c.r} × ${c.h}`],
-    ];
-    const table = el('table', 'v-table');
-    const thead = el('tr');
-    thead.append(el('th', null, t('variants.metric')));
-    for (const id of ids) {
-      thead.append(el('th', picked === id ? 'on' : null, t(`part.${id}`)));
-    }
-    table.append(thead);
-    for (const [key, fmt] of ROWS) {
-      const tr = el('tr');
-      tr.append(el('td', 'k', t(key)));
-      for (const id of ids) {
-        // У ще не збудованого варіанта немає чого міряти — прочерк, а не
-        // вигадане число: правило «не вписувати виведене» діє й тут.
-        const v = isPlanned(id) ? '—' : fmt(escapement.variant(id).cost);
-        tr.append(el('td', picked === id ? 'on' : null, v));
-      }
-      table.append(tr);
-    }
-    body.append(table);
+    ], (id) => escapement.variant(id).cost));
 
     // ── Чесність ──
     const m = el('div', 'marker warn');

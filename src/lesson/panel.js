@@ -637,6 +637,7 @@ export function mountLesson({ highlighter, camera, status, onMode, settings, run
   const variants = mountVariantsModal({
     escapement,
     planned,
+    beatHz: () => params.beatHz,
     onApply(id) {
       escapement.install(id);
       // Механізм не зупинявся й нічого не помітив — але око могло проґавити
