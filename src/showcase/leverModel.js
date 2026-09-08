@@ -97,9 +97,9 @@ function makeClubWheel(material) {
     const a = i * step;
     if (i === 0) shape.moveTo(...polar(WHEEL_R, a));
     else shape.lineTo(...polar(WHEEL_R, a)); // вістря — поза фазою замка не зрушується
-    shape.lineTo(...polar(WHEEL_ROOT, a - 0.06 * step)); // запірна грань, з підрізом
-    shape.lineTo(...polar(WHEEL_ROOT * 0.95, a - 0.3 * step)); // дно глибокої западини
-    shape.lineTo(...polar(WHEEL_ROOT, a - 0.52 * step)); // підйом спинки
+    shape.lineTo(...polar(WHEEL_ROOT, a - 0.07 * step)); // запірна грань, з підрізом
+    shape.lineTo(...polar(WHEEL_ROOT * 0.9, a - 0.26 * step)); // дно глибокої западини
+    shape.lineTo(...polar(WHEEL_ROOT, a - 0.36 * step)); // підйом спинки — вузьке тіло зубця
     // Далі пряма до наступного вістря — довга імпульсна грань.
   }
   shape.closePath();
