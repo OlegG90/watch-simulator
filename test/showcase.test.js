@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
 import { readFileSync, readdirSync } from 'node:fs';
-import { buildShowcase, TEETH, WHEEL_R, FORK_D, BAL_D, WHEEL_LOCK_PHASE, JEWEL_GEOM } from '../src/showcase/leverModel.js';
+import { buildShowcase, TEETH, WHEEL_R, FORK_D, BAL_D, WHEEL_LOCK_PHASE, JEWEL_GEOM, palletOutline, clubToothQuad } from '../src/showcase/leverModel.js';
 import { wheelAngle, forkAngle, balanceAngle, phaseName, activePallet, FORK_MAX, AMPLITUDE } from '../src/showcase/motion.js';
 import { buildSpring, SPRING_N, SPRING_R0, SPRING_R1 } from '../src/showcase/spring.js';
 
@@ -36,20 +36,6 @@ describe('вітрина анкерного спуску (геометрія)', 
     expect(noNaN(m.group)).toBe(true);
   });
 
-  it('два камені — вхідний і вихідний — центрами в смузі зубців', () => {
-    // Камінь поза смугою не зустрів би жодного зубця: зачеплення не було б із чим.
-    const m = buildShowcase();
-    m.group.updateMatrixWorld(true);
-    for (const face of ['entry', 'exit']) {
-      const found = byPallet(m, face);
-      expect(found, `камінь ${face}`).toHaveLength(1);
-      const p = found[0].getWorldPosition(new THREE.Vector3());
-      const r = Math.hypot(p.x, p.y);
-      expect(r, `радіус каменя ${face}`).toBeGreaterThan(1.02);
-      expect(r, `радіус каменя ${face}`).toBeLessThan(WHEEL_R);
-    }
-  });
-
   it('осі на лінії центрів: вилка на FORK_D, баланс далі на BAL_D', () => {
     const m = buildShowcase();
     expect(m.forkPivot.position.x).toBeCloseTo(FORK_D, 12);
@@ -58,23 +44,27 @@ describe('вітрина анкерного спуску (геометрія)', 
     expect(m.balancePivot.position.y).toBeCloseTo(0, 12);
   });
 
-  it('у замках вістря стоїть на грані активної палети — вхідному й вихідному', () => {
+  it('у замках вістря стоїть на фасці активної палети — вхідному й вихідному', () => {
     // Той самий мінімакс, що дав WHEEL_LOCK_PHASE і посадку вихідної, —
     // як гард: вихідний замок міряється на δ + півзубця, бо колесо між
-    // замками просувається. Саботаж: нульова фаза або дзеркальна вихідна
-    // (грань від зубців) — і цей тест червоніє.
+    // замками просувається. Контакт — короткий фасок A→K, не вся грань:
+    // вістря сідає ріжком. Саботаж: нульова фаза або фасок повз вістря —
+    // і цей тест червоніє.
     const m = buildShowcase();
     const l2w = (stone, x, y) => {
       const v = new THREE.Vector3(x, y, 0).applyMatrix4(stone.matrixWorld);
       return new THREE.Vector2(v.x, v.y);
     };
     const STEP = (Math.PI * 2) / TEETH;
+    const w = JEWEL_GEOM.w / 2, h = JEWEL_GEOM.h / 2;
+    const e = Math.hypot(JEWEL_GEOM.lean, 2 * h);
+    const kx = -w + (JEWEL_GEOM.lean / e) * JEWEL_GEOM.lockLen;
+    const ky = -h + ((2 * h) / e) * JEWEL_GEOM.lockLen;
     for (const [u, face] of [[0.5, 'entry'], [1.5, 'exit'], [2.5, 'entry']]) {
       m.update(u);
       m.group.updateMatrixWorld(true);
       const stone = byPallet(m, face)[0];
-      const w = JEWEL_GEOM.w / 2, h = JEWEL_GEOM.h / 2;
-      const A = l2w(stone, -w, -h), B = l2w(stone, -w + JEWEL_GEOM.lean, h);
+      const A = l2w(stone, -w, -h), B = l2w(stone, kx, ky);
       const ab = B.clone().sub(A);
       const len2 = ab.lengthSq();
       let best = Infinity;
@@ -89,11 +79,37 @@ describe('вітрина анкерного спуску (геометрія)', 
     expect(WHEEL_LOCK_PHASE).not.toBe(0);
   });
 
+  it('замкове вістря — ЗОВНІ тіла каменя: без поховання', () => {
+    // Близькість до лінії грані burial не бачить: вістря всередині тіла
+    // теж дає малу відстань до грані. Цей гард ловить саме поховання.
+    // Саботаж: стара посадка центром у смузі — вістря всередині, червоний.
+    const m = buildShowcase();
+    const inside = ([x, y], poly) => {
+      let c = false;
+      for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+        const [xi, yi] = poly[i], [xj, yj] = poly[j];
+        if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) c = !c;
+      }
+      return c;
+    };
+    for (const [u, face, tip] of [[0.5, 'entry', 0], [1.5, 'exit', 12]]) {
+      m.update(u);
+      m.group.updateMatrixWorld(true);
+      const stone = byPallet(m, face)[0];
+      const poly = palletOutline(stone.userData.pallet.imp).map(([x, y]) =>
+        new THREE.Vector3(x, y, 0).applyMatrix4(stone.matrixWorld));
+      const wA = m.wheelPivot.rotation.z;
+      const STEP = (Math.PI * 2) / TEETH;
+      const t = [WHEEL_R * Math.cos(wA + tip * STEP), WHEEL_R * Math.sin(wA + tip * STEP)];
+      expect(inside(t, poly.map((v) => [v.x, v.y])), `вістря в тілі ${face}@${u}`).toBe(false);
+    }
+  });
+
   it('камені стоять запірною гранню назустріч зубцям, а не спиною', () => {
     // Верхній кут запірної грані — на мінус-x локально (звідти йдуть зубці).
-    // Дзеркальний камінь кладе туди глуху спину, а замок-гард цього не бачить:
-    // він міряє лінію в просторі, не фізичне ребро. Саботаж: mirror −1 —
-    // і цей тест червоніє, а замок — ні.
+    // Віддзеркалений камінь кладе туди глуху спину, а замок-гард цього не бачить:
+    // він міряє лінію в просторі, не фізичне ребро. Саботаж: віддзеркалити
+    // контур по x — і цей тест червоніє, а замок — ні.
     const m = buildShowcase();
     for (const face of ['entry', 'exit']) {
       const stone = byPallet(m, face)[0];
@@ -105,6 +121,91 @@ describe('вітрина анкерного спуску (геометрія)', 
       expect(topY, `верх каменя ${face}`).toBeCloseTo(JEWEL_GEOM.h / 2, 6);
       expect(topX, `клин каменя ${face}`).toBeLessThan(0);
     }
+  });
+
+  it('за цикл — без наскрізного проходження, навпроти — колесо під ріжком', () => {
+    // Поріг −0.05 відділяє burial (стара посадка: −0.46 у замку, −0.6
+    // у транзиті; зламаний розворот: червоніє одразу) від постановочного
+    // дотику в момент падіння/зриву (виміряно −0.040/−0.024, див. SEAT —
+    // зубець торкається там, де має торкатись). Навпроти (+0.01) зубець
+    // проходить ПІД місцем зачепа з видимим зазором (виміряно +0.025/+0.058).
+    // Фігури — з самого модуля (palletOutline, clubToothQuad), не дубль.
+    const segDist = (p1, p2, p3, p4) => {
+      const s = (a, b) => [a[0] - b[0], a[1] - b[1]];
+      const d = (a, b) => a[0] * b[0] + a[1] * b[1];
+      const n = (a) => Math.hypot(a[0], a[1]);
+      const d1 = s(p2, p1), d2 = s(p4, p3), r = s(p1, p3);
+      const a = d(d1, d1), e = d(d2, d2), f = d(d2, r);
+      let t1, t2;
+      if (a <= 1e-12 && e <= 1e-12) return n(r);
+      if (a <= 1e-12) { t1 = 0; t2 = Math.max(0, Math.min(1, f / e)); }
+      else {
+        const c = d(d1, r);
+        if (e <= 1e-12) { t2 = 0; t1 = Math.max(0, Math.min(1, -c / a)); }
+        else {
+          const b = d(d1, d2), den = a * e - b * b;
+          t1 = den > 1e-12 ? Math.max(0, Math.min(1, (b * f - c * e) / den)) : 0;
+          t2 = (b * t1 + f) / e;
+          if (t2 < 0) { t2 = 0; t1 = Math.max(0, Math.min(1, -c / a)); }
+          else if (t2 > 1) { t2 = 1; t1 = Math.max(0, Math.min(1, (b - c) / a)); }
+        }
+      }
+      return n(s([p1[0] + d1[0] * t1, p1[1] + d1[1] * t1], [p3[0] + d2[0] * t2, p3[1] + d2[1] * t2]));
+    };
+    const inPoly = ([x, y], poly) => {
+      let c = false;
+      for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
+        const [xi, yi] = poly[i], [xj, yj] = poly[j];
+        if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) c = !c;
+      }
+      return c;
+    };
+    const ptSeg = (p, a, b) => {
+      const ab = [b[0] - a[0], b[1] - a[1]];
+      const t = Math.max(0, Math.min(1, ((p[0] - a[0]) * ab[0] + (p[1] - a[1]) * ab[1]) / (ab[0] * ab[0] + ab[1] * ab[1])));
+      return Math.hypot(p[0] - a[0] - ab[0] * t, p[1] - a[1] - ab[1] * t);
+    };
+    const clearance = (tooth, stone) => {
+      let dmin = Infinity, cross = false;
+      for (let i = 0; i < tooth.length; i++) for (let j = 0; j < stone.length; j++) {
+        const dd = segDist(tooth[i], tooth[(i + 1) % tooth.length], stone[j], stone[(j + 1) % stone.length]);
+        if (dd < 1e-9) cross = true;
+        if (dd < dmin) dmin = dd;
+      }
+      if (!cross && !tooth.some((p) => inPoly(p, stone)) && !stone.some((p) => inPoly(p, tooth))) return dmin;
+      let depth = Infinity;
+      for (const p of tooth) if (inPoly(p, stone)) for (let j = 0; j < stone.length; j++) depth = Math.min(depth, ptSeg(p, stone[j], stone[(j + 1) % stone.length]));
+      for (const p of stone) if (inPoly(p, tooth)) for (let i = 0; i < tooth.length; i++) depth = Math.min(depth, ptSeg(p, tooth[i], tooth[(i + 1) % tooth.length]));
+      return -(depth === Infinity ? 0 : depth);
+    };
+    const m = buildShowcase();
+    const toWorld = (mesh, pts) => pts.map(([x, y]) => {
+      const v = new THREE.Vector3(x, y, 0).applyMatrix4(mesh.matrixWorld);
+      return [v.x, v.y];
+    });
+    const rotQ = (q, a) => q.map(([x, y]) => [x * Math.cos(a) - y * Math.sin(a), x * Math.sin(a) + y * Math.cos(a)]);
+    let worst = 0;
+    const opp = {};
+    for (let u = 0.5; u <= 2.5001; u += 0.01) {
+      m.update(u);
+      m.group.updateMatrixWorld(true);
+      const wA = m.wheelPivot.rotation.z;
+      const teeth = [];
+      for (let i = 0; i < TEETH; i++) teeth.push(rotQ(clubToothQuad(i), wA));
+      for (const face of ['entry', 'exit']) {
+        const stone = byPallet(m, face)[0];
+        const poly = toWorld(stone, palletOutline(stone.userData.pallet.imp));
+        let g = Infinity;
+        for (const t of teeth) g = Math.min(g, clearance(t, poly));
+        if (g < worst) worst = g;
+        // Відпущений камінь у момент чужого замка: колесо йде під ріжком.
+        if ((Math.abs(u - 1.5) < 0.005 && face === 'entry') ||
+            (Math.abs(u - 0.5) < 0.005 && face === 'exit') ||
+            (Math.abs(u - 2.5) < 0.005 && face === 'exit')) opp[`${face}@${u.toFixed(1)}`] = g;
+      }
+    }
+    expect(worst, 'транзитний мінімум').toBeGreaterThan(-0.05);
+    for (const [k, v] of Object.entries(opp)) expect(v, `зазор ${k}`).toBeGreaterThan(0.01);
   });
 
   it('вітрина не імпортує рух: ізоляція за рішенням', () => {

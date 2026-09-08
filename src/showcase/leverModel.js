@@ -21,8 +21,9 @@ import { buildSpring, SPRING_R1 } from './spring.js';
  *   спіраль над балансом (z≈2.05), зовнішній кінець у нерухомій колодці.
  * Спіраль — ілюстрація дихання, не модель регулятора (див. `spring.js`).
  *
- * Точні кути граней — номінальні: замкова посадка (падіння, притягування)
- * розв'язується наступним кроком разом із фазною машиною. Геометрія віддає їй
+ * Точні кути граней — розв'язані, не номінальні: камінь стоїть стовпчиком
+ * над колесом, запірний ріжок сідає на вістря замка (seatPallet), далі
+ * імпульсна площина вздовж відходу вістря. Геометрія віддає фазній машині
  * півотні групи й камені — більше їй нічого не треба.
  */
 
@@ -30,28 +31,58 @@ export const TEETH = 15;
 export const WHEEL_R = 1.5;
 const WHEEL_ROOT = 0.95;
 const WHEEL_T = 0.35;
+/** Зубець-паличка: ширина вістря/основи й нахил за ходом, частки кроку. */
+const CLUB_TOOTH = { tw: 0.18, bw: 0.3, lean: 0.5 };
 
 /** W→P: вісь вилки. P→B: вісь балансу (хід вилки вміщується між ними). */
 export const FORK_D = 2.35;
 export const BAL_D = 2.0;
 
-/** Камені: вхідний на +26°, центри в смузі зубців; вихідний — посадка падіння. */
+/**
+ * Камені стоять стовпчиком НАД колесом і дістають смугу лише запірним
+ * ріжком: попередня посадка (центр у смузі) ховала вістря всередину тіла
+ * (−0.46 у замку) — жоден розворот цілого каменя це не лікував, бо тіло
+ * 0.34×0.62 впоперек шляху зубців. Контакт — ріжком A з мікрозазором EPS.
+ *
+ * Зона (кут) каже, ЯКЕ вістря ловити: найближче до зони в момент замка.
+ * Точну позицію і розворот дає seatPallet() розв'язком, а не числами:
+ * ріжок сідає на вістря, грань — з притягуванням DRAW.
+ */
 const PALLET_ANG = (26 * Math.PI) / 180;
-const PALLET_R = 1.3;
-// Посадка падіння: нуль вихідного замка мінус нуль вхідного має дорівнювати
-// півзубцю — інакше одна фаза не садить обидва. Виміряно: 30.65° (нулі
-// 22.45°/10.75°, різниця 11.7° проти потрібних 12° — залишок 0.3° ділиться
-// мінімаксом порівну). Дзеркальні ±26° тут не працюють: напрям руху ламає
-// симетрію пари, що й показав перший замір.
 const EXIT_ANG = (30.65 * Math.PI) / 180;
-const EXIT_R = 1.3;
-const JEWEL_W = 0.34;
+// Посадка падіння (чому вихідна не дзеркальна ±26°): нуль вихідного замка
+// мінус нуль вхідного має дорівнювати півзубцю — інакше одна фаза не садить
+// обидва. Виміряно: 30.65° (нулі 22.45°/10.75°, різниця 11.7° проти потрібних
+// 12° — залишок 0.3° ділиться мінімаксом порівну). Напрям руху проти
+// годинникової ламає дзеркальну симетрію пари.
+const JEWEL_W = 0.28;
 const JEWEL_H = 0.62;
 const JEWEL_T = 0.5;
 /** Номінальний кут притягування запірної грані від радіуса. */
 const LOCK_DRAW = (10 * Math.PI) / 180;
+/** Довжина запірного фаска від ріжка; далі — імпульсна площина. */
+const LOCK_LEN = 0.07;
+/** Довжина імпульсної площини: вістря з'їжджає нею весь зрив. */
+const IMP_LEN = 0.35;
+/** Мікрозазор контакту: грань торкається, тіла не перетинаються. */
+const SEAT_EPS = 0.004;
+/**
+ * Виміряні розвороти каменя в рамі вилки й кути імпульсних площин
+ * (локальні, від +x контура). Метод: скан .openchamber/seat10.mjs —
+ * посадка ріжком на вістря замка, мінімакс перетину за ПОВНИЙ цикл
+ * (вхідна й вихідна половини окремо — оптимум тримає вхідний зачеп).
+ * Вхідна −31°/128° (цикл −0.024, навпроти +0.025), вихідна −110°/122°
+ * (цикл −0.040, навпроти +0.058). Лишок — постановочний дотик у момент
+ * падіння/зриву, не наскрізне проходження: тіла не ховають зубців.
+ * Асиметрія — від нахилу зубців за ходом: дзеркала тут нема, як не було
+ * його й у зоні виходу.
+ */
+const SEAT = {
+  entry: { rot: (-31 * Math.PI) / 180, imp: (128 * Math.PI) / 180 },
+  exit: { rot: (-110 * Math.PI) / 180, imp: (122 * Math.PI) / 180 },
+};
 /** Геометрія каменя — тестам посадки, щоб не дублювати числа. */
-export const JEWEL_GEOM = { w: JEWEL_W, h: JEWEL_H, lean: Math.tan(LOCK_DRAW) * JEWEL_H };
+export const JEWEL_GEOM = { w: JEWEL_W, h: JEWEL_H, lean: Math.tan(LOCK_DRAW) * JEWEL_H, lockLen: LOCK_LEN };
 
 /** Тіло вилки над колесом; камінь ролика дістає в проріз знизу. */
 const FORK_Z = 0.85;
@@ -61,6 +92,73 @@ const PIN_R = 0.42;   // орбіта імпульсного каменя нав
 const STONE_R = 0.09;
 
 const polar = (r, a) => [Math.cos(a) * r, Math.sin(a) * r];
+const rot2 = ([x, y], a) => [x * Math.cos(a) - y * Math.sin(a), x * Math.sin(a) + y * Math.cos(a)];
+
+/**
+ * Локальний контур каменя: A (запірний ріжок) → K (кінець фаска
+ * з притягуванням) → M (імпульсна площина вздовж відходу вістря —
+ * напрям виміряно трасуванням відносного руху, seat8.mjs: 134°/124°) →
+ * зовнішнє тіло. Власна фігура модуля: гарди в тестах компонують
+ * з неї, а не дублюють контур.
+ */
+export function palletOutline(imp) {
+  const w = JEWEL_W / 2, h = JEWEL_H / 2;
+  const lean = Math.tan(LOCK_DRAW) * JEWEL_H;
+  const A = [-w, -h];
+  const e = norm2([lean, 2 * h]);
+  const K = [A[0] + (lean / e) * LOCK_LEN, A[1] + ((2 * h) / e) * LOCK_LEN];
+  const M = [K[0] + Math.cos(imp) * IMP_LEN, K[1] + Math.sin(imp) * IMP_LEN];
+  return [A, K, M, [-w + lean, h], [w, h - 0.3], [w, -h]];
+}
+const norm2 = ([x, y]) => Math.hypot(x, y);
+
+/** Зубець колеса в рамі колеса (опукла четвірка виступу): фігура для гардів. */
+export function clubToothQuad(i) {
+  const step = (Math.PI * 2) / TEETH;
+  const { tw: TW, bw: BW, lean: LEAN } = CLUB_TOOTH;
+  const a = i * step;
+  return [
+    polar(WHEEL_ROOT, a - (LEAN + BW / 2) * step),
+    polar(WHEEL_R, a - (TW / 2) * step),
+    polar(WHEEL_R, a + (TW / 2) * step),
+    polar(WHEEL_ROOT, a - (LEAN - BW / 2) * step),
+  ];
+}
+
+/**
+ * Посадка каменя в рамі вилки розв'язком: яке вістря — найближче до зони
+ * в момент замка; ріжок A сідає на нього з мікрозазором по зовнішній
+ * нормалі фаска; розворот і імпульс — виміряні (SEAT). Плечі вилки
+ * тягнуться до цієї ж точки, тож збірка не розходиться з посадкою.
+ */
+function seatPallet(face) {
+  // Вихідна зона — під лінією центрів (−EXIT_ANG): мінус лишається від
+  // старого side, без нього посадка ловить зубець верхньої половини.
+  const zone = face === 'entry' ? PALLET_ANG : -EXIT_ANG;
+  const lockU = face === 'entry' ? 0.5 : 1.5;
+  const { rot, imp } = SEAT[face];
+  const wAng = wheelAngle(lockU), fAng = forkAngle(lockU);
+  const step = (Math.PI * 2) / TEETH;
+  let tip = 0, best = Infinity;
+  for (let i = 0; i < TEETH; i++) {
+    // Повне коло, не mod кроку: (зона − зубець_i) mod крок від i не залежить.
+    const raw = (zone - (wAng + i * step)) % (Math.PI * 2);
+    const d = Math.abs(raw > Math.PI ? raw - Math.PI * 2 : raw < -Math.PI ? raw + Math.PI * 2 : raw);
+    if (d < best) { best = d; tip = i; }
+  }
+  const T = polar(WHEEL_R, wAng + tip * step);
+  // Зовнішня нормаль — з самого фаска A→K, не з формули lean: одне джерело.
+  const [A, K] = palletOutline(imp);
+  const ex = K[0] - A[0], ey = K[1] - A[1];
+  const el = Math.hypot(ex, ey);
+  let nl = [ey / el, -ex / el];
+  if (nl[0] * (0 - A[0]) + nl[1] * (-0.075 - A[1]) > 0) nl = [-nl[0], -nl[1]];
+  const nw = rot2(rot2(nl, rot), fAng);
+  const target = [T[0] - SEAT_EPS * nw[0], T[1] - SEAT_EPS * nw[1]];
+  const rel = rot2([target[0] - FORK_D, target[1]], -fAng);
+  const off = rot2(A, rot);
+  return { x: rel[0] - off[0], y: rel[1] - off[1], rot, imp, tip };
+}
 
 /**
  * Фаза замка: сталий доворот колеса, щоб вістря сіло на запірну грань.
@@ -92,8 +190,10 @@ function bar(from, to, w, t, z, material) {
 function makeClubWheel(material) {
   const step = (Math.PI * 2) / TEETH;
   // Частки кроку: TW — ширина вістря, BW — ширина основи, LEAN — зсув
-  // основи назад (нахил палички за ходом).
-  const TW = 0.18, BW = 0.3, LEAN = 0.5;
+  // основи назад (нахил палички за ходом). Числа — в CLUB_TOOTH: контур
+  // колеса й четвірка для гардів з одного джерела, інакше тест перевіряє
+  // здорову копію.
+  const { tw: TW, bw: BW, lean: LEAN } = CLUB_TOOTH;
   const VALLEY_R = WHEEL_ROOT * 0.88;
   const shape = new THREE.Shape();
   for (let i = 0; i < TEETH; i++) {
@@ -134,17 +234,17 @@ function makeClubWheel(material) {
 }
 
 /**
- * Камінь-палета: запірна грань (з притягуванням) + імпульсна (під ~50°).
- * `mirror` розвертає пару: вхідна й вихідна — дзеркальні, як у справжньому ході.
+ * Камінь-палета зламаним контуром: запірний фасок з притягуванням,
+ * імпульсна площина вздовж відходу вістря, глухе зовнішнє тіло.
+ * Обидва камені однієї форми (дзеркальний клав би глуху спину —
+ * посадка виходу не сходилась ні на якій фазі); орієнтацію дає
+ * розворот з посадки, не форма.
  */
-function makePallet(material, mirror) {
-  const w = JEWEL_W / 2, h = JEWEL_H / 2;
-  const lean = Math.tan(LOCK_DRAW) * JEWEL_H; // зсув верху запірної грані
+function makePallet(material, imp) {
+  const pts = palletOutline(imp);
   const s = new THREE.Shape();
-  s.moveTo(mirror * -w, -h);
-  s.lineTo(mirror * (-w + lean), h); // запірна грань
-  s.lineTo(mirror * w, h - 0.3); // імпульсна грань
-  s.lineTo(mirror * w, -h);
+  s.moveTo(...pts[0]);
+  for (const p of pts.slice(1)) s.lineTo(...p);
   s.closePath();
   const geo = new THREE.ExtrudeGeometry(s, { depth: JEWEL_T, bevelEnabled: false });
   geo.translate(0, 0, -JEWEL_T / 2);
@@ -153,12 +253,7 @@ function makePallet(material, mirror) {
   return mesh;
 }
 
-export function buildShowcase(opts = {}) {
-  // Посадка падіння: вихідна палета стоїть не дзеркально (±26°), а там, де її
-  // запірна грань лягає рівно на півзубця від вхідної, — інакше одна константа
-  // фази не садить обидва замки. Значення — виміряні сканом падіння
-  // (мінімакс по обох замках з вилкою в упорах), не окомірні.
-  const { exitAng = EXIT_ANG, exitR = EXIT_R } = opts;
+export function buildShowcase() {
   const brass = new THREE.MeshStandardMaterial({ color: 0xcaa84a, roughness: 0.35, metalness: 0.9 });
   const steel = new THREE.MeshStandardMaterial({ color: 0xb8bec8, roughness: 0.3, metalness: 0.95 });
   const darkSteel = new THREE.MeshStandardMaterial({ color: 0x555a62, roughness: 0.4, metalness: 0.8 });
@@ -212,23 +307,20 @@ export function buildShowcase(opts = {}) {
 
   const jewels = {};
   const jewelZ = 0.1;
-  // ОБИДВА камені однакової форми: запірна грань мусить дивитись назустріч
-  // зубцям, а напрям руху проти годинникової ламає дзеркальну симетрію пари —
-  // віддзеркалений камінь став би до зубців глухою спиною (так і було: посадка
-  // виходу не зійшлась ні на якій фазі). Орієнтацію дає розворот, не форма.
-  for (const [face, side, ang, rad] of [['entry', 1, PALLET_ANG, PALLET_R], ['exit', -1, exitAng, exitR]]) {
-    const a = side * ang;
-    const [jx, jy] = polar(rad, a);
+  // Посадка кожного каменя — розв'язок seatPallet(): ріжок на вістрі замка.
+  // Плечі йдуть до тієї ж точки — збірка не розходиться з посадкою.
+  for (const face of ['entry', 'exit']) {
+    const seat = seatPallet(face);
     // Матеріал каменя — власний екземпляр: підсвітка активної пари гасить
     // й засвічує камені окремо, спільний матеріал цього не вміє.
-    const stone = makePallet(ruby.clone(), 1);
-    stone.position.set(jx - FORK_D, jy, jewelZ);
-    stone.rotation.z = a + Math.PI / 2; // мінус-u дивиться назустріч зубцям
-    stone.userData.pallet = { face };
+    const stone = makePallet(ruby.clone(), seat.imp);
+    stone.position.set(seat.x, seat.y, jewelZ);
+    stone.rotation.z = seat.rot;
+    stone.userData.pallet = { face, imp: seat.imp };
     forkPivot.add(stone);
     jewels[face] = stone;
     // Плече: горизонтальна штанга в площині вилки + стійка вниз до каменя.
-    const top = V2(jx - FORK_D, jy);
+    const top = V2(seat.x, seat.y);
     forkPivot.add(bar(V2(0, 0), top, 0.24, 0.26, FORK_Z, steel));
     const post = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.24, FORK_Z - jewelZ), steel);
     post.position.set(top.x, top.y, (FORK_Z + jewelZ) / 2);
