@@ -222,7 +222,9 @@ export function mountLesson({ highlighter, camera, status, onMode, settings, run
       // Порожній стан: заголовок — назва ланцюга, а не застосунку (та вже в шапці).
       card.append(el('div', 'eyebrow', t('card.start').toUpperCase()));
       card.append(el('div', 'card-title', t('rail.title')));
-      card.append(el('div', 'placeholder', t('rail.empty')));
+      // Текст залежить від того, чи щось уже зібрано: обіцянка «порожньо, це
+      // перша зупинка» була б неправдою для того, хто сюди повернувся.
+      card.append(el('div', 'placeholder', t(state.visited.size ? 'card.resume' : 'rail.empty')));
       card.append(navRow());
       return;
     }
@@ -360,10 +362,14 @@ export function mountLesson({ highlighter, camera, status, onMode, settings, run
   function navRow() {
     const row = el('div', 'nav');
     const i = state.current;
-    const prev = el('button', null, i === null || i === 0
-      ? t('card.start') : `← ${t(STATIONS[i - 1].nameKey)}`);
-    prev.disabled = i === null || i === 0;
-    if (!prev.disabled) prev.addEventListener('click', () => go(i - 1));
+    // Кнопка «початок» була тут від початку — але вимкненою, тож стартовий
+    // екран ставав дверима в один бік: жоден шлях до нього не вів. Стрілка
+    // з'являється рівно тоді, коли кнопка щось робить.
+    const atStart = i === null;
+    const prev = el('button', null, atStart ? t('card.start')
+      : i === 0 ? `← ${t('card.start')}` : `← ${t(STATIONS[i - 1].nameKey)}`);
+    prev.disabled = atStart;
+    if (!atStart) prev.addEventListener('click', () => (i === 0 ? goStart() : go(i - 1)));
 
     const atEnd = i !== null && i === STATIONS.length - 1;
     const next = el('button', 'next', atEnd
@@ -515,7 +521,9 @@ export function mountLesson({ highlighter, camera, status, onMode, settings, run
 
     const actions = el('div', 'fin-actions');
     const again = el('button', 'primary', t('finish.again'));
-    again.addEventListener('click', () => { state.visited.clear(); go(0); });
+    // Спочатку — це стартовий екран, а не перша станція: там стоїть речення,
+    // яке пояснює весь маршрут, і саме воно потрібне тому, хто йде наново.
+    again.addEventListener('click', () => { state.visited.clear(); goStart(); });
     const toFree = el('button', null, t('finish.goFree'));
     toFree.addEventListener('click', () => setMode('free'));
     actions.append(again, toFree, el('span', null, t('finish.footnote')));
@@ -548,6 +556,19 @@ export function mountLesson({ highlighter, camera, status, onMode, settings, run
     // Станція називає точку за стабільним `id`; невідомий id — помилка, а не
     // тихий загальний вид.
     if (s.focus) camera.goto(s.focus); else camera.overview();
+    render();
+  }
+
+  /**
+   * Повернутися на стартовий екран.
+   *
+   * Пройдене НЕ скидається: це повернення, а не новий прохід — рейка ліворуч
+   * і далі тримає зібрані речення. Скидає їх лише «Пройти ще раз» на підсумку.
+   */
+  function goStart() {
+    state.finished = false;
+    state.current = null;
+    camera.overview();
     render();
   }
 
