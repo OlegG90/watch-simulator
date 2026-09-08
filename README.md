@@ -294,6 +294,7 @@ src/lesson/
   sectionView.js   and as SVG
   variantsModal.js the escapement comparison: silhouettes, the cost table, the swap
   cardText.js      one resolver for card text, shared with the tests
+  draw.js          el, svgEl and one linear projector, shared by all three diagrams
   lesson.css       the interface; fonts.css + fonts/ ship the faces (OFL 1.1)
 ```
 
