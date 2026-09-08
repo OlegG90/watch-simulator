@@ -36,6 +36,15 @@ export const BALANCE_R = 1.95;
 /** Радіус анкерного колеса — той самий, що в кліті турбійона. */
 export const ESC_R = 1.5;
 
+/**
+ * Фаза замка: сталий доворот колеса, щоб у замкнених станах вістря стояло на
+ * камені активної палети. Колесо йде півкроку за удар, палети дзеркальні —
+ * одна константа обслуговує обидві, з розкидом ±1.6° від центра каменя
+ * (півширина каменя ~6°, тож вістря лишається на ньому). Це не фізика контакту,
+ * а постановка: β і криві руху не чіпаються.
+ */
+export const ESC_LOCK_PHASE = Math.PI / 10;
+
 const PALLET_HALF = (30 * Math.PI) / 180; // палети на ±30° від лінії центрів
 const ROLLER_R = 0.55;                    // радіус ролика з імпульсним каменем
 
@@ -92,6 +101,7 @@ export function buildLever(
     brass
   );
   escWheel.position.z = LAYERS.escape;
+  escWheel.rotation.z = ESC_LOCK_PHASE; // фаза замка — вістря на палету, не між зубцями
   rotating.add(escWheel);
   const escAxle = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 1.4, 10), axleMat);
   escAxle.rotation.x = Math.PI / 2;

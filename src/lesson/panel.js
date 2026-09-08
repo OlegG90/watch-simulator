@@ -70,6 +70,7 @@ export function mountLesson({ highlighter, camera, status, onMode, settings, run
     h.append(segmented([
       [t('mode.lesson'), state.mode === 'lesson', () => setMode('lesson')],
       [t('mode.free'), state.mode === 'free', () => setMode('free')],
+      [t('mode.showcase'), state.mode === 'showcase', () => setMode('showcase')],
     ]));
 
     h.append(el('div', 'spacer'));
@@ -572,9 +573,11 @@ export function mountLesson({ highlighter, camera, status, onMode, settings, run
   }
 
   function setMode(mode) {
+    if (mode !== 'lesson' && mode !== 'free' && mode !== 'showcase')
+      throw new Error(`невідомий режим: ${mode}`);
     state.mode = mode;
     state.finished = false;
-    back.hidden = mode !== 'free'; // вихід із вільного режиму — інакше двері в один бік
+    back.hidden = mode === 'lesson'; // вихід з повноекранних — інакше двері в один бік
     onMode?.(mode);
     render();
   }
@@ -595,7 +598,9 @@ export function mountLesson({ highlighter, camera, status, onMode, settings, run
     back.textContent = t('mode.back');
 
     const lesson = state.mode === 'lesson';
-    ui.classList.toggle('mode-free', !lesson);
+    const showcase = state.mode === 'showcase';
+    ui.classList.toggle('mode-free', state.mode === 'free');
+    ui.classList.toggle('mode-showcase', showcase);
     ui.classList.toggle('mode-finish', lesson && state.finished);
     ui.classList.toggle('mode-lesson', lesson && !state.finished);
 

@@ -4,6 +4,9 @@ import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import GUI from 'lil-gui';
 import { buildMovement } from './movement.js';
 import { PLANNED_IDS } from './escapement/index.js';
+import { buildShowcase } from './showcase/leverModel.js';
+import { mountShowcaseBar } from './showcase/bar.js';
+import { BEAT_HZ } from './showcase/motion.js';
 import { buildLabels, createCameraFly } from './ui.js';
 import { t, getLang, setLang, onLangChange, LANGS } from './i18n.js';
 import { createHighlighter } from './lesson/highlight.js';
@@ -104,6 +107,16 @@ plate.rotation.x = -Math.PI / 2;
 plate.position.y = -movement.size.h / 2 - 2.5;
 plate.receiveShadow = true;
 scene.add(plate);
+
+// ── Вітрина: самодостатній експонат, не модуль руху ─────────────────
+// Схована, доки не вибрано її режим. Нічого з руху сюди не заглядає й
+// звідси нічого не читається: синхронізації нема за рішенням.
+const showcase = buildShowcase();
+scene.add(showcase.group);
+// Фазовий час вітрини (удари) живе тут, а не в моделі: пауза й крок панелі —
+// це зупинка й ручне просування, модель лишається чистою функцією часу.
+const show = { t: 0.5, playing: true, speed: 0.5 };
+const showBar = mountShowcaseBar(document.getElementById('showcase-bar'), show);
 
 // ── Камера: вписати механізм у кадр (з урахуванням аспекту) ───────
 const fitR = Math.hypot(movement.size.w, movement.size.h) / 2;
@@ -289,6 +302,22 @@ const lesson = mountLesson({
   onMode: (mode) => {
     uiMode = mode;
     gui.domElement.style.display = mode === 'free' ? '' : 'none';
+    // Вітрина міняє склад сцени місцями з рухом: експонат видно лише тут,
+    // рух — скрізь крім неї. Камера летить у домашню точку вітрини.
+    const inShowcase = mode === 'showcase';
+    movement.root.visible = !inShowcase;
+    plate.visible = !inShowcase;
+    showcase.group.visible = inShowcase;
+    if (inShowcase) {
+      userOrbited = true; // не давати підгонці кадру відсмикнути камеру назад
+      fly.flyTo(showcase.home.pos, showcase.home.target);
+      // Вхід — із замка: час дотягується до найближчого напівцілого, де колесо
+      // стоїть на виміряній фазі, а не посеред перекидання.
+      show.t = Math.round(show.t - 0.5) + 0.5;
+      document.getElementById('showcase-bar').hidden = false;
+    } else {
+      document.getElementById('showcase-bar').hidden = true;
+    }
     // Обидві панелі пишуть в одну таблицю, але lil-gui показує те, що
     // прочитав при створенні. Без цього ручка, зрушена на картці станції,
     // лишала б у вільному режимі старе число — при живому механізмі, що вже
@@ -330,6 +359,11 @@ function tick() {
   }
   movement.winder.update(dt);
   powerUI.power = Math.round(movement.winder.charge * 100);
+  if (uiMode === 'showcase') {
+    if (show.playing) show.t += dt * BEAT_HZ * show.speed;
+    showcase.update(show.t);
+    showBar.update();
+  }
   lesson.update();
   fly.update();
   controls.update();

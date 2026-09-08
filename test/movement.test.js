@@ -3,7 +3,7 @@ import * as THREE from 'three';
 import { buildMovement, CAGE_R } from '../src/movement.js';
 import { buildEscapementSocket } from '../src/escapement/index.js';
 import { buildTourbillon } from '../src/escapement/tourbillon.js';
-import { BALANCE_OFF, BALANCE_R } from '../src/escapement/lever.js';
+import { BALANCE_OFF, BALANCE_R, buildLever } from '../src/escapement/lever.js';
 import { dictKeys } from '../src/i18n.js';
 
 // ── Хелпери ───────────────────────────────────────────────────────
@@ -316,6 +316,32 @@ describe('гніздо спуску (escapement socket)', () => {
   it('анкерний спуск не має кліті, і колесо робить один оберт на оберт осі', () => {
     const f = buildFresh();
     expect(f.escapement.variant('lever').motion).toEqual({ escapeTurns: 1, hasCage: false });
+  });
+
+  it('у замку вістря стоїть на камені палети, а не між зубцями', () => {
+    // Фаза замка — постановка, не фізика: β і криві руху ті самі, але сталий
+    // доворот колеса садить вістря на активну палету в кожному замкненому стані
+    // (обидві парності ударів, обидва кінці вікна). Саботаж: з нульовим доворотом
+    // вістря сідає на ~6° повз камінь — і цей тест червоніє.
+    // Зібрано напряму, як турбійонні перевірки вище: матриці гнізда тут ні до чого.
+    const lv = buildLever({ steel: mat(), brass: mat(), springSteel: mat(), axleMat: mat() }, {});
+    const stones = [];
+    lv.fork.traverse((o) => { if (o.isMesh && o.geometry.type === 'ExtrudeGeometry') stones.push(o); });
+    expect(stones).toHaveLength(2);
+    const STEP = TWO / 15;
+    for (let n = 0; n < 6; n++) {
+      for (const u of [n + 0.2, n + 0.5]) {
+        const beta = lv.update(u / 2.5, 2.5, 220);
+        lv.fork.updateMatrixWorld(true);
+        const wp = stones.map((s) => s.getWorldPosition(new THREE.Vector3()));
+        wp.sort((a, b) => (a.x ** 2 + a.y ** 2) - (b.x ** 2 + b.y ** 2)); // активна — глибша
+        const stoneAng = Math.atan2(wp[0].y, wp[0].x);
+        let best = Infinity;
+        for (let i = 0; i < 15; i++)
+          best = Math.min(best, Math.abs(wrap(beta + lv.escWheel.rotation.z + i * STEP - stoneAng)));
+        expect(best).toBeLessThan(THREE.MathUtils.degToRad(2));
+      }
+    }
   });
 
   it('сцена називає ГНІЗДО, а не встановлений модуль', () => {
