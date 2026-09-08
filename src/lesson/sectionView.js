@@ -1,19 +1,13 @@
 import { t, tf } from '../i18n.js';
 import { sectionParts, zTicks, V_SCALE } from './section.js';
+import { svgEl as n, linear } from './draw.js';
 
 /**
  * Малює розгортку у SVG. Одна діаграма на всі станції — підсвітка змінюється
  * так само, як у вигляді згори: та сама сцена, різний фокус.
  */
 
-const SVG = 'http://www.w3.org/2000/svg';
 const W = 740, H = 716, PAD = 30, TOP_PAD = 96, BOTTOM_PAD = 64;
-
-const n = (tag, attrs = {}) => {
-  const e = document.createElementNS(SVG, tag);
-  for (const [k, v] of Object.entries(attrs)) e.setAttribute(k, String(v));
-  return e;
-};
 
 /** Кольори — ті самі матеріали, що й у сцені. */
 const STYLE = {
@@ -36,8 +30,8 @@ export function renderSection(host, focusMods, variant) {
   // масштаб рахується під в'юпорт, а справжній коефіцієнт іде в підпис.
   const sy = Math.min(sx * 4, (H - TOP_PAD - BOTTOM_PAD) / (zMax - zMin));
   const exaggeration = Math.round((sy / sx) * 10) / 10;
-  const X = (u) => PAD + (u - bounds.uMin) * sx;
-  const Y = (z) => H - BOTTOM_PAD - (z - zMin) * sy;
+  const X = linear({ from: bounds.uMin, at: PAD, k: sx });
+  const Y = linear({ from: zMin, at: H - BOTTOM_PAD, k: -sy });
 
   const lit = (mod) => !focusMods || focusMods.size === 0 || focusMods.has(mod);
 

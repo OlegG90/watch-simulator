@@ -1,6 +1,7 @@
 import { t } from '../i18n.js';
 import { sectionParts } from './section.js';
 import { cagePeriod as arborPeriod } from './readouts.js';
+import { el, svgEl, linear } from './draw.js';
 
 /**
  * Модалка «Варіанти» — порівняння модулів спуску.
@@ -17,18 +18,6 @@ import { cagePeriod as arborPeriod } from './readouts.js';
  * нема чого — у його колонці стоять прочерки, а не вигадані числа.
  */
 
-const SVG = 'http://www.w3.org/2000/svg';
-const el = (tag, cls, text) => {
-  const n = document.createElement(tag);
-  if (cls) n.className = cls;
-  if (text !== undefined) n.textContent = text;
-  return n;
-};
-const svgEl = (tag, attrs = {}) => {
-  const n = document.createElementNS(SVG, tag);
-  for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, String(v));
-  return n;
-};
 
 const SIL_W = 120, SIL_H = 66, SIL_PAD = 7;
 
@@ -52,8 +41,10 @@ function silhouette(id, scale) {
   const { parts, zMin, kx, ky } = scale;
   const mine = parts.get(id);
   const uMid = (Math.min(...mine.map((p) => p.u - p.r)) + Math.max(...mine.map((p) => p.u + p.r))) / 2;
-  const Y = (z) => SIL_H - SIL_PAD - (z - zMin) * ky;
-  const X = (u) => SIL_W / 2 + (u - uMid) * kx;
+  // Той самий проєктор, що й у великій розгортці. `kx`/`ky` спільні для всіх
+  // трьох силуетів — на цьому й тримається обіцянка чесного порівняння висот.
+  const Y = linear({ from: zMin, at: SIL_H - SIL_PAD, k: -ky });
+  const X = linear({ from: uMid, at: SIL_W / 2, k: kx });
   // Лінія платини, щоб було видно, від чого рахується висота.
   s.append(svgEl('line', { x1: 4, y1: Y(zMin) + 1, x2: SIL_W - 4, y2: Y(zMin) + 1, stroke: '#2b3038' }));
   for (const p of mine) {
