@@ -312,7 +312,20 @@ export function buildTourbillon(
     tagModule(g, 'escapement');
     tagVariant(g, VARIANT_ID);
   }
-  return { cage, fixed, update, balance, fork, escSub, hairGroup, cageR, balR,
+  // Ручки вузлів вільного режиму — див. `lever.js`. Прозорість кліті й верхня
+  // платівка є тільки тут: вони описують саме кліть, і в анкерному спуску їм
+  // немає відповідника.
+  const view = { cageOpacity: 1.0, topPlate: true };
+  const nodes = [
+    { kind: 'flag', labelKey: 'part.fixedWheel', obj: fixed, prop: 'visible' },
+    { kind: 'flag', labelKey: 'part.balance', obj: balance, prop: 'visible' },
+    { kind: 'range', labelKey: 'gui.cageOpacity', obj: view, prop: 'cageOpacity',
+      min: 0.15, max: 1.0, step: 0.05, onChange: setCageOpacity },
+    { kind: 'flag', labelKey: 'gui.cageTopPlate', obj: view, prop: 'topPlate',
+      onChange: setTopPlateVisible },
+  ];
+
+  return { cage, fixed, update, nodes, balance, fork, escSub, hairGroup, cageR, balR,
            setCageOpacity, setTopPlateVisible, cagePlates, cagePillars, topPlateGroup, bottomPlateGroup };
 }
 

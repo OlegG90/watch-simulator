@@ -317,6 +317,16 @@ describe('налаштування ходу — одна таблиця', () => 
     expect(src, 'вільний режим не оновлює показ ручок').toContain('c.updateDisplay()');
   });
 
+  it('панель вільного режиму не називає жодного модуля спуску', () => {
+    // Композитор більше не перевидає нутрощі варіанта, а панель бере ручки
+    // вузлів у гнізда — тож імені варіанта в ній бути не має.
+    const src = readFileSync(new URL('../src/main.js', import.meta.url), 'utf8');
+    for (const id of VARIANT_IDS) {
+      expect(src, `main.js називає варіант «${id}»`).not.toContain(`'${id}'`);
+    }
+    expect(src).not.toContain('movement.tourbillon');
+  });
+
   it('кожен підпис таблиці має переклад в обох мовах', () => {
     const keys = new Set(dictKeys('ua'));
     for (const name of settings.names) {
@@ -363,7 +373,7 @@ describe('вузол — єдине джерело своїх чисел', () =>
     // Найсильніша звірка: число з картки проти відстані між осями у мешах.
     const m = build();
     // Група проміжного стоїть відносно осі барабана, тож її зсув і Є міжосьова.
-    const { x, y } = m.powerReserve.idler.position;
+    const { x, y } = m.internals.powerReserve.idler.position;
     const built = Math.hypot(x, y);
 
     expect(reserveProfile().centres.hub).toBeCloseTo(built, 9);

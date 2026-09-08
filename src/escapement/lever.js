@@ -209,5 +209,14 @@ export function buildLever(
     tagVariant(g, VARIANT_ID);
   }
 
-  return { rotating, fixed, update, balance, fork, escWheel, hairGroup: hair.group, balR };
+  // Ручки вузлів вільного режиму. Оголошує їх сам варіант: композитор не
+  // має знати, що саме стоїть у гнізді, а доти панель зверталася до
+  // турбійона на імʼя — і його деталі можна було показати поряд із чужими.
+  const nodes = [
+    { kind: 'flag', labelKey: 'part.escapeWheel', obj: escWheel, prop: 'visible' },
+    { kind: 'flag', labelKey: 'part.fork', obj: fork, prop: 'visible' },
+    { kind: 'flag', labelKey: 'part.balance', obj: balance, prop: 'visible' },
+  ];
+
+  return { rotating, fixed, update, nodes, balance, fork, escWheel, hairGroup: hair.group, balR };
 }

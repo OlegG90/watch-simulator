@@ -8,7 +8,10 @@
  * потроїли б кадровий бюджет.
  *
  * Контракт варіанта: він отримує матеріали й параметри, а повертає
- * `{ id, nameKey, rotating, fixed, update(t, beatHz, amp) → β, api }`.
+ * `{ id, nameKey, rotating, fixed, update(t, beatHz, amp) → β, nodes }`,
+ * де `nodes` — власні ручки для панелі вільного режиму. Усе інше лишається
+ * всередині варіанта; перевірки дістають його меші через `internals` — окремі
+ * двері, названі так, щоб їх не сплутали з інтерфейсом.
  * `rotating` чіпляється до анкерної осі, `fixed` стоїть у сцені. Більше про
  * варіант гніздо не знає — скільки в ньому вкладених клітей і навколо чого
  * вони крутяться, його справа.
@@ -60,14 +63,14 @@ export function variantProfile(id, zBase, opts = {}) {
 const BUILDERS = {
   [LEVER]: (mats, { escTeeth }) => {
     const l = buildLever(mats, { escTeeth, escDirLocal: 0 });
-    return { rotating: l.rotating, fixed: l.fixed, update: l.update, api: l };
+    return { rotating: l.rotating, fixed: l.fixed, update: l.update, nodes: l.nodes, internals: l };
   },
   [TOURBILLON]: (mats, { escTeeth, cageMat, cageR }) => {
     const t = buildTourbillon(
       { ...mats, plateMat: cageMat },
       { escTeeth, fixedTeeth: 10, pinionTeeth: 10, moduleT: 0.26, cageR, escDirLocal: 0 }
     );
-    return { rotating: t.cage, fixed: t.fixed, update: t.update, api: t };
+    return { rotating: t.cage, fixed: t.fixed, update: t.update, nodes: t.nodes, internals: t };
   },
 };
 
@@ -116,5 +119,13 @@ export function buildEscapementSocket(mats, opts, mount, installed = DEFAULT_VAR
     },
     /** Рухається ТІЛЬКИ встановлений варіант — решта сховані й не рахуються. */
     update: (t, beatHz, amp) => built.get(current).update(t, beatHz, amp),
+    /**
+     * Ручки вузлів ВСТАНОВЛЕНОГО варіанта — для панелі вільного режиму.
+     *
+     * Гніздо лишається єдиними дверима: панель не знає ні імені варіанта, ні
+     * що в ньому є. Доти вона зверталася до турбійона навпростець і могла
+     * показати його деталі поряд із анкерним спуском.
+     */
+    nodes: () => built.get(current).nodes ?? [],
   };
 }
