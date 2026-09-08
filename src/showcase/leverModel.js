@@ -28,7 +28,7 @@ import { buildSpring, SPRING_R1 } from './spring.js';
 
 export const TEETH = 15;
 export const WHEEL_R = 1.5;
-const WHEEL_ROOT = 1.02;
+const WHEEL_ROOT = 0.95;
 const WHEEL_T = 0.35;
 
 /** W→P: вісь вилки. P→B: вісь балансу (хід вилки вміщується між ними). */
@@ -81,9 +81,14 @@ function bar(from, to, w, t, z, material) {
 }
 
 /**
- * Колесо з клубовими зубцями: вістря нахилені за ходом, довга спинка —
- * імпульсна грань, коротка підрізана — запірна. Хід — проти годинникової
- * (+кут): матеріал зубця лежить позаду вістря.
+ * Колесо з клубовими зубцями швейцарського ходу: тонкі високі fins з нахилом
+ * за ходом, широкі западини між ними, довга спинка — імпульсна грань,
+ * коротка підрізана — запірна. Профіль як у серійних анкерних коліс
+ * (пор. демонстраційні відео ходу — високі стрункі зубці, а не пилка).
+ * Хід — проти годинникової (+кут): матеріал зубця лежить позаду вістря.
+ *
+ * Вістря лишаються точно на (WHEEL_R, i·крок): посадка замка міряється лише
+ * по вістрях, тож перепрофілювання граней і западин її не чіпає.
  */
 function makeClubWheel(material) {
   const step = (Math.PI * 2) / TEETH;
@@ -91,9 +96,9 @@ function makeClubWheel(material) {
   for (let i = 0; i < TEETH; i++) {
     const a = i * step;
     if (i === 0) shape.moveTo(...polar(WHEEL_R, a));
-    else shape.lineTo(...polar(WHEEL_R, a)); // вістря
-    shape.lineTo(...polar(WHEEL_ROOT, a - 0.10 * step)); // запірна грань, з підрізом
-    shape.lineTo(...polar(WHEEL_ROOT * 0.96, a - 0.30 * step)); // западина
+    else shape.lineTo(...polar(WHEEL_R, a)); // вістря — поза фазою замка не зрушується
+    shape.lineTo(...polar(WHEEL_ROOT, a - 0.06 * step)); // запірна грань, з підрізом
+    shape.lineTo(...polar(WHEEL_ROOT * 0.95, a - 0.3 * step)); // дно глибокої западини
     shape.lineTo(...polar(WHEEL_ROOT, a - 0.52 * step)); // підйом спинки
     // Далі пряма до наступного вістря — довга імпульсна грань.
   }
@@ -105,8 +110,8 @@ function makeClubWheel(material) {
     const seg = (Math.PI * 2) / 4;
     const w = new THREE.Path();
     w.absarc(0, 0, 0.55, i * seg + 0.3, (i + 1) * seg - 0.3, false);
-    w.lineTo(...polar(0.8, (i + 1) * seg - 0.3));
-    w.absarc(0, 0, 0.8, (i + 1) * seg - 0.3, i * seg + 0.3, true);
+    w.lineTo(...polar(0.7, (i + 1) * seg - 0.3));
+    w.absarc(0, 0, 0.7, (i + 1) * seg - 0.3, i * seg + 0.3, true);
     w.closePath();
     shape.holes.push(w);
   }
@@ -268,10 +273,21 @@ export function buildShowcase(opts = {}) {
   jewel.position.set(-PIN_R, 0, 0.7);
   jewel.castShadow = true;
   balancePivot.add(jewel);
-  const rim = new THREE.Mesh(new THREE.TorusGeometry(1.1, 0.13, 14, 56), brass);
+  const rim = new THREE.Mesh(new THREE.TorusGeometry(1.05, 0.11, 14, 56), brass);
   rim.position.z = 1.55;
   rim.castShadow = true;
   balancePivot.add(rim);
+  // Обід у демонстраційної моделі — низка золотих штифтів по колу (пор. фото).
+  const pinGeo = new THREE.CylinderGeometry(0.055, 0.055, 0.28, 10);
+  const PINS = 24;
+  for (let i = 0; i < PINS; i++) {
+    const a = (i / PINS) * Math.PI * 2;
+    const pin = new THREE.Mesh(pinGeo, brass);
+    pin.position.set(Math.cos(a) * 1.26, Math.sin(a) * 1.26, 1.55);
+    pin.rotation.z = a - Math.PI / 2; // вісь вздовж радіуса
+    pin.castShadow = true;
+    balancePivot.add(pin);
+  }
   for (const a of [0, Math.PI / 2]) {
     const spoke = new THREE.Mesh(new THREE.BoxGeometry(2.05, 0.15, 0.15), brass);
     spoke.rotation.z = a;
