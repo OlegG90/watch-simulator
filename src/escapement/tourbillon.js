@@ -72,6 +72,11 @@ export function buildTourbillon(
   const zHair = 2.25;  // спіраль
   const zBot = -0.55, zTop = 2.6; // платівки кліті
 
+  // Анкерний вузол обкочується навколо нерухомого колеса: відносно кліті він
+  // повертається на β·(Zf/Zp), а разом із кліттю — ще на β. Звідси й швидший
+  // абсолютний оберт анкерного колеса. Формула одна: нею рухається меш, із
+  // неї ж береться число для порівняння модулів.
+  const escPerBeta = fixedTeeth / pinionTeeth;
   const escOff = moduleT * (fixedTeeth + pinionTeeth) / 2; // центр анкерного вузла від центра кліті
   const escCenter = dir2(escDirLocal).multiplyScalar(escOff);
   const escR = Math.min(1.7, cageR - escOff - 0.2); // анкерне колесо не виходить за кліть
@@ -299,7 +304,7 @@ export function buildTourbillon(
 
   function update(t, beatHz, ampDeg) {
     const { thetaB, beta, forkAngle } = beatPhase(t, beatHz, ampDeg, escTeeth, phase);
-    escSub.rotation.z = beta;   // анкерне колесо обкочується (Zf = Zp → відносно кліті = β)
+    escSub.rotation.z = beta * escPerBeta;   // обкочування навколо нерухомого колеса
     fork.rotation.z = forkAngle;
     balance.rotation.z = thetaB;
     updateHair(thetaB);
@@ -325,7 +330,11 @@ export function buildTourbillon(
       onChange: setTopPlateVisible },
   ];
 
-  return { cage, fixed, update, nodes, balance, fork, escSub, hairGroup, cageR, balR,
+  // Що модуль РОБИТЬ — на відміну від того, чого він коштує. Обидва числа
+  // виводяться з тих самих сталих, що будують геометрію; вписати їх не можна.
+  const motion = { escapeTurns: 1 + escPerBeta, hasCage: true };
+
+  return { cage, fixed, update, nodes, motion, balance, fork, escSub, hairGroup, cageR, balR,
            setCageOpacity, setTopPlateVisible, cagePlates, cagePillars, topPlateGroup, bottomPlateGroup };
 }
 

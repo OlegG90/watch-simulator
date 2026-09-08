@@ -2,6 +2,7 @@ import { describe, it, expect, beforeAll } from 'vitest';
 import * as THREE from 'three';
 import { buildMovement, CAGE_R } from '../src/movement.js';
 import { buildEscapementSocket } from '../src/escapement/index.js';
+import { buildTourbillon } from '../src/escapement/tourbillon.js';
 import { BALANCE_OFF, BALANCE_R } from '../src/escapement/lever.js';
 import { dictKeys } from '../src/i18n.js';
 
@@ -290,6 +291,31 @@ describe('гніздо спуску (escapement socket)', () => {
     expect(absPeriod(f.escapement.variant('lever').internals.escWheel)).toBeCloseTo(12, 4);
     f.escapement.install('tourbillon');
     expect(absPeriod(f.escapement.variant('tourbillon').internals.escSub)).toBeCloseTo(6, 4);
+  });
+
+  it('оберт анкерного колеса виведений із зачеплення, а не вписаний', () => {
+    // Анкерний вузол обкочується навколо нерухомого колеса, тож на один оберт
+    // осі колесо робить 1 + Zf/Zp. Ті самі зубці рухають меш і дають число для
+    // порівняння: зміни Zf — і зрушиться і сцена, і рядок у модалці.
+    const mats = { steel: mat(), brass: mat(), axleMat: mat(), ruby: mat(),
+                   plateMat: mat(), bluedMat: mat(), springSteel: mat() };
+    const opts = { escTeeth: 15, moduleT: 0.26, cageR: 4.3, escDirLocal: 0 };
+    const t1 = buildTourbillon(mats, { ...opts, fixedTeeth: 10, pinionTeeth: 10 });
+    const t2 = buildTourbillon(mats, { ...opts, fixedTeeth: 20, pinionTeeth: 10 });
+
+    expect(t1.motion.escapeTurns).toBe(2);
+    expect(t2.motion.escapeTurns).toBe(3);
+    expect(t1.motion.hasCage).toBe(true);
+
+    // Меш іде за тією ж формулою: подвоєне Zf → удвічі більший кут обкочування.
+    t1.update(0.37, 2.5, 220); const a1 = t1.escSub.rotation.z;
+    t2.update(0.37, 2.5, 220); const a2 = t2.escSub.rotation.z;
+    expect(a2 / a1).toBeCloseTo(2, 9);
+  });
+
+  it('анкерний спуск не має кліті, і колесо робить один оберт на оберт осі', () => {
+    const f = buildFresh();
+    expect(f.escapement.variant('lever').motion).toEqual({ escapeTurns: 1, hasCage: false });
   });
 
   it('сцена називає ГНІЗДО, а не встановлений модуль', () => {

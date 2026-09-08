@@ -134,6 +134,32 @@ describe('панель уроку (jsdom)', () => {
     expect($('#card .placeholder').textContent).toBe(t('card.resume'));
   });
 
+  it('модалка показує, що модуль РОБИТЬ, а не лише чого коштує', () => {
+    // #13 переніс сюди числа, які залежать від конструкції, — але приїхала
+    // сама ціна, а поведінка лишилася прозою без жодного числа.
+    const { lesson, settings } = mountTestLesson();
+    lesson.go(3);
+    btn('#card', t('variants.open')).click();
+
+    const row = (key) => {
+      const tr = $$('#variants .v-table tr')
+        .find((r) => r.querySelector('.k')?.textContent === t(key));
+      return [...tr.children].slice(1).map((td) => td.textContent);
+    };
+    const s = (x) => `${x} ${t('unit.s')}`;
+
+    // 2.5 уд/с → оберт анкерної осі 12 с. У турбійоні колесо ще й обкочується.
+    expect(row('variants.metric.escapeTurn')).toEqual([s(12), s(6), '—']);
+    expect(row('variants.metric.cageTurn')).toEqual(['—', s(12), '—']);
+
+    // Числа виводяться з ходу, а не вписані: удвічі швидший хід — удвічі коротші.
+    settings.set('beatHz', 5);
+    btn('#variants', t('variants.keep')).click();
+    btn('#card', t('variants.open')).click();
+    expect(row('variants.metric.escapeTurn')).toEqual([s(6), s(3), '—']);
+    expect(row('variants.metric.cageTurn')).toEqual(['—', s(6), '—']);
+  });
+
   it('останній крок веде на підсумок, а «ще раз» починає з початку', () => {
     const { lesson } = mountTestLesson();
     lesson.go(STATIONS.length - 1);

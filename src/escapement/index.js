@@ -8,8 +8,9 @@
  * потроїли б кадровий бюджет.
  *
  * Контракт варіанта: він отримує матеріали й параметри, а повертає
- * `{ id, nameKey, rotating, fixed, update(t, beatHz, amp) → β, nodes }`,
- * де `nodes` — власні ручки для панелі вільного режиму. Усе інше лишається
+ * `{ id, nameKey, rotating, fixed, update(t, beatHz, amp) → β, nodes, motion }`,
+ * де `nodes` — власні ручки для панелі вільного режиму, а `motion` — що модуль
+ * робить (обертів анкерного колеса на оберт осі; чи є кліть). Усе інше лишається
  * всередині варіанта; перевірки дістають його меші через `internals` — окремі
  * двері, названі так, щоб їх не сплутали з інтерфейсом.
  * `rotating` чіпляється до анкерної осі, `fixed` стоїть у сцені. Більше про
@@ -63,14 +64,14 @@ export function variantProfile(id, zBase, opts = {}) {
 const BUILDERS = {
   [LEVER]: (mats, { escTeeth }) => {
     const l = buildLever(mats, { escTeeth, escDirLocal: 0 });
-    return { rotating: l.rotating, fixed: l.fixed, update: l.update, nodes: l.nodes, internals: l };
+    return { rotating: l.rotating, fixed: l.fixed, update: l.update, nodes: l.nodes, motion: l.motion, internals: l };
   },
   [TOURBILLON]: (mats, { escTeeth, cageMat, cageR }) => {
     const t = buildTourbillon(
       { ...mats, plateMat: cageMat },
       { escTeeth, fixedTeeth: 10, pinionTeeth: 10, moduleT: 0.26, cageR, escDirLocal: 0 }
     );
-    return { rotating: t.cage, fixed: t.fixed, update: t.update, nodes: t.nodes, internals: t };
+    return { rotating: t.cage, fixed: t.fixed, update: t.update, nodes: t.nodes, motion: t.motion, internals: t };
   },
 };
 
