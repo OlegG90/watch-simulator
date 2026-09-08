@@ -292,6 +292,19 @@ describe('гніздо спуску (escapement socket)', () => {
     expect(absPeriod(f.escapement.variant('tourbillon').internals.escSub)).toBeCloseTo(6, 4);
   });
 
+  it('сцена називає ГНІЗДО, а не встановлений модуль', () => {
+    // Рішення #21: хром сцени — список МІСЦЬ у механізмі (барабан, центральне
+    // колесо, стрілки, заведення), тож і спуск там назване місцем. Назва
+    // модуля звучить там, де про нього йдеться: модалка, розгортка, таблиця.
+    const f = buildFresh();
+    const esc = f.focusPoints.find((p) => p.id === 'escapement');
+    for (const id of f.escapement.ids) {
+      f.escapement.install(id);
+      expect(esc.nameKey, `після встановлення «${id}»`).toBe('part.escapement');
+      expect(f.escapement.nameKey, 'сам модуль назву має').toBe(`part.${id}`);
+    }
+  });
+
   it('ручки вузлів адресують ЛИШЕ встановлений модуль', () => {
     // Доти панель вільного режиму зверталася до турбійона на імʼя: при
     // встановленому анкерному спуску галочка «Баланс» вмикала баланс
