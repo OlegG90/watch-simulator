@@ -32,7 +32,7 @@ const CHAIN_MAIN = ['chain.winding', 'chain.barrel', 'chain.train', 'chain.escap
 export function mountLesson({ highlighter, camera, status, onMode, settings, run, escapement, planned = [] }) {
   const params = settings.values;   // читає цикл рендеру; запис — тільки через settings.set()
   const ui = document.getElementById('ui');
-  const state = { mode: 'lesson', current: null, visited: new Set(), cam: 'cam.overview', view: 'top', finished: false };
+  const state = { mode: 'lesson', current: null, visited: new Set(), view: 'top', finished: false };
 
   const refs = {};   // живі вузли шапки й підвала
 
@@ -188,12 +188,19 @@ export function mountLesson({ highlighter, camera, status, onMode, settings, run
     const box = document.getElementById('stage-chrome');
     box.replaceChildren();
 
+    // Куди наведена камера, знає сама камера — панель не тримає своєї копії
+    // відповіді. Доти тримала, і копія розходилася з дійсністю щоразу, коли
+    // станція просила точку, якої в списку пресетів не було.
     const cams = el('div', 'cams');
-    for (const [key, fn] of camera.presets) {
-      const b = el('button', null, t(key));
-      b.setAttribute('aria-pressed', String(state.cam === key));
-      b.addEventListener('click', () => { state.cam = key; fn(); render(); });
-      cams.append(b);
+    const camBtn = (label, on, fn) => {
+      const b = el('button', null, label);
+      b.setAttribute('aria-pressed', String(on));
+      b.addEventListener('click', () => { fn(); render(); });
+      return b;
+    };
+    cams.append(camBtn(t('cam.overview'), camera.current === null, () => camera.overview()));
+    for (const { id, nameKey } of camera.targets()) {
+      cams.append(camBtn(t(nameKey), camera.current === id, () => camera.goto(id)));
     }
     box.append(cams);
 
@@ -538,8 +545,9 @@ export function mountLesson({ highlighter, camera, status, onMode, settings, run
     state.finished = false;
     state.current = i;
     state.visited.add(s.id);
-    if (s.focus) { camera.toKey(s.focus); state.cam = null; }
-    else { camera.overview(); state.cam = 'cam.overview'; }
+    // Станція називає точку за стабільним `id`; невідомий id — помилка, а не
+    // тихий загальний вид.
+    if (s.focus) camera.goto(s.focus); else camera.overview();
     render();
   }
 
@@ -612,8 +620,7 @@ export function mountLesson({ highlighter, camera, status, onMode, settings, run
       escapement.install(id);
       // Механізм не зупинявся й нічого не помітив — але око могло проґавити
       // заміну на загальному виді, тож ведемо камеру до спуску.
-      camera.toKey('escapement');
-      state.cam = null;
+      camera.goto('escapement');
       render();   // назва встановленого варіанта живе в картці й розрізі
     },
   });

@@ -59,6 +59,34 @@ describe('панель уроку (jsdom)', () => {
     }
   });
 
+  it('кожна станція наводить камеру на СВІЙ вузол', () => {
+    // Тут і була вада: половина станцій називала точку, якої не було в списку
+    // пресетів камери, і переліт мовчки підмінявся загальним видом — картка
+    // казала «Заведення», а камера показувала весь механізм.
+    const { lesson, cam } = mountTestLesson();
+    for (let i = 0; i < STATIONS.length; i++) {
+      lesson.go(i);
+      expect(cam.calls.at(-1), `станція ${STATIONS[i].id}`).toBe(STATIONS[i].focus ?? 'overview');
+    }
+  });
+
+  it('хром позначає той вид, на якому камера справді стоїть', () => {
+    const { lesson, cam } = mountTestLesson();
+    const pressed = () => $$('#stage-chrome .cams button')
+      .find((b) => b.getAttribute('aria-pressed') === 'true')?.textContent ?? null;
+
+    lesson.go(3);                                  // спуск — є серед пресетів
+    expect(cam.key).toBe('escapement');
+    expect(pressed()).toBe(t('part.escapement'));
+
+    lesson.go(2);                                  // колісна передача — загальний вид
+    expect(pressed()).toBe(t('cam.overview'));
+
+    lesson.go(0);                                  // заведення — пресета немає…
+    expect(cam.key).toBe('part.winding');          // …але камера все одно там
+    expect(pressed(), 'жодна кнопка не бреше').toBe(null);
+  });
+
   it('кожна пройдена станція лишає по реченню в рейці', () => {
     const { lesson } = mountTestLesson();
     expect($('#rail .collected p').textContent).toBe(t('rail.empty'));

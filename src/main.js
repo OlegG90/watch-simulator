@@ -137,28 +137,51 @@ const powerUI = { power: 75 };
 // із кліттю. Нерухоме колесо стоїть окремо в сцені, баланс — усередині кліті.
 const cageArbor = movement.arbors.find((a) => a.spec.escapeTeeth);
 
-const worldOf = (key) => {
-  const fp = movement.focusPoints.find((f) => f.nameKey === key);
-  return new THREE.Vector3(fp.pos.x, fp.pos.y, fp.z).add(movement.root.position);
-};
-// Переліт до вузла зупиняє автопідгонку кадру: інакше ресайз (а перемикання
-// режиму — це ресайз) відсмикнув би камеру від щойно наведеного вузла.
-const goto = (target, back, up = 2) => {
-  userOrbited = true;
-  fly.flyTo(target.clone().add(new THREE.Vector3(0, up, back)), target);
-};
-const overview = () => {
-  userOrbited = false; // загальний вид повертає механізм у кадр і дозволяє підгонку
-  const vTan = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
-  const hTan = vTan * camera.aspect;
-  fly.flyTo(viewDir.clone().multiplyScalar((fitR / Math.min(vTan, hTan)) * 1.05), new THREE.Vector3());
-};
-const CAMS = [
-  ['cam.overview', overview],
-  ['part.hands', () => goto(worldOf('part.hands'), 22, 4)],
-  ['part.powerReserve', () => goto(worldOf('part.powerReserve'), 13, 1)],
-  [escFocus.nameKey, () => goto(worldOf(escFocus.nameKey), 15, 3)],
-];
+/**
+ * Куди дивиться камера — одне місце.
+ *
+ * Доти цю саму дію ділили троє: `movement` тримав точки, `main` — список
+ * пресетів під іншим ключем (`nameKey` замість `id`), а панель — четверту
+ * копію відповіді у `state.cam`. Половина станцій називала точку, якої в тому
+ * списку не було, і переліт мовчки підмінявся загальним видом: картка казала
+ * «Заведення», а камера показувала весь механізм.
+ */
+const focus = (() => {
+  let current = null;   // null = загальний вид
+
+  const worldOf = (f) => new THREE.Vector3(f.pos.x, f.pos.y, f.z).add(movement.root.position);
+
+  /** Точки, які хром сцени показує кнопками. */
+  const targets = () => movement.focusPoints.filter((f) => f.preset)
+    .map(({ id, nameKey }) => ({ id, nameKey }));
+
+  function overview() {
+    current = null;
+    userOrbited = false; // загальний вид повертає механізм у кадр і дозволяє підгонку
+    const vTan = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
+    const hTan = vTan * camera.aspect;
+    fly.flyTo(viewDir.clone().multiplyScalar((fitR / Math.min(vTan, hTan)) * 1.05), new THREE.Vector3());
+  }
+
+  /**
+   * Навести камеру на точку за її стабільним `id`.
+   *
+   * Невідомий id — помилка, а не тихий загальний вид: саме тиша й ховала те,
+   * що трьом станціям із шести не було куди летіти.
+   */
+  function goto(id) {
+    const f = movement.focusPoints.find((x) => x.id === id);
+    if (!f) throw new Error(`невідома точка фокуса: ${id}`);
+    current = id;
+    // Переліт до вузла зупиняє автопідгонку кадру: інакше ресайз (а
+    // перемикання режиму — це ресайз) відсмикнув би камеру від вузла.
+    userOrbited = true;
+    const target = worldOf(f);
+    fly.flyTo(target.clone().add(new THREE.Vector3(0, f.up, f.back)), target);
+  }
+
+  return { targets, goto, overview, get current() { return current; } };
+})();
 
 /** Одна ручка вузла з оголошення власника. */
 function addNode(folder, n) {
@@ -208,7 +231,10 @@ function buildGui() {
   guiVariant = movement.escapement.installed;
 
   const camF = gui.addFolder(t('gui.camera'));
-  for (const [key, fn] of CAMS) camF.add({ [key]: fn }, key).name(t(key));
+  camF.add({ f: () => focus.overview() }, 'f').name(t('cam.overview'));
+  for (const { id, nameKey } of focus.targets()) {
+    camF.add({ f: () => focus.goto(id) }, 'f').name(t(nameKey));
+  }
 
   gui.add({ lang: () => setLang(getLang() === 'ua' ? 'en' : 'ua') }, 'lang')
      .name(getLang() === 'ua' ? 'EN' : 'УКР');
@@ -248,15 +274,7 @@ const lesson = mountLesson({
   highlighter,
   escapement: movement.escapement,
   planned: PLANNED_IDS,
-  camera: {
-    presets: CAMS,
-    overview,
-    toKey: (key) => {
-      // Станція просить гніздо ('escapement'), а не конкретний варіант.
-      const k = key === 'escapement' ? escFocus.nameKey : key;
-      return (CAMS.find(([c]) => c === k)?.[1] ?? overview)();
-    },
-  },
+  camera: focus,
   settings,
   run: (action) => { if (action === 'wind') movement.winder.wind(); },
   // Кличеться з циклу рендеру, тому заповнює той самий об'єкт: читають його

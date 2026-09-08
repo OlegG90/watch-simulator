@@ -181,20 +181,31 @@ export function buildMovement({ brass, steel, axleMat, ruby, plateMat, bluedMat,
   // Кожна точка має стабільний `id` (за ним адресують станції й камера) і
   // `nameKey` (те, що читає користувач). Для більшості вони збігаються; у
   // гнізда спуску розходяться: id сталий, а назва йде за встановленим варіантом.
+  // Як на точку дивитись — каже сама точка. За замовчуванням відхід
+  // виводиться з її радіуса; де підібрано вручну, число стоїть поруч.
+  // `preset: true` — точка, яку хром сцени показує кнопкою.
+  const view = (r) => ({ back: r * 3.6 + 4, up: r * 0.6 });
+
   const focusPoints = [
     // Анкерний вузол окремо не підписуємо: це і є гніздо спуску — та сама вісь,
     // тож два підписи в одній точці накладалися б.
     ...arbors.filter((a) => !a.spec.escapeTeeth)
-      .map((a) => ({ id: a.nameKey, nameKey: a.nameKey, pos: a.pos, z: a.wheelZ, r: arborOuterR(a.spec, CAGE_R) })),
+      .map((a) => {
+        const r = arborOuterR(a.spec, CAGE_R);
+        return { id: a.nameKey, nameKey: a.nameKey, pos: a.pos, z: a.wheelZ, r, ...view(r) };
+      }),
     // Хром сцени (підпис, пресет камери, тумблер вузла) називає ГНІЗДО, а не
     // те, що в ньому стоїть: інакше після заміни всі троє лишилися б із
     // назвою попереднього варіанта, бо будуються один раз. Назва варіанта
     // з'являється там, де про нього справді йдеться — у картці й розрізі.
-    { id: 'escapement', nameKey: 'part.escapement', pos: cagePos, z: CAGE_ZBASE + 1.8, r: CAGE_R },
-    { id: 'part.hands', nameKey: 'part.hands', pos: mwL.P1, z: 10.0, r: 4.5 },
-    { id: 'part.winding', nameKey: 'part.winding', pos: windL.cwPos, z: 2.0, r: 4.5 },
-    { id: 'part.click', nameKey: 'part.click', pos: windL.clickPivot, z: windL.windZ, r: 1.4 },
-    { id: 'part.powerReserve', nameKey: 'part.powerReserve', pos: barrelPos, z: 8.6, r: 3.2 },
+    { id: 'escapement', nameKey: 'part.escapement', pos: cagePos, z: CAGE_ZBASE + 1.8, r: CAGE_R,
+      back: 15, up: 3, preset: true },
+    { id: 'part.hands', nameKey: 'part.hands', pos: mwL.P1, z: 10.0, r: 4.5,
+      back: 22, up: 4, preset: true },
+    { id: 'part.winding', nameKey: 'part.winding', pos: windL.cwPos, z: 2.0, r: 4.5, ...view(4.5) },
+    { id: 'part.click', nameKey: 'part.click', pos: windL.clickPivot, z: windL.windZ, r: 1.4, ...view(1.4) },
+    { id: 'part.powerReserve', nameKey: 'part.powerReserve', pos: barrelPos, z: 8.6, r: 3.2,
+      back: 13, up: 1, preset: true },
   ];
 
   // Вузли, які вільний режим показує й ховає цілком. Кожен оголошений тим,
