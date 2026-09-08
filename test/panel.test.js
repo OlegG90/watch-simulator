@@ -43,7 +43,7 @@ describe('панель уроку (jsdom)', () => {
     expect($('#card .placeholder').textContent).toBe(t('rail.empty'));
     // Порожня рейка: жодна станція ще не поточна.
     expect(screen().railCurrent).toBe(-1);
-    // «Назад» на старті вимкнена — і лишається такою на першій станції (#26).
+    // На самому старті «назад» нікуди — і лише тут кнопка вимкнена.
     expect($$('#card .nav button')[0].disabled).toBe(true);
   });
 
@@ -115,7 +115,26 @@ describe('панель уроку (jsdom)', () => {
     expect($('#section').innerHTML).not.toBe('');
   });
 
-  it('останній крок веде на підсумок, а «ще раз» повертає на першу станцію', () => {
+  it('зі станції 1 можна повернутися на початок, і зібране лишається', () => {
+    // Стартовий екран був дверима в один бік: кнопка «початок» стояла на
+    // місці, але вимкнена, і жоден шлях до нього не вів.
+    const { lesson, cam } = mountTestLesson();
+    lesson.go(0); lesson.go(1); lesson.go(0);
+
+    const back = $$('#card .nav button')[0];
+    expect(back.disabled).toBe(false);
+    expect(back.textContent).toBe(`← ${t('card.start')}`);
+
+    back.click();
+    expect(screen().railCurrent).toBe(-1);
+    expect($('#card .eyebrow').textContent).toBe(t('card.start').toUpperCase());
+    expect(cam.calls.at(-1)).toBe('overview');
+    // Повернення — не новий прохід: зібране лишається, і текст це визнає.
+    expect($$('#rail .bars i.on, #rail .bars i.now')).toHaveLength(2);
+    expect($('#card .placeholder').textContent).toBe(t('card.resume'));
+  });
+
+  it('останній крок веде на підсумок, а «ще раз» починає з початку', () => {
     const { lesson } = mountTestLesson();
     lesson.go(STATIONS.length - 1);
     btn('#card', t('card.summary')).click();
@@ -129,9 +148,13 @@ describe('панель уроку (jsdom)', () => {
     btn('#finish', t('finish.again')).click();
     const after = screen();
     expect(after.finishVisible).toBe(false);
-    expect(after.railCurrent).toBe(0);
-    // Пройдене скинуто: лишилася сама перша станція.
-    expect($$('#rail .bars i.on, #rail .bars i.now')).toHaveLength(1);
+    // Саме стартовий екран, а не перша станція: там стоїть речення, що
+    // пояснює весь маршрут, і воно потрібне тому, хто йде наново.
+    expect(after.railCurrent).toBe(-1);
+    expect($('#card .eyebrow').textContent).toBe(t('card.start').toUpperCase());
+    // Пройдене скинуто — і текст знову обіцяє порожнечу чесно.
+    expect($$('#rail .bars i.on, #rail .bars i.now')).toHaveLength(0);
+    expect($('#card .placeholder').textContent).toBe(t('rail.empty'));
   });
 
   it('вільний режим і назад не втрачають станцію', () => {
