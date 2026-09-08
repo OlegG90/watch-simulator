@@ -277,16 +277,28 @@ export function buildShowcase(opts = {}) {
   rim.position.z = 1.55;
   rim.castShadow = true;
   balancePivot.add(rim);
-  // Обід у демонстраційної моделі — низка золотих штифтів по колу (пор. фото).
-  const pinGeo = new THREE.CylinderGeometry(0.055, 0.055, 0.28, 10);
-  const PINS = 24;
-  for (let i = 0; i < PINS; i++) {
-    const a = (i / PINS) * Math.PI * 2;
-    const pin = new THREE.Mesh(pinGeo, brass);
-    pin.position.set(Math.cos(a) * 1.26, Math.sin(a) * 1.26, 1.55);
-    pin.rotation.z = a - Math.PI / 2; // вісь вздовж радіуса
-    pin.castShadow = true;
-    balancePivot.add(pin);
+  // Обід — дві половини штифтів: у кожному півколі групи по 2, 3, 4 штифти
+  // з відступом між групами (пор. демонстраційну модель). Кожна половина
+  // центрується у своєму півколі, тож стик півколів лишається вільним.
+  const pinGeo = new THREE.CylinderGeometry(0.055, 0.055, 0.14, 10);
+  const groupSizes = [2, 3, 4];
+  const pitch = 0.16; // крок усередині групи
+  const gap = 0.5;    // відступ між групами
+  const totalPins = groupSizes.reduce((s, n) => s + n, 0);
+  const span = (totalPins - 1) * pitch + (groupSizes.length - 1) * gap;
+  for (const start of [0, Math.PI]) {
+    let a = start + (Math.PI - span) / 2;
+    for (const n of groupSizes) {
+      for (let i = 0; i < n; i++) {
+        const pin = new THREE.Mesh(pinGeo, brass);
+        pin.position.set(Math.cos(a) * 1.22, Math.sin(a) * 1.22, 1.55);
+        pin.rotation.z = a - Math.PI / 2; // вісь вздовж радіуса
+        pin.castShadow = true;
+        balancePivot.add(pin);
+        a += pitch;
+      }
+      a += gap;
+    }
   }
   for (const a of [0, Math.PI / 2]) {
     const spoke = new THREE.Mesh(new THREE.BoxGeometry(2.05, 0.15, 0.15), brass);
