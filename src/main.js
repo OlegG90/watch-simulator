@@ -129,12 +129,9 @@ function fitCamera() {
 const settings = createSettings();
 const params = settings.values;
 let gui = null;
+let guiVariant = null;  // з яким модулем спуску побудовано панель вузлів
 let uiMode = 'lesson'; // панель вільного режиму схована, поки триває урок
 const powerUI = { power: 75 };
-const mwVis = { hands: true, winding: true };
-// Поруч із mwVis, а не всередині buildGui(): зміна мови будує панель наново,
-// і локальний стан розійшовся б із тим, що вже застосовано до мешів.
-const tourbillonVis = { cageOpacity: 1.0, topPlate: true };
 // Анкерний вузол — це і є кліть турбійона (кліть сидить на його осі), тож у
 // списку він один раз, під назвою «Турбійон»: тумблер ховає весь вузол разом
 // із кліттю. Нерухоме колесо стоїть окремо в сцені, баланс — усередині кліті.
@@ -163,6 +160,16 @@ const CAMS = [
   [escFocus.nameKey, () => goto(worldOf(escFocus.nameKey), 15, 3)],
 ];
 
+/** Одна ручка вузла з оголошення власника. */
+function addNode(folder, n) {
+  const c = n.kind === 'range'
+    ? folder.add(n.obj, n.prop, n.min, n.max, n.step)
+    : folder.add(n.obj, n.prop);
+  c.name(t(n.labelKey));
+  if (n.onChange) c.onChange(n.onChange);
+  return c;
+}
+
 /** Одна ручка з таблиці налаштувань: вид, межі й підпис — усе звідти. */
 function addParam(gui, name) {
   const s = settings.spec(name);
@@ -187,20 +194,18 @@ function buildGui() {
   gui.add(powerUI, 'power', 0, 100, 1).name(t('gui.charge')).listen().disable();
   gui.add(labels, 'visible').name(t('gui.labels'));
 
+  // Вузли: осі передачі, далі те, що оголосив сам механізм, далі ручки
+  // ВСТАНОВЛЕНОГО модуля спуску. Панель не називає жодного варіанта — доти
+  // вона тримала тумблери турбійона й показувала його деталі поряд із
+  // анкерним спуском, хоч у механізмі стоїть рівно один модуль.
   const nodes = gui.addFolder(t('gui.nodes'));
   for (const a of movement.arbors) {
     if (a !== cageArbor) nodes.add(a.group, 'visible').name(t(a.nameKey));
   }
   nodes.add(cageArbor.group, 'visible').name(t(escFocus.nameKey));
-  nodes.add(movement.tourbillon.fixed, 'visible').name(t('part.fixedWheel'));
-  nodes.add(movement.tourbillon.balance, 'visible').name(t('part.balance'));
-  nodes.add(tourbillonVis, 'cageOpacity', 0.15, 1.0, 0.05).name(t('gui.cageOpacity')).onChange((v) => movement.tourbillon.setCageOpacity(v));
-  nodes.add(tourbillonVis, 'topPlate').name(t('gui.cageTopPlate')).onChange((v) => movement.tourbillon.setTopPlateVisible(v));
-  nodes.add(mwVis, 'hands').name(t('gui.handsAndMotionWorks')).onChange((v) => {
-    for (const g of Object.values(movement.motionWorks)) g.visible = v;
-  });
-  nodes.add(mwVis, 'winding').name(t('part.winding')).onChange((v) => (movement.winder.group.visible = v));
-  nodes.add(movement.powerReserve.group, 'visible').name(t('part.powerReserve'));
+  for (const n of movement.escapement.nodes()) addNode(nodes, n);
+  for (const n of movement.nodes) addNode(nodes, n);
+  guiVariant = movement.escapement.installed;
 
   const camF = gui.addFolder(t('gui.camera'));
   for (const [key, fn] of CAMS) camF.add({ [key]: fn }, key).name(t(key));
@@ -270,7 +275,13 @@ const lesson = mountLesson({
     // прочитав при створенні. Без цього ручка, зрушена на картці станції,
     // лишала б у вільному режимі старе число — при живому механізмі, що вже
     // йде за новим.
-    if (mode === 'free') for (const c of gui.controllersRecursive()) c.updateDisplay();
+    // Панель вузлів будується під встановлений модуль спуску, тож після заміни
+    // її треба зібрати наново. Інакше — оновити показ: lil-gui показує те, що
+    // прочитав при створенні, а ручку могли зрушити на картці станції.
+    if (mode === 'free') {
+      if (guiVariant !== movement.escapement.installed) buildGui();
+      else for (const c of gui.controllersRecursive()) c.updateDisplay();
+    }
     // Підписи-спрайти мають сталий світовий розмір: зблизька вони закривають
     // сам вузол. В уроці станцію називає картка, тож підписи ховаємо —
     // у вільному режимі вони повертаються такими, як були.

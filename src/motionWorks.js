@@ -220,7 +220,14 @@ export function buildMotionWorks({ brass, steel, axleMat, bluedMat }, L, arbors,
     tagModule(o, 'motionWorks');
   }
 
+  // Вимикач вузла: групи сидять на різних осях, тож спільного `group` немає,
+  // а шість імен назовні були б інтерфейсом заради одного тумблера.
+  const view = { visible: true };
+  const shown = [cannonSub, mwArbor, hourGroup, csDriveGear, csIdlerGroup, centralSecondsGroup];
+  const setVisible = (v) => { for (const g of shown) g.visible = v; };
+
   return {
+    view, setVisible,
     cannonSub, mwArbor, hourGroup, csDriveGear, csIdlerGroup, centralSecondsGroup,
     handRefs, update, resetHands, setHandAngles,
   };

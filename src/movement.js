@@ -197,23 +197,28 @@ export function buildMovement({ brass, steel, axleMat, ruby, plateMat, bluedMat,
     { id: 'part.powerReserve', nameKey: 'part.powerReserve', pos: barrelPos, z: 8.6, r: 3.2 },
   ];
 
+  // Вузли, які вільний режим показує й ховає цілком. Кожен оголошений тим,
+  // кому належить: композитор більше не перевидає шість внутрішніх груп
+  // назовні заради одного тумблера.
+  const nodes = [
+    { kind: 'flag', labelKey: 'gui.handsAndMotionWorks',
+      obj: motionWorks.view, prop: 'visible', onChange: motionWorks.setVisible },
+    { kind: 'flag', labelKey: 'part.winding', obj: winder.group, prop: 'visible' },
+    { kind: 'flag', labelKey: 'part.powerReserve', obj: powerReserve.group, prop: 'visible' },
+  ];
+
   return {
-    root, arbors, update, setTime, setClockTime, escapement, size, focusPoints, winder,
-    get tourbillon() { return escapement.variant('tourbillon').api; },
-    bounds: { minX, maxX, minY, maxY, cx, cy, plateR },
-    centralSeconds: {
-      drive: motionWorks.csDriveGear,
-      idler: motionWorks.csIdlerGroup,
-      center: motionWorks.centralSecondsGroup,
+    root, arbors, update, setTime, setClockTime, escapement, size, focusPoints, winder, nodes,
+    /**
+     * Внутрішні меші — ТІЛЬКИ для перевірок.
+     *
+     * Названо так навмисно: доти вони стояли в інтерфейсі поряд зі справжніми
+     * членами, і будь-яке перегрупування всередині ламало тести, які нібито
+     * описують поведінку. Тут видно, що це не інтерфейс.
+     */
+    internals: {
+      bounds: { minX, maxX, minY, maxY, cx, cy, plateR },
+      motionWorks, powerReserve,
     },
-    motionWorks: {
-      cannonSub: motionWorks.cannonSub,
-      mwArbor: motionWorks.mwArbor,
-      hourGroup: motionWorks.hourGroup,
-      csDriveGear: motionWorks.csDriveGear,
-      csIdlerGroup: motionWorks.csIdlerGroup,
-      centralSecondsGroup: motionWorks.centralSecondsGroup,
-    },
-    powerReserve,
   };
 }

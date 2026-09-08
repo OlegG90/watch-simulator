@@ -113,6 +113,8 @@ The escapement is a **socket** holding exactly one module at a time. Whatever is
 
 The beat maths lives once, in `escapement/beat.js`, and a module only maps that phase onto its own geometry. `β` is therefore physically one, and identical timing cannot be broken by accident.
 
+A module hands the socket `{ rotating, fixed, update() → β, nodes }` and nothing else. `nodes` are its own controls for the free-mode panel — the lever offers escape wheel, pallet fork and balance; the tourbillon offers fixed wheel, balance, cage opacity and top plate. The panel asks the socket for the **installed** module's controls and never names a variant, so it cannot show one module's parts beside another's.
+
 | | parts | of them moving | nested rotations | footprint (r × h) |
 |---|---|---|---|---|
 | Lever escapement | 18 | 16 | 1 | 4.73 × 2.95 |

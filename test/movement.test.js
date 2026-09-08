@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { buildMovement, CAGE_R } from '../src/movement.js';
 import { buildEscapementSocket } from '../src/escapement/index.js';
 import { BALANCE_OFF, BALANCE_R } from '../src/escapement/lever.js';
+import { dictKeys } from '../src/i18n.js';
 
 // ── Хелпери ───────────────────────────────────────────────────────
 const TWO = Math.PI * 2;
@@ -25,6 +26,15 @@ function meshInvariant(posA, posB, ZA, ZB, RA, RB) {
   const e = mod(u + v, 1);
   return Math.min(e, 1 - e);
 }
+
+/**
+ * Нутрощі турбійона — для перевірок.
+ *
+ * Гніздо віддає назовні лише `{ rotating, fixed, update, nodes }`; меші
+ * варіанта живуть за окремими дверима, названими так, щоб їх не сплутали з
+ * інтерфейсом. Перевірки ходу спуску мусять їх бачити — але через ці двері.
+ */
+const tb = (m) => m.escapement.variant('tourbillon').internals;
 
 /** Світовий кут навколо Z: сума rotation.z по ланцюгу до root (усі обертання тут — навколо Z). */
 const worldZ = (obj, root) => { let z = 0, o = obj; while (o && o !== root) { z += o.rotation.z; o = o.parent; } return z; };
@@ -75,15 +85,15 @@ describe('спуск (tourbillon escapement)', () => {
   it('баланс (у кліті): амплітуда на пів-ударі, нуль на ударі', () => {
     const A = (params.amplitude * Math.PI) / 180;
     m.setTime(0.5 * Tb, params);
-    expect(m.tourbillon.balance.rotation.z).toBeCloseTo(A, 9);
+    expect(tb(m).balance.rotation.z).toBeCloseTo(A, 9);
     m.setTime(1.0 * Tb, params);
-    expect(m.tourbillon.balance.rotation.z).toBeCloseTo(0, 9);
+    expect(tb(m).balance.rotation.z).toBeCloseTo(0, 9);
   });
 
   it('вилка (у кліті) чергується ±0.14 рад у спокоях', () => {
-    m.setTime(0.5 * Tb, params); const f0 = m.tourbillon.fork.rotation.z;
-    m.setTime(1.5 * Tb, params); const f1 = m.tourbillon.fork.rotation.z;
-    m.setTime(2.5 * Tb, params); const f2 = m.tourbillon.fork.rotation.z;
+    m.setTime(0.5 * Tb, params); const f0 = tb(m).fork.rotation.z;
+    m.setTime(1.5 * Tb, params); const f1 = tb(m).fork.rotation.z;
+    m.setTime(2.5 * Tb, params); const f2 = tb(m).fork.rotation.z;
     expect(Math.abs(f0)).toBeCloseTo(0.14, 9);
     expect(f1).toBeCloseTo(-f0, 9);
     expect(f2).toBeCloseTo(f0, 9);
@@ -103,7 +113,7 @@ describe('турбійон (tourbillon cage)', () => {
 
   it('кліть = arbor4.group і обертається на θ_cage (12 с/оберт при 2.5 уд/с)', () => {
     // Кліть — той самий вузол, що arbor4 (несе триб, що меншить секундне колесо).
-    expect(m.tourbillon.cage.parent).toBe(m.arbors[4].group);
+    expect(tb(m).cage.parent).toBe(m.arbors[4].group);
     m.setTime(0, params); const c0 = m.arbors[4].group.rotation.z;
     m.setTime(60, params); const c1 = m.arbors[4].group.rotation.z;
     expect(60 / (Math.abs(c1 - c0) / TWO)).toBeCloseTo(12, 4);
@@ -112,18 +122,18 @@ describe('турбійон (tourbillon cage)', () => {
   it('нерухоме колесо стоїть на місці, поки кліть обертається', () => {
     const f = buildFresh();
     f.escapement.install('tourbillon');
-    const fixedR0 = f.tourbillon.fixed.rotation.z;
+    const fixedR0 = tb(f).fixed.rotation.z;
     f.setTime(0, params); const cage0 = f.arbors[4].group.rotation.z;
     f.setTime(30, params); const cage1 = f.arbors[4].group.rotation.z;
-    expect(f.tourbillon.fixed.rotation.z).toBe(fixedR0); // нерухоме = не крутиться
+    expect(tb(f).fixed.rotation.z).toBe(fixedR0); // нерухоме = не крутиться
     expect(cage1).not.toBe(cage0);                        // кліть крутиться
   });
 
   it('анкерне колесо обкочується навколо нерухомого (Zf=Zp → відносно кліті = β)', () => {
     const b0 = m.setTime(0.55 * (1 / params.beatHz), params);
-    const e0 = m.tourbillon.escSub.rotation.z;
+    const e0 = tb(m).escSub.rotation.z;
     const b1 = m.setTime(1.55 * (1 / params.beatHz), params);
-    const e1 = m.tourbillon.escSub.rotation.z;
+    const e1 = tb(m).escSub.rotation.z;
     // Кут анкерного колеса відносно кліті дорівнює θ_cage (β) — Zf=Zp.
     expect(e1 - e0).toBeCloseTo(b1 - b0, 9);
   });
@@ -131,7 +141,7 @@ describe('турбійон (tourbillon cage)', () => {
   it('спіраль дихає в тій самій геометрії: вершини рухаються, буфер той самий', () => {
     const f = buildFresh();
     f.escapement.install('tourbillon');
-    const hair = f.tourbillon.hairGroup.children[0];
+    const hair = tb(f).hairGroup.children[0];
     // Моменти навмисно НЕ симетричні відносно піку балансу: при u і 1−u
     // амплітуда однакова, і спіраль правомірно стояла б на місці.
     f.setTime(0.05, params); // u = 0.125
@@ -153,7 +163,7 @@ describe('турбійон (tourbillon cage)', () => {
     const f = buildFresh();
     f.escapement.install('tourbillon');
     const RADIAL = 8, VROW = RADIAL + 1, HAIR_R = 0.034;
-    const pos = f.tourbillon.hairGroup.children[0].geometry.attributes.position;
+    const pos = tb(f).hairGroup.children[0].geometry.attributes.position;
     const rings = pos.count / VROW;
     for (const t of [0, 0.13, 0.27, 0.41]) {
       f.setTime(t, params);
@@ -263,7 +273,7 @@ describe('гніздо спуску (escapement socket)', () => {
 
   it('баланс у всіх варіантів однакового розміру — заради чистого порівняння', () => {
     const f = buildFresh();
-    const radii = f.escapement.ids.map((id) => f.escapement.variant(id).api.balR);
+    const radii = f.escapement.ids.map((id) => f.escapement.variant(id).internals.balR);
     for (const r of radii) expect(r).toBe(radii[0]);
   });
 
@@ -277,9 +287,53 @@ describe('гніздо спуску (escapement socket)', () => {
       return 60 / (Math.abs(a1 - a0) / TWO);
     };
     f.escapement.install('lever');
-    expect(absPeriod(f.escapement.variant('lever').api.escWheel)).toBeCloseTo(12, 4);
+    expect(absPeriod(f.escapement.variant('lever').internals.escWheel)).toBeCloseTo(12, 4);
     f.escapement.install('tourbillon');
-    expect(absPeriod(f.escapement.variant('tourbillon').api.escSub)).toBeCloseTo(6, 4);
+    expect(absPeriod(f.escapement.variant('tourbillon').internals.escSub)).toBeCloseTo(6, 4);
+  });
+
+  it('ручки вузлів адресують ЛИШЕ встановлений модуль', () => {
+    // Доти панель вільного режиму зверталася до турбійона на імʼя: при
+    // встановленому анкерному спуску галочка «Баланс» вмикала баланс
+    // прихованого турбійона — два спуски в механізмі, де завжди рівно один.
+    const f = buildFresh();
+    for (const id of f.escapement.ids) {
+      f.escapement.install(id);
+      const v = f.escapement.variant(id);
+      const own = new Set();
+      for (const root of [v.rotating, v.fixed]) root.traverse((o) => own.add(o));
+      for (const n of f.escapement.nodes()) {
+        if (!n.obj.isObject3D) continue;           // прозорість кліті — не меш
+        expect(own.has(n.obj), `${id} / ${n.labelKey}`).toBe(true);
+      }
+    }
+  });
+
+  it('усі ручки вузлів увімкнені — чужий модуль однаково не видно', () => {
+    const f = buildFresh();
+    const visible = (o) => { for (let p = o; p; p = p.parent) if (!p.visible) return false; return true; };
+    for (const id of f.escapement.ids) {
+      f.escapement.install(id);
+      for (const n of f.escapement.nodes()) if (n.kind === 'flag') n.obj[n.prop] = true;
+      for (const other of f.escapement.ids) {
+        if (other === id) continue;
+        const v = f.escapement.variant(other);
+        let shown = 0;
+        for (const root of [v.rotating, v.fixed]) root.traverse((o) => { if (o.isMesh && visible(o)) shown++; });
+        expect(shown, `при ${id} видно меші ${other}`).toBe(0);
+      }
+    }
+  });
+
+  it('кожен модуль спуску має власні ручки, і всі вони перекладені', () => {
+    const f = buildFresh();
+    const keys = new Set(dictKeys('ua'));
+    for (const id of f.escapement.ids) {
+      f.escapement.install(id);
+      const nodes = f.escapement.nodes();
+      expect(nodes.length, `варіант ${id} без жодної ручки`).toBeGreaterThan(0);
+      for (const n of nodes) expect(keys, `${id} / ${n.labelKey}`).toContain(n.labelKey);
+    }
   });
 
   it('ціна складності виміряна, а не вписана: деталі рахуються обходом', () => {
@@ -345,24 +399,24 @@ describe('гніздо спуску (escapement socket)', () => {
 // ── Моторний механізм і центральна секунда ────────────────────────
 describe('моторний механізм + центральна секунда', () => {
   it('годинна вісь = центральне колесо / 12, той самий напрям', () => {
-    m.update(0); const c0 = m.arbors[1].group.rotation.z, h0 = m.motionWorks.hourGroup.rotation.z;
-    m.update(3); const c1 = m.arbors[1].group.rotation.z, h1 = m.motionWorks.hourGroup.rotation.z;
+    m.update(0); const c0 = m.arbors[1].group.rotation.z, h0 = m.internals.motionWorks.hourGroup.rotation.z;
+    m.update(3); const c1 = m.arbors[1].group.rotation.z, h1 = m.internals.motionWorks.hourGroup.rotation.z;
     expect((h1 - h0) / (c1 - c0)).toBeCloseTo(1 / 12, 12);
   });
 
   it('центральна секунда : хвилинна вісь = 60', () => {
-    m.update(0); const s0 = m.centralSeconds.center.rotation.z, c0 = m.arbors[1].group.rotation.z;
-    m.update(1); const s1 = m.centralSeconds.center.rotation.z, c1 = m.arbors[1].group.rotation.z;
+    m.update(0); const s0 = m.internals.motionWorks.centralSecondsGroup.rotation.z, c0 = m.arbors[1].group.rotation.z;
+    m.update(1); const s1 = m.internals.motionWorks.centralSecondsGroup.rotation.z, c1 = m.arbors[1].group.rotation.z;
     expect((s1 - s0) / (c1 - c0)).toBeCloseTo(60, 10);
   });
 
   it('інваріанти моторних пар (12→36, 10→40) = 0', () => {
     const P1 = m.arbors[1].pos;
-    const mw = m.motionWorks.mwArbor.position;
+    const mw = m.internals.motionWorks.mwArbor.position;
     for (const drive of [0, 1.7]) {
       m.update(drive);
-      const e1 = meshInvariant(P1, mw, 12, 36, m.arbors[1].group.rotation.z, m.motionWorks.mwArbor.rotation.z);
-      const e2 = meshInvariant(mw, P1, 10, 40, m.motionWorks.mwArbor.rotation.z, m.motionWorks.hourGroup.rotation.z);
+      const e1 = meshInvariant(P1, mw, 12, 36, m.arbors[1].group.rotation.z, m.internals.motionWorks.mwArbor.rotation.z);
+      const e2 = meshInvariant(mw, P1, 10, 40, m.internals.motionWorks.mwArbor.rotation.z, m.internals.motionWorks.hourGroup.rotation.z);
       expect(e1).toBeLessThan(1e-9);
       expect(e2).toBeLessThan(1e-9);
     }
@@ -370,11 +424,11 @@ describe('моторний механізм + центральна секунд�
 
   it('інваріанти пар центральної секунди (48→20, 20→8) = 0', () => {
     const P3 = m.arbors[3].pos, P1 = m.arbors[1].pos;
-    const idler = m.centralSeconds.idler.position;
+    const idler = m.internals.motionWorks.csIdlerGroup.position;
     for (const drive of [0, 0.9]) {
       m.update(drive);
-      const e1 = meshInvariant(P3, idler, 48, 20, m.arbors[3].group.rotation.z, m.centralSeconds.idler.rotation.z);
-      const e2 = meshInvariant(idler, P1, 20, 8, m.centralSeconds.idler.rotation.z, m.centralSeconds.center.rotation.z);
+      const e1 = meshInvariant(P3, idler, 48, 20, m.arbors[3].group.rotation.z, m.internals.motionWorks.csIdlerGroup.rotation.z);
+      const e2 = meshInvariant(idler, P1, 20, 8, m.internals.motionWorks.csIdlerGroup.rotation.z, m.internals.motionWorks.centralSecondsGroup.rotation.z);
       expect(e1).toBeLessThan(1e-9);
       expect(e2).toBeLessThan(1e-9);
     }
@@ -388,12 +442,12 @@ describe('реальний час (setClockTime)', () => {
   it('стрілки стають точно на годинникові кути; кліть зчеплена', () => {
     const phi4 = m.arbors[4].phi;
     for (const [hh, mm, ss, beatT] of [[3, 0, 0, 0.4], [9, 0, 30, 12.6], [12, 30, 15, 101.9], [6, 45, 52, 250.3]]) {
-      const beta = m.tourbillon.update(beatT, params.beatHz, params.amplitude);
+      const beta = tb(m).update(beatT, params.beatHz, params.amplitude);
       m.setClockTime(new Date(2026, 0, 1, hh, mm, ss, 0), beatT, params);
       const su = ss / 60, mu = (mm + su) / 60, hu = ((hh % 12) + mu) / 12;
-      expect(wrap(worldZ(findHand(m.centralSeconds.center), m.root) - clockAngle(su))).toBeCloseTo(0, 9);
-      expect(wrap(worldZ(findHand(m.motionWorks.cannonSub), m.root) - clockAngle(mu))).toBeCloseTo(0, 9);
-      expect(wrap(worldZ(findHand(m.motionWorks.hourGroup), m.root) - clockAngle(hu))).toBeCloseTo(0, 9);
+      expect(wrap(worldZ(findHand(m.internals.motionWorks.centralSecondsGroup), m.root) - clockAngle(su))).toBeCloseTo(0, 9);
+      expect(wrap(worldZ(findHand(m.internals.motionWorks.cannonSub), m.root) - clockAngle(mu))).toBeCloseTo(0, 9);
+      expect(wrap(worldZ(findHand(m.internals.motionWorks.hourGroup), m.root) - clockAngle(hu))).toBeCloseTo(0, 9);
       expect(m.arbors[4].group.rotation.z - phi4 - beta).toBeCloseTo(0, 9); // кліть = phi4 + β
     }
   });
@@ -491,7 +545,7 @@ describe('запас ходу (power reserve differential)', () => {
 
   it('кут водила-стрілки: α(c) = α₀ + (α₁−α₀)·c', () => {
     const f = buildFresh();
-    const { hand, emptyAngle, fullAngle } = f.powerReserve;
+    const { hand, emptyAngle, fullAngle } = f.internals.powerReserve;
     const expectAt = (c) => emptyAngle + (fullAngle - emptyAngle) * c;
     expect(hand.rotation.z).toBeCloseTo(expectAt(0.75), 9); // початковий заряд
     f.winder.wind(); // 0.75 + 0.375 → кламп на 1 (упор)
@@ -502,13 +556,13 @@ describe('запас ходу (power reserve differential)', () => {
   it('стрілка монотонно йде до «порожньо» під час ходу', () => {
     const f = buildFresh();
     const angles = [];
-    for (let i = 0; i < 5; i++) { angles.push(f.powerReserve.hand.rotation.z); f.setTime(15 * (i + 1), params); }
+    for (let i = 0; i < 5; i++) { angles.push(f.internals.powerReserve.hand.rotation.z); f.setTime(15 * (i + 1), params); }
     for (let i = 1; i < angles.length; i++) expect(angles[i]).toBeGreaterThan(angles[i - 1]); // до PR_EMPTY (150°)
   });
 
   it('умова диференціала: Δводило = (ΔS_up + ΔS_low)/2 при заведенні й ході', () => {
     const f = buildFresh();
-    const pr = f.powerReserve;
+    const pr = f.internals.powerReserve;
     const snap = () => ({ u: pr.sunUp.rotation.z, l: pr.sunLow.rotation.z, c: pr.hand.rotation.z });
     const s0 = snap();
     f.winder.wind(); for (let i = 0; i < 100; i++) f.winder.update(0.02); // часткове заведення
@@ -521,7 +575,7 @@ describe('запас ходу (power reserve differential)', () => {
 
   it('нижнє сонце нерухоме при заведенні; верхнє — при ході', () => {
     const f = buildFresh();
-    const pr = f.powerReserve;
+    const pr = f.internals.powerReserve;
     const low0 = pr.sunLow.rotation.z;
     f.winder.wind(); for (let i = 0; i < 100; i++) f.winder.update(0.02);
     expect(pr.sunLow.rotation.z).toBe(low0);          // барабан тримає передача
@@ -533,7 +587,7 @@ describe('запас ходу (power reserve differential)', () => {
 
   it('інваріанти зачеплень шляху ходу = 0 (маточинне→компаунд→трубка сонця)', () => {
     const f = buildFresh();
-    const pr = f.powerReserve;
+    const pr = f.internals.powerReserve;
     const A0 = f.arbors[0].pos; // диференціал коаксіальний з барабаном
     const I = { x: pr.group.position.x + pr.idler.position.x, y: pr.group.position.y + pr.idler.position.y };
     // Кілька станів: заведення + хід.
@@ -551,7 +605,7 @@ describe('запас ходу (power reserve differential)', () => {
 
   it('реальний час = автопідзавод: стрілка запасу ходу стоїть, храповик докручується', () => {
     const f = buildFresh();
-    const pr = f.powerReserve;
+    const pr = f.internals.powerReserve;
     const hand0 = pr.hand.rotation.z;
     const ratchet0 = f.winder.ratchet.rotation.z;
     f.setClockTime(new Date(2026, 0, 1, 3, 0, 0), 0.5, params);
@@ -564,7 +618,7 @@ describe('запас ходу (power reserve differential)', () => {
 // ── Компоновка ────────────────────────────────────────────────────
 describe('компоновка (layout)', () => {
   it('усі точки фокуса всередині платини', () => {
-    const { cx, cy, plateR } = m.bounds;
+    const { cx, cy, plateR } = m.internals.bounds;
     for (const fp of m.focusPoints) {
       expect(Math.hypot(fp.pos.x - cx, fp.pos.y - cy) + Math.min(fp.r, 3.8)).toBeLessThan(plateR + 1e-6);
     }
