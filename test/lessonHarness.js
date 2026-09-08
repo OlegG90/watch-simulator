@@ -51,11 +51,18 @@ export function mountTestLesson({ lang = 'ua' } = {}) {
 
   const lesson = mountLesson({
     highlighter,
+    // Камера підроблена — летіти без рендерера нема чим, — але з тим самим
+    // інтерфейсом: точки бере з механізму, невідомий id кидає.
     camera: {
-      presets: [['cam.overview', () => cam.calls.push('overview')],
-                ['part.balance', () => cam.calls.push('part.balance')]],
+      targets: () => movement.focusPoints.filter((f) => f.preset)
+        .map(({ id, nameKey }) => ({ id, nameKey })),
+      goto: (id) => {
+        if (!movement.focusPoints.some((f) => f.id === id)) throw new Error(`невідома точка фокуса: ${id}`);
+        cam.calls.push(id);
+        cam.key = id;
+      },
       overview: () => { cam.calls.push('overview'); cam.key = null; },
-      toKey: (key) => { cam.calls.push(key); cam.key = key; },
+      get current() { return cam.key; },
     },
     status: () => {
       statusOut.speed = params.speed;
