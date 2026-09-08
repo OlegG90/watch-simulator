@@ -91,10 +91,13 @@ export function makeEscapeWheel({ teeth, outerR, rootR, thickness, bore, crossin
   for (let i = 0; i < teeth; i++) {
     const a0 = i * step;
     if (i === 0) shape.moveTo(...p(outerR, a0));
-    else shape.lineTo(...p(outerR, a0)); // вістря (завершує похилу спинку попереднього зубця)
-    shape.lineTo(...p(rootR, a0 + 0.14 * step)); // запірна грань — стрімка
-    shape.lineTo(...p(rootR * 0.96, a0 + 0.42 * step)); // легка западина
-    shape.lineTo(...p(rootR, a0 + 0.72 * step)); // початок похилої спинки
+    else shape.lineTo(...p(outerR, a0)); // вістря (завершує довгу спинку попереднього зубця)
+    // Запірна грань підрізана під вістря: корінь позаду за ходом (колесо крутиться
+    // проти годинникової), тож вістря нависає й грань читається як кромка, на яку
+    // сідає палета. Без нахилу замок губиться: зубець виглядає симетричним.
+    shape.lineTo(...p(rootR, a0 - 0.22 * step)); // запірна грань — з нахилом у бік ходу
+    shape.lineTo(...p(rootR * 0.96, a0 + 0.34 * step)); // западина
+    shape.lineTo(...p(rootR, a0 + 0.66 * step)); // початок довгої спинки
   }
   shape.closePath();
 

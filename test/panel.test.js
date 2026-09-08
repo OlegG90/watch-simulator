@@ -221,6 +221,24 @@ describe('панель уроку (jsdom)', () => {
     expect(screen().cardTitle).toBe(t(STATIONS[2].nameKey));
   });
 
+  it('вітрина — третій режим: сцена сама, назад — без втрати станції', () => {
+    const { lesson } = mountTestLesson();
+    lesson.go(2);
+    lesson.setMode('showcase');
+    expect($('#ui').classList.contains('mode-showcase')).toBe(true);
+    expect($('#ui').classList.contains('mode-free')).toBe(false);
+    expect($('#to-lesson').hidden).toBe(false);
+
+    lesson.setMode('lesson');
+    expect(screen().railCurrent).toBe(2);
+    expect(screen().cardTitle).toBe(t(STATIONS[2].nameKey));
+  });
+
+  it('setMode кидає на невідомому режимі, а не мовчить', () => {
+    const { lesson } = mountTestLesson();
+    expect(() => lesson.setMode('нема-такого')).toThrow();
+  });
+
   it('перемикання мови перемальовує весь екран', () => {
     const { lesson } = mountTestLesson();
     lesson.go(1);
