@@ -1,7 +1,9 @@
 import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
 import { readFileSync, readdirSync } from 'node:fs';
-import { buildShowcase, TEETH, WHEEL_R, FORK_D, BAL_D, WHEEL_LOCK_PHASE } from '../src/showcase/leverModel.js';
+import { buildShowcase, TEETH, WHEEL_R, FORK_D, BAL_D, WHEEL_LOCK_PHASE, JEWEL_GEOM } from '../src/showcase/leverModel.js';
+import { wheelAngle, forkAngle, balanceAngle, phaseName, activePallet, FORK_MAX, AMPLITUDE } from '../src/showcase/motion.js';
+import { buildSpring, SPRING_N, SPRING_R0, SPRING_R1 } from '../src/showcase/spring.js';
 
 const noNaN = (root) => {
   let ok = true;
@@ -56,32 +58,53 @@ describe('вітрина анкерного спуску (геометрія)', 
     expect(m.balancePivot.position.y).toBeCloseTo(0, 12);
   });
 
-  it('у посадці вістря стоїть на запірній грані вхідної палети', () => {
-    // Той самий скан, що дав WHEEL_LOCK_PHASE, — як гард: з нульовою фазою
-    // вістря стоїть на півкроку повз камінь, і цей тест червоніє.
+  it('у замках вістря стоїть на грані активної палети — вхідному й вихідному', () => {
+    // Той самий мінімакс, що дав WHEEL_LOCK_PHASE і посадку вихідної, —
+    // як гард: вихідний замок міряється на δ + півзубця, бо колесо між
+    // замками просувається. Саботаж: нульова фаза або дзеркальна вихідна
+    // (грань від зубців) — і цей тест червоніє.
     const m = buildShowcase();
-    m.group.updateMatrixWorld(true);
-    const stone = byPallet(m, 'entry')[0];
-    // Контакт — у площині колеса: Z тут ні до чого (камінь товщий за колесо
-    // й виступає над ним), тож міряємо в XY, як скан, що дав фазу.
-    const l2w = (x, y) => {
+    const l2w = (stone, x, y) => {
       const v = new THREE.Vector3(x, y, 0).applyMatrix4(stone.matrixWorld);
       return new THREE.Vector2(v.x, v.y);
     };
-    const A = l2w(-0.17, -0.31), B = l2w(-0.17 + Math.tan(10 * Math.PI / 180) * 0.62, 0.31);
-    const segDist = (p) => {
-      const ab = B.clone().sub(A);
-      const t = Math.max(0, Math.min(1, p.clone().sub(A).dot(ab) / ab.lengthSq()));
-      return p.clone().sub(A.clone().add(ab.multiplyScalar(t))).length();
-    };
     const STEP = (Math.PI * 2) / TEETH;
-    let best = Infinity;
-    for (let i = 0; i < TEETH; i++) {
-      const a = m.wheelPivot.rotation.z + i * STEP;
-      best = Math.min(best, segDist(new THREE.Vector2(1.5 * Math.cos(a), 1.5 * Math.sin(a))));
+    for (const [u, face] of [[0.5, 'entry'], [1.5, 'exit'], [2.5, 'entry']]) {
+      m.update(u);
+      m.group.updateMatrixWorld(true);
+      const stone = byPallet(m, face)[0];
+      const w = JEWEL_GEOM.w / 2, h = JEWEL_GEOM.h / 2;
+      const A = l2w(stone, -w, -h), B = l2w(stone, -w + JEWEL_GEOM.lean, h);
+      const ab = B.clone().sub(A);
+      const len2 = ab.lengthSq();
+      let best = Infinity;
+      for (let i = 0; i < TEETH; i++) {
+        const a = m.wheelPivot.rotation.z + i * STEP;
+        const p = new THREE.Vector2(1.5 * Math.cos(a), 1.5 * Math.sin(a));
+        const t = Math.max(0, Math.min(1, p.clone().sub(A).dot(ab) / len2));
+        best = Math.min(best, p.clone().sub(A.clone().addScaledVector(ab, t)).length());
+      }
+      expect(best, `замок ${face}@${u}`).toBeLessThan(0.01);
     }
-    expect(best).toBeLessThan(0.01);
     expect(WHEEL_LOCK_PHASE).not.toBe(0);
+  });
+
+  it('камені стоять запірною гранню назустріч зубцям, а не спиною', () => {
+    // Верхній кут запірної грані — на мінус-x локально (звідти йдуть зубці).
+    // Дзеркальний камінь кладе туди глуху спину, а замок-гард цього не бачить:
+    // він міряє лінію в просторі, не фізичне ребро. Саботаж: mirror −1 —
+    // і цей тест червоніє, а замок — ні.
+    const m = buildShowcase();
+    for (const face of ['entry', 'exit']) {
+      const stone = byPallet(m, face)[0];
+      const pos = stone.geometry.attributes.position;
+      let topY = -Infinity, topX = 0;
+      for (let i = 0; i < pos.count; i++) {
+        if (pos.getY(i) > topY) { topY = pos.getY(i); topX = pos.getX(i); }
+      }
+      expect(topY, `верх каменя ${face}`).toBeCloseTo(JEWEL_GEOM.h / 2, 6);
+      expect(topX, `клин каменя ${face}`).toBeLessThan(0);
+    }
   });
 
   it('вітрина не імпортує рух: ізоляція за рішенням', () => {
@@ -94,5 +117,79 @@ describe('вітрина анкерного спуску (геометрія)', 
         expect(src, `${f} тягне ${mod}`).not.toMatch(new RegExp(`from\\s+['"][^'"]*${mod}`));
       }
     }
+  });
+});
+
+describe('рух вітрини (фазова кінематика)', () => {
+  it('колесо йде півзубця за удар', () => {
+    expect(wheelAngle(1.5) - wheelAngle(0.5)).toBeCloseTo(Math.PI / TEETH, 12);
+    expect(wheelAngle(2.5) - wheelAngle(1.5)).toBeCloseTo(Math.PI / TEETH, 12);
+  });
+
+  it('вилка стоїть в упорах у замках і міняє сторону кожного удару', () => {
+    expect(Math.abs(forkAngle(0.5))).toBeCloseTo(FORK_MAX, 12);
+    expect(Math.abs(forkAngle(1.5))).toBeCloseTo(FORK_MAX, 12);
+    expect(Math.sign(forkAngle(0.5))).toBe(-Math.sign(forkAngle(1.5)));
+  });
+
+  it('баланс у нулі на перекиданнях і в розмаху між ними', () => {
+    expect(balanceAngle(0)).toBeCloseTo(0, 12);
+    expect(balanceAngle(1)).toBeCloseTo(0, 12);
+    expect(Math.abs(balanceAngle(0.5))).toBeCloseTo((AMPLITUDE * Math.PI) / 180, 12);
+  });
+
+  it('підпис фази: замок поза вікном, зрив → імпульс → падіння всередині', () => {
+    expect(phaseName(2.5)).toBe('lock');
+    expect(phaseName(3 - 0.1)).toBe('unlock');
+    expect(phaseName(3)).toBe('impulse');
+    expect(phaseName(3 + 0.1)).toBe('drop');
+  });
+
+  it('замок тримають по черзі: вхідна, вихідна, вхідна', () => {
+    expect(activePallet(0.5)).toBe('entry');
+    expect(activePallet(1.5)).toBe('exit');
+    expect(activePallet(2.5)).toBe('entry');
+  });
+
+  it('update ставить пози без NaN на замках і посеред перекидання', () => {
+    const m = buildShowcase();
+    for (const u of [0.5, 0.9, 1.0, 1.1, 1.5, 3.25]) {
+      m.update(u);
+      for (const p of [m.wheelPivot, m.forkPivot, m.balancePivot])
+        expect(Number.isFinite(p.rotation.z), `u=${u}`).toBe(true);
+    }
+    expect(noNaN(m.group)).toBe(true);
+  });
+});
+
+describe('пружина вітрини (дихання)', () => {
+  const springMat = () => new THREE.MeshStandardMaterial({ side: THREE.DoubleSide });
+
+  it('зовнішній кінець стоїть у колодці, внутрішній їде з балансом', () => {
+    const s = buildSpring({ cx: 0, cy: 0, z: 0, material: springMat() });
+    const railMid = (i) => {
+      const p = s.mesh.geometry.attributes.position.array;
+      return [(p[i * 6] + p[i * 6 + 3]) / 2, (p[i * 6 + 1] + p[i * 6 + 4]) / 2];
+    };
+    s.update(0);
+    const outer0 = railMid(SPRING_N - 1), inner0 = railMid(0);
+    expect(Math.hypot(...outer0)).toBeCloseTo(SPRING_R1, 6);
+    expect(Math.hypot(...inner0)).toBeCloseTo(SPRING_R0, 6);
+    s.update(1.0);
+    const outer1 = railMid(SPRING_N - 1), inner1 = railMid(0);
+    expect(Math.hypot(outer1[0] - outer0[0], outer1[1] - outer0[1])).toBeCloseTo(0, 9);
+    const a0 = Math.atan2(inner0[1], inner0[0]);
+    const a1 = Math.atan2(inner1[1], inner1[0]);
+    expect(a1 - a0).toBeCloseTo(1.0, 6);
+  });
+
+  it('той самий буфер між кадрами: алокацій нема, NaN нема', () => {
+    const s = buildSpring({ cx: 0, cy: 0, z: 0, material: springMat() });
+    const pos = s.mesh.geometry.attributes.position;
+    const buf = pos.array;
+    s.update(0.37);
+    s.update(1.61);
+    expect(pos.array).toBe(buf);
+    for (let i = 0; i < buf.length; i++) expect(Number.isFinite(buf[i])).toBe(true);
   });
 });

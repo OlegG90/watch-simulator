@@ -1,4 +1,6 @@
 import * as THREE from 'three';
+import { wheelAngle, forkAngle, balanceAngle, activePallet } from './motion.js';
+import { buildSpring, SPRING_R1 } from './spring.js';
 
 /**
  * Самодостатня модель анкерного спуску — окремий експонат, не модуль руху.
@@ -15,9 +17,9 @@ import * as THREE from 'three';
  *
  * Стек по Z (справжній порядок швейцарського ходу, не вигадка):
  *   колесо z≈0 → камені-палети в його площині → тіло вилки вище (z≈0.85) →
- *   ролик під вилкою, камінь стирчить вгору в проріз → баланс над усім.
- * Спіралі свідомо нема: предмет вітрини — зачеплення, а не регулятор; мертва
- * спіраль брехала б, а жива дублювала б `hairspring.js`, що заборонено ізоляцією.
+ *   ролик під вилкою, камінь стирчить вгору в проріз → баланс над усім →
+ *   спіраль над балансом (z≈2.05), зовнішній кінець у нерухомій колодці.
+ * Спіраль — ілюстрація дихання, не модель регулятора (див. `spring.js`).
  *
  * Точні кути граней — номінальні: замкова посадка (падіння, притягування)
  * розв'язується наступним кроком разом із фазною машиною. Геометрія віддає їй
@@ -33,14 +35,23 @@ const WHEEL_T = 0.35;
 export const FORK_D = 2.35;
 export const BAL_D = 2.0;
 
-/** Камені: ±26° від лінії центрів, центри в смузі зубців. */
+/** Камені: вхідний на +26°, центри в смузі зубців; вихідний — посадка падіння. */
 const PALLET_ANG = (26 * Math.PI) / 180;
 const PALLET_R = 1.3;
+// Посадка падіння: нуль вихідного замка мінус нуль вхідного має дорівнювати
+// півзубцю — інакше одна фаза не садить обидва. Виміряно: 30.65° (нулі
+// 22.45°/10.75°, різниця 11.7° проти потрібних 12° — залишок 0.3° ділиться
+// мінімаксом порівну). Дзеркальні ±26° тут не працюють: напрям руху ламає
+// симетрію пари, що й показав перший замір.
+const EXIT_ANG = (30.65 * Math.PI) / 180;
+const EXIT_R = 1.3;
 const JEWEL_W = 0.34;
 const JEWEL_H = 0.62;
 const JEWEL_T = 0.5;
 /** Номінальний кут притягування запірної грані від радіуса. */
 const LOCK_DRAW = (10 * Math.PI) / 180;
+/** Геометрія каменя — тестам посадки, щоб не дублювати числа. */
+export const JEWEL_GEOM = { w: JEWEL_W, h: JEWEL_H, lean: Math.tan(LOCK_DRAW) * JEWEL_H };
 
 /** Тіло вилки над колесом; камінь ролика дістає в проріз знизу. */
 const FORK_Z = 0.85;
@@ -52,13 +63,12 @@ const STONE_R = 0.09;
 const polar = (r, a) => [Math.cos(a) * r, Math.sin(a) * r];
 
 /**
- * Фаза замка: сталий доворот колеса, щоб вістря сіло на запірну грань
- * вхідної палети. Виміряно сканом (крок 0.02°): 20.28°, залишок
- * вістря→грань 0.0002, торкання на 0.19 грані від низу. З нулем вістря стоїть
- * на півкроку повз камінь. Фізики контакту тут нема — лише постановка
- * першого кадру; справжню посадку розв'яже фазна машина.
+ * Фаза замка: сталий доворот колеса, щоб вістря сіло на запірну грань.
+ * Виміряно мінімаксом по обох замках (колесо між ними йде рівно півзубця —
+ * вихідний міряється на δ + півкроку): 22.58°, залишок 0.004. З нулем вістря
+ * стоїть на півкроку повз камінь. Постановка першого кадру, не фізика.
  */
-export const WHEEL_LOCK_PHASE = 0.354;
+export const WHEEL_LOCK_PHASE = 0.3941;
 
 /** Коробка між двома точками XY на заданій висоті. */
 function bar(from, to, w, t, z, material) {
@@ -130,10 +140,16 @@ function makePallet(material, mirror) {
   return mesh;
 }
 
-export function buildShowcase() {
+export function buildShowcase(opts = {}) {
+  // Посадка падіння: вихідна палета стоїть не дзеркально (±26°), а там, де її
+  // запірна грань лягає рівно на півзубця від вхідної, — інакше одна константа
+  // фази не садить обидва замки. Значення — виміряні сканом падіння
+  // (мінімакс по обох замках з вилкою в упорах), не окомірні.
+  const { exitAng = EXIT_ANG, exitR = EXIT_R } = opts;
   const brass = new THREE.MeshStandardMaterial({ color: 0xcaa84a, roughness: 0.35, metalness: 0.9 });
   const steel = new THREE.MeshStandardMaterial({ color: 0xb8bec8, roughness: 0.3, metalness: 0.95 });
   const darkSteel = new THREE.MeshStandardMaterial({ color: 0x555a62, roughness: 0.4, metalness: 0.8 });
+  const springSteel = new THREE.MeshStandardMaterial({ color: 0x9aa1ab, roughness: 0.32, metalness: 0.95, side: THREE.DoubleSide });
   const ruby = new THREE.MeshPhysicalMaterial({
     color: 0xc0304a, roughness: 0.12, metalness: 0.0,
     transmission: 0.28, thickness: 0.4, ior: 1.76,
@@ -183,10 +199,16 @@ export function buildShowcase() {
 
   const jewels = {};
   const jewelZ = 0.1;
-  for (const [face, side, mirror] of [['entry', 1, 1], ['exit', -1, -1]]) {
-    const a = side * PALLET_ANG;
-    const [jx, jy] = polar(PALLET_R, a);
-    const stone = makePallet(ruby, mirror);
+  // ОБИДВА камені однакової форми: запірна грань мусить дивитись назустріч
+  // зубцям, а напрям руху проти годинникової ламає дзеркальну симетрію пари —
+  // віддзеркалений камінь став би до зубців глухою спиною (так і було: посадка
+  // виходу не зійшлась ні на якій фазі). Орієнтацію дає розворот, не форма.
+  for (const [face, side, ang, rad] of [['entry', 1, PALLET_ANG, PALLET_R], ['exit', -1, exitAng, exitR]]) {
+    const a = side * ang;
+    const [jx, jy] = polar(rad, a);
+    // Матеріал каменя — власний екземпляр: підсвітка активної пари гасить
+    // й засвічує камені окремо, спільний матеріал цього не вміє.
+    const stone = makePallet(ruby.clone(), 1);
     stone.position.set(jx - FORK_D, jy, jewelZ);
     stone.rotation.z = a + Math.PI / 2; // мінус-u дивиться назустріч зубцям
     stone.userData.pallet = { face };
@@ -221,19 +243,20 @@ export function buildShowcase() {
   group.add(forkPivot);
 
   // ── Обмежувачі ходу вилки — нерухомі, хвіст б'є в них ──
+  // Позиція відповідає розмаху: півширина хвоста + плече·tan(FORK_MAX).
   for (const s of [1, -1]) {
     const pin = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.5, 8), darkSteel);
     pin.rotation.x = Math.PI / 2;
-    pin.position.set(FORK_D + 1.0, s * 0.13, FORK_Z);
+    pin.position.set(FORK_D + 1.0, s * 0.2, FORK_Z);
     group.add(pin);
   }
 
   // ── Баланс: вісь, ролик з каменем, обід. Без спіралі — див. шапку ──
   const balancePivot = new THREE.Group();
   balancePivot.position.set(FORK_D + BAL_D, 0, 0);
-  const staff = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 2.2, 12), darkSteel);
+  const staff = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 2.6, 12), darkSteel);
   staff.rotation.x = Math.PI / 2;
-  staff.position.z = 0.7;
+  staff.position.z = 0.9;
   balancePivot.add(staff);
   const roller = new THREE.Mesh(new THREE.CylinderGeometry(ROLLER_R, ROLLER_R, 0.18, 32), steel);
   roller.rotation.x = Math.PI / 2;
@@ -258,9 +281,35 @@ export function buildShowcase() {
   }
   group.add(balancePivot);
 
-  // Посадка: замок на вхідній палеті (фазу підігнано скриптом tune-lock2,
-  // не окоміром — див. коментар біля WHEEL_LOCK_PHASE).
-  wheelPivot.rotation.z = WHEEL_LOCK_PHASE;
+  // ── Спіраль: дихає з балансом; зовнішній кінець тримає міст ──
+  // Міст — від нерухомої осі вилки (бос крутиться навколо неї): стояк вгору,
+  // рукав над спіраллю, спускна шпилька до колодки зовнішнього кінця.
+  const SPRING_Z = 2.05;
+  const balX = FORK_D + BAL_D;
+  const studX = balX + SPRING_R1;
+  const spring = buildSpring({ cx: balX, cy: 0, z: SPRING_Z, material: springSteel });
+  group.add(spring.mesh);
+  const collet = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.25, 12), darkSteel);
+  collet.rotation.x = Math.PI / 2;
+  collet.position.z = SPRING_Z;
+  balancePivot.add(collet); // колодка сидить на осі — їде з балансом
+  const arborUp = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 1.6, 10), darkSteel);
+  arborUp.rotation.x = Math.PI / 2;
+  arborUp.position.set(FORK_D, 0, 1.5);
+  group.add(arborUp);
+  group.add(bar(V2(FORK_D, 0), V2(studX, 0), 0.14, 0.12, 2.3, steel));
+  const dropPin = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.35, 8), darkSteel);
+  dropPin.rotation.x = Math.PI / 2;
+  dropPin.position.set(studX, 0, 2.15);
+  group.add(dropPin);
+  const stud = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.16, 0.22), darkSteel);
+  stud.position.set(studX, 0, SPRING_Z);
+  stud.castShadow = true;
+  group.add(stud);
+
+  // Посадка першого кадру — замок на вхідній (u=0.5: напівціле = замкнений
+  // стан, фаза колеса рівно WHEEL_LOCK_PHASE, підсвітка вже на ній).
+  update(0.5);
 
   group.visible = false;
 
@@ -270,13 +319,20 @@ export function buildShowcase() {
   };
 
   /**
-   * Крок вітрини. Порожній хук навмисно: фазна машина (замок → зрив →
-   * імпульс → падіння) поселиться тут наступним кроком, а цикл у `main.js`
-   * вже кличе її в потрібному місці — як `setTime` для руху.
-   *
-   * @param _dt крок кадру, с — знадобиться фазній машині; поки не читається
+   * Крок вітрини: поза за фазовим часом `u` (удари) — колесо, вилка, баланс
+   * і підсвітка активної пари. Чиста функція часу: пауза й покроковість панелі —
+   * це зупинка й ручне просування `u`, стан ніде не накопичується.
    */
-  function update(_dt) {}
+  function update(u) {
+    const bal = balanceAngle(u);
+    wheelPivot.rotation.z = wheelAngle(u);
+    forkPivot.rotation.z = forkAngle(u);
+    balancePivot.rotation.z = bal;
+    spring.update(bal);
+    const active = activePallet(u);
+    for (const [face, stone] of Object.entries(jewels))
+      stone.material.emissiveIntensity = face === active ? 0.9 : 0.25;
+  }
 
   return { group, home, update, wheelPivot, forkPivot, balancePivot, jewels };
 }
