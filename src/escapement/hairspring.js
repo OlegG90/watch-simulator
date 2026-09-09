@@ -1,45 +1,45 @@
 import * as THREE from 'three';
 
 /**
- * Спіраль балансу (волосок) — об'ємна трубка з кінцевою кривою Бреге.
+ * The balance spring (hairspring) — a solid tube with a Breguet overcoil at the end.
  *
- * Спільна для всіх варіантів спуску: баланс скрізь один і той самий, тож
- * тримати три копії цих шістдесяти рядків було б тією ж помилкою, що й три
- * копії математики удару.
+ * Shared by every escapement variant: the balance is the same everywhere, so
+ * keeping three copies of these sixty lines would be the same mistake as three
+ * copies of the beat maths.
  *
- * Сітка будується ОДИН раз — індекси й UV незмінні, щокадру переписуються
- * лише позиції та нормалі. Перебудова `TubeGeometry` на кожен кадр коштувала
- * ~5.7 КБ сміття й ~285 мкс, більше за весь інший механізм разом.
+ * The mesh is built ONCE — indices and UVs never change, only positions and
+ * normals are rewritten each frame. Rebuilding `TubeGeometry` every frame cost
+ * ~5.7 KB of garbage and ~285 µs, more than the whole rest of the movement together.
  */
 
-const N = 120;              // сегментів уздовж витка
-const RADIAL = 8;           // граней у перерізі трубки
+const N = 120;              // segments along a coil
+const RADIAL = 8;           // faces in the tube's cross-section
 const VROW = RADIAL + 1;
 const TURNS = 4;
-const R0 = 0.32;            // внутрішній кінець (на балансі)
-export const HAIR_R = 0.034;     // товщина дроту
-export const OVERCOIL_F = 0.85;  // з якої частки витка починається крива Бреге
-export const OVERCOIL_H = 0.18;  // на скільки вона підіймається
+const R0 = 0.32;            // the inner end (at the balance)
+export const HAIR_R = 0.034;     // wire thickness
+export const OVERCOIL_F = 0.85;  // the fraction of the coil at which the Breguet curve starts
+export const OVERCOIL_H = 0.18;  // how high it rises
 
 const PHI_TOT = TURNS * Math.PI * 2;
 
-/** Зовнішній радіус витка при даному радіусі балансу. */
+/** The outer coil's radius for a given balance radius. */
 export const hairOuterR = (balR) => Math.min(1.65, balR - 0.08);
 
 /**
- * @param balR      радіус обода балансу — з нього виводиться зовнішній виток
- * @param dirAngle  напрямок, у якому стоїть колодка (stud)
- * @param springSteel матеріал пружинної сталі (клонується)
- * @param steel     матеріал колодки
+ * @param balR      the balance rim's radius — the outer coil is derived from it
+ * @param dirAngle  the direction the stud stands in
+ * @param springSteel spring-steel material (cloned)
+ * @param steel     the stud's material
  * @returns `{ group, update(thetaB), mesh }`
  */
 export function buildHairspring({ balR, dirAngle, springSteel, steel }) {
   const R1 = hairOuterR(balR);
   const group = new THREE.Group();
 
-  // Матеріал трубки — власний клон пружинної сталі: спіраль об'ємна, тож це
-  // звичайний метал, а не матеріал лінії. Трохи світліший і холодніший
-  // відтінок, щоб тонкий дріт не губився на темному тлі.
+  // The tube's material — its own clone of the spring steel: the hairspring is solid,
+  // so this is ordinary metal, not a line material. A slightly lighter and cooler
+  // shade, so the thin wire does not get lost against the dark background.
   const hairMat = springSteel.clone();
   hairMat.color.setHex(0xbfd4ff);
   hairMat.roughness = 0.22;
@@ -68,8 +68,8 @@ export function buildHairspring({ balR, dirAngle, springSteel, steel }) {
     geo.setAttribute('position', new THREE.BufferAttribute(pos, 3));
     geo.setAttribute('normal', new THREE.BufferAttribute(nrm, 3));
     geo.setAttribute('uv', new THREE.BufferAttribute(uv, 2));
-    // Спіраль дихає всередині сталих меж, тож сферу рахуємо раз і не чіпаємо —
-    // інакше довелося б обходити всі вершини щокадру заради відсікання.
+    // The hairspring breathes inside fixed bounds, so the sphere is computed once and
+    // left alone — otherwise every vertex would be walked each frame just for culling.
     geo.boundingSphere = new THREE.Sphere(new THREE.Vector3(0, 0, OVERCOIL_H / 2), R1 + HAIR_R + 0.05);
   }
   const mesh = new THREE.Mesh(geo, hairMat);
@@ -80,8 +80,8 @@ export function buildHairspring({ balR, dirAngle, springSteel, steel }) {
   stud.position.set(Math.cos(dirAngle) * R1, Math.sin(dirAngle) * R1, OVERCOIL_H);
   group.add(stud);
 
-  // Осьова крива. Радіус і висота від кута балансу НЕ залежать — θ_b лише
-  // підкручує кут, і то тим слабше, чим ближче до зовнішнього кінця.
+  // The axial curve. Radius and height do NOT depend on the balance angle — θ_b only
+  // twists the angle, and the more weakly the closer to the outer end.
   const _axis = Array.from({ length: N + 1 }, () => new THREE.Vector3());
   const _t = new THREE.Vector3(), _n = new THREE.Vector3(), _b = new THREE.Vector3();
   const _up = new THREE.Vector3(0, 0, 1);
@@ -101,8 +101,8 @@ export function buildHairspring({ balR, dirAngle, springSteel, steel }) {
       _axis[i].set(Math.cos(ang) * r, Math.sin(ang) * r, z);
     }
     for (let i = 0; i <= N; i++) {
-      // Кадр перерізу будуємо від осі Z, а не за Френе: дотична спіралі ніде
-      // не стає вертикальною, тож так стабільніше й без зайвої математики.
+      // The cross-section frame is built from the Z axis rather than by Frenet: the
+      // hairspring's tangent never becomes vertical, so this is steadier and needs less maths.
       const prev = _axis[i > 0 ? i - 1 : 0], next = _axis[i < N ? i + 1 : N];
       _t.subVectors(next, prev).normalize();
       _n.crossVectors(_t, _up).normalize();

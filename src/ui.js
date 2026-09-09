@@ -1,7 +1,7 @@
 import * as THREE from 'three';
 import { t } from './i18n.js';
 
-/** Спрайт-підпис: текст на канві, завжди обличчям до камери, поверх геометрії. */
+/** Sprite label: text on a canvas, always facing the camera, drawn over the geometry. */
 function makeLabel(text) {
   const font = '600 30px system-ui, sans-serif';
   const measure = document.createElement('canvas').getContext('2d');
@@ -34,7 +34,7 @@ function makeLabel(text) {
   return sprite;
 }
 
-/** Група підписів над точками фокуса (координати локальні до root механізму). */
+/** Group of labels above the focus points (coordinates local to the movement root). */
 export function buildLabels(focusPoints) {
   const group = new THREE.Group();
   for (const fp of focusPoints) {
@@ -45,7 +45,7 @@ export function buildLabels(focusPoints) {
   return group;
 }
 
-/** Плавний переліт камери: створити, викликати update() у циклі. */
+/** Smooth camera flight: create it, then call update() in the loop. */
 export function createCameraFly(camera, controls) {
   let anim = null;
   const smooth = (k) => k * k * (3 - 2 * k);

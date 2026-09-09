@@ -7,16 +7,34 @@ stations along the flow of energy; **free mode** is the same movement with every
 once.
 
 **This repository is the record.** Decisions about the code are made and kept here — in this
-file, in `README.md`, and in the code's own comments. The Obsidian vault
-(`hobbyVault/Projects/Horology/SimWatch`) describes the mechanism for a human reader in
-Ukrainian; it is informational, and nothing in it constrains the code.
+file, in `README.md`, and in the code's own comments. If it is not written down in one of
+those three places, it is not decided.
+
+## Everything in this repository is written in English
+
+**Code, comments, documentation, tests, commit messages, issues and identifiers are English —
+without exception.** What is not prose about the code is the Ukrainian *interface copy*: the
+`ua` side of `src/i18n.js` and `src/lesson/content.js`. That is product content shown to the
+user, and it stays. Everything written *about* the code is English so that any reader or tool
+can follow it.
+
+Comments were Ukrainian here for most of the project's life, which split the record in two: the
+prose explaining a trap sat in one language, the file naming that trap in another, and neither
+could be searched from the other. Translating them was a single sweep; adding a Ukrainian
+comment back would start the split again.
+
+So a grep for Cyrillic outside those two dictionaries is expected to return almost nothing, and
+what it does return is a short, deliberate list: the `«УКР»` label on the language
+switch (the `.name()` guard in `lesson.test.js` carves out that one string by name), the
+`[Ѐ-ӿ]` character classes in the guards themselves, and the handful of assertions that check
+what the Ukrainian dictionary renders. Anything else the grep finds is a regression.
 
 ## The one rule that shapes everything else
 
 **Every number the app shows is derived from the constants that build the geometry. Nothing
 is typed.**
 
-A station card promising «перевірено тестом» beside a figure someone typed is a lie waiting
+A station card promising "verified by a test" beside a figure someone typed is a lie waiting
 for its first refactor, and this has happened here more than once — a copied balance radius
 drifted from the mesh inside a single commit; the developed section carried eyeballed body
 thicknesses that had already diverged. So:
@@ -41,13 +59,11 @@ markers name the simplifications rather than hiding them.
 | `README.md` | what the mechanism is, in English: every formula, the source map, the assumptions |
 | code comments | why a line is the way it is — never what it does |
 | GitHub issues | **code work only** |
-| the vault | the mechanism explained in Ukrainian, for reading, not for constraining |
 
-**GitHub issues are for this repository.** A question about a vault note — a rename, a
-wording, a missing section — is not a ticket here and must not become one. That mistake has
-been made once already (issue #24 asked for a note to be renamed in Obsidian), and it puts
-work in a tracker that cannot see it, cannot test it, and cannot close it honestly. Vault work
-belongs in the vault.
+**GitHub issues are for this repository.** A ticket here names work that this repository's
+tests can see and its commits can close. Anything that cannot be tested or closed here does
+not belong in the tracker — that mistake has been made, and it parks work where nobody can
+finish it.
 
 ## Layout
 
@@ -61,7 +77,7 @@ belongs in the vault.
 | `src/escapement/` | the socket and its modules — see below |
 | `src/settings.js` | the one table of running parameters: range, step, format, label key |
 | `src/ui.js` | 3D node labels and the camera fly |
-| `src/i18n.js` | every interface string, Ukrainian and English |
+| `src/i18n.js` | every interface string, Ukrainian and English (with `lesson/content.js`, the only Ukrainian in the repo) |
 | `src/lesson/` | the Explore layer: panel, stations, live figures, developed section, modal |
 | `test/` | four suites; `lessonHarness.js` is the rig, not a suite |
 | `init-version/` | an early snapshot with its own deps. Not built, not tested, kept on purpose |
@@ -107,9 +123,9 @@ what lets a third module arrive without touching `index.js`.
 - Test-only mesh handles live behind `internals`, named so nobody mistakes them for interface.
 
 **The scene chrome names the place, not the module in it.** The 3D label, the camera preset and
-the node toggle read «Спуск» whatever is installed, because that list names seats in the
-mechanism — barrel, centre wheel, hands, winding. The installed module is named where it is
-the subject: the variants modal, the developed section, the cost table. Decided in issue #21;
+the node toggle all read the `part.escapement` label whatever is installed, because that list
+names seats in the mechanism — barrel, centre wheel, hands, winding. The installed module is
+named where it is the subject: the variants modal, the developed section, the cost table. Decided in issue #21;
 the free-mode gap this leaves (nothing there names the installed module) is a known cost.
 
 ## The Explore layer
@@ -190,9 +206,8 @@ difference that did appear was the one intended.
 
 ## Conventions
 
-**Comments are in Ukrainian and say why.** The code already says what. A comment earns its
-place by recording a decision, a trap, or a consequence not visible locally. `README.md`,
-this file, commit messages, test names, issues and identifiers are English.
+**Comments are in English and say why.** The code already says what. A comment earns its
+place by recording a decision, a trap, or a consequence not visible locally.
 
 **Commits explain the change in prose**: what was wrong, why this is the fix, and what was
 verified — enough that the reasoning survives without the conversation that produced it.
@@ -200,7 +215,7 @@ verified — enough that the reasoning survives without the conversation that pr
 **Every interface string goes through `t()`.** Key parity between languages is tested, and a
 separate guard scans `main.js` for Cyrillic passed straight to `.name()`, because a string
 that never reaches the dictionary cannot be caught by parity. Units belong in the dictionary
-too — `«12 с»` stayed Cyrillic in English for two releases because one was not.
+too — `«12 с»` stayed Cyrillic in the English UI for two releases because one was not.
 
 **Horological English is not literal translation**: `third wheel`, `fourth wheel`, `click`,
 `motion works`, `pallet fork`, `escape wheel`. Never `anchor escapement` for the Swiss lever —
@@ -233,9 +248,5 @@ explicit `cache: npm`; adding a `packageManager` field to `package.json` would c
 
 ## What lives outside this repository
 
-- **The vault notes** — `hobbyVault/Projects/Horology/SimWatch`: the mechanism explained in
-  Ukrainian, one note per module, plus the model's simplifications and the design of Explore
-  mode. Read them for understanding; do not treat them as normative, and do not open issues
-  here about them.
 - **The design canvas working files** — `../design`: `.dc.html` artboards and `canvas.json` for
   the published canvas. Outside this repo on purpose, so they never reach the build.

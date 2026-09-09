@@ -13,7 +13,7 @@ import { createHighlighter } from './lesson/highlight.js';
 import { mountLesson } from './lesson/panel.js';
 import { createSettings } from './settings.js';
 
-// ── Сцена / рендер ────────────────────────────────────────────────
+// ── Scene / renderer ──────────────────────────────────────────────
 const canvas = document.getElementById('app');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -24,7 +24,7 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x1a1c20);
 
-// Оточення для відблисків на металі.
+// An environment map for the highlights on the metal.
 const pmrem = new THREE.PMREMGenerator(renderer);
 scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
 scene.environmentIntensity = 0.72;
@@ -35,7 +35,7 @@ const controls = new OrbitControls(camera, canvas);
 controls.enableDamping = true;
 controls.target.set(0, 0, 0);
 
-// ── Освітлення ────────────────────────────────────────────────────
+// ── Lighting ──────────────────────────────────────────────────────
 scene.add(new THREE.AmbientLight(0xffffff, 0.18));
 const key = new THREE.DirectionalLight(0xffffff, 2.2);
 key.position.set(25, 35, 30);
@@ -51,13 +51,13 @@ scene.add(key);
 const fill = new THREE.DirectionalLight(0x88aaff, 0.55);
 fill.position.set(-20, 8, -12);
 scene.add(fill);
-// Точкове підсвічування турбійона — виділяє фаски вороненої кліті та рубіни без пересвіту латуні.
+// A spot on the tourbillon — it picks out the chamfers of the blued cage and the rubies without blowing out the brass.
 const cageSpot = new THREE.SpotLight(0xffffff, 6.0, 30, Math.PI / 6, 0.45, 1.1);
 cageSpot.castShadow = false;
 scene.add(cageSpot);
 scene.add(cageSpot.target);
 
-// ── Матеріали ─────────────────────────────────────────────────────
+// ── Materials ─────────────────────────────────────────────────────
 const brass = new THREE.MeshStandardMaterial({ color: 0xcaa84a, roughness: 0.35, metalness: 0.9 });
 const steel = new THREE.MeshStandardMaterial({ color: 0xb8bec8, roughness: 0.3, metalness: 0.95 });
 const axleMat = new THREE.MeshStandardMaterial({ color: 0x666a72, roughness: 0.4, metalness: 0.8 });
@@ -65,16 +65,16 @@ const ruby = new THREE.MeshStandardMaterial({ color: 0xc0304a, roughness: 0.2, m
 const plateMat = new THREE.MeshStandardMaterial({ color: 0x8a7440, roughness: 0.55, metalness: 0.7 });
 const bluedMat = new THREE.MeshStandardMaterial({ color: 0x24418f, roughness: 0.3, metalness: 0.85 });
 const springSteel = new THREE.MeshStandardMaterial({ color: 0x9aa1ab, roughness: 0.32, metalness: 0.95, side: THREE.DoubleSide });
-// Задня платина — темна й прохолодна, щоб латунь/сталь механізму й кліть турбійона контрастували.
+// The back plate — dark and cool, so the movement's brass/steel and the tourbillon cage stand out against it.
 const backdropMat = new THREE.MeshStandardMaterial({ color: 0x2b3038, roughness: 0.7, metalness: 0.4 });
-// Кліть турбійона — воронена сталь: виразно виділяється на золотому тлі й серед латунних коліс.
+// The tourbillon cage — blued steel: it reads clearly against the golden ground and among the brass wheels.
 const cageMat = new THREE.MeshStandardMaterial({ color: 0x2f4b8c, roughness: 0.22, metalness: 0.92 });
 cageMat.envMapIntensity = 1.15;
 
-// ── Механізм (передача + спуск) ───────────────────────────────────
+// ── The movement (train + escapement) ─────────────────────────────
 const movement = buildMovement({ brass, steel, axleMat, ruby, plateMat, bluedMat, springSteel, backdropMat, cageMat });
 scene.add(movement.root);
-// Націлити спот на центр кліті (після центрування root).
+// Aim the spot at the centre of the cage (after root has been centred).
 const escFocus = movement.focusPoints.find((f) => f.id === 'escapement');
 {
   const cageWorld = new THREE.Vector3(escFocus.pos.x, escFocus.pos.y, 2.0)
@@ -83,8 +83,8 @@ const escFocus = movement.focusPoints.find((f) => f.id === 'escapement');
   cageSpot.target.position.set(cageWorld.x, cageWorld.y, cageWorld.z + 1.0);
 }
 
-// Підписи вузлів. Текст запікається в текстуру, тож при зміні мови їх
-// доводиться будувати наново — сама група лишається тією ж.
+// Node labels. The text is baked into a texture, so on a language change they have
+// to be rebuilt — the group itself stays the same.
 let labels = buildLabels(movement.focusPoints);
 movement.root.add(labels);
 
@@ -97,7 +97,7 @@ function rebuildLabels() {
   movement.root.add(labels);
 }
 
-// ── Тло-плита ─────────────────────────────────────────────────────
+// ── Backdrop plate ────────────────────────────────────────────────
 const plateR = Math.max(movement.size.w, movement.size.h) / 2 + 10;
 const plate = new THREE.Mesh(
   new THREE.CircleGeometry(plateR, 64),
@@ -108,24 +108,24 @@ plate.position.y = -movement.size.h / 2 - 2.5;
 plate.receiveShadow = true;
 scene.add(plate);
 
-// ── Вітрина: самодостатній експонат, не модуль руху ─────────────────
-// Схована, доки не вибрано її режим. Нічого з руху сюди не заглядає й
-// звідси нічого не читається: синхронізації нема за рішенням.
+// ── Showcase: a self-contained exhibit, not a module of the movement ─
+// Hidden until its mode is chosen. Nothing from the movement looks in here and
+// nothing is read out of it: there is no synchronisation, by decision.
 const showcase = buildShowcase();
 scene.add(showcase.group);
-// Фазовий час вітрини (удари) живе тут, а не в моделі: пауза й крок панелі —
-// це зупинка й ручне просування, модель лишається чистою функцією часу.
+// The showcase's phase time (in beats) lives here, not in the model: the panel's pause
+// and step are a stop and a manual advance, and the model stays a pure function of time.
 const show = { t: 0.5, playing: true, speed: 0.5 };
 const showBar = mountShowcaseBar(document.getElementById('showcase-bar'), show);
 
-// ── Камера: вписати механізм у кадр (з урахуванням аспекту) ───────
+// ── Camera: fit the movement into the frame (allowing for the aspect) ─
 const fitR = Math.hypot(movement.size.w, movement.size.h) / 2;
 const viewDir = new THREE.Vector3(0.12, 0.22, 1).normalize();
 const fly = createCameraFly(camera, controls);
 let userOrbited = false;
 controls.addEventListener('start', () => {
   userOrbited = true;
-  fly.cancel(); // ручне орбітання перериває переліт
+  fly.cancel(); // orbiting by hand interrupts a flight
 });
 
 function fitCamera() {
@@ -133,61 +133,61 @@ function fitCamera() {
   const hTan = vTan * camera.aspect;
   const dist = (fitR / Math.min(vTan, hTan)) * 1.05;
   camera.position.copy(viewDir).multiplyScalar(dist);
-  controls.target.set(0, 0, 0); // інакше ціль лишиться на попередньому вузлі
+  controls.target.set(0, 0, 0); // otherwise the target stays on the previous node
 }
 
 // ── UI ────────────────────────────────────────────────────────────
-// Панель вільного режиму — адаптер над таблицею налаштувань: межі, крок і
-// підпис бере звідти, а не тримає власну копію.
+// The free-mode panel is an adapter over the settings table: it takes bounds, step and
+// label from there rather than keeping a copy of its own.
 const settings = createSettings();
 const params = settings.values;
 let gui = null;
-let guiVariant = null;  // з яким модулем спуску побудовано панель вузлів
-let uiMode = 'lesson'; // панель вільного режиму схована, поки триває урок
+let guiVariant = null;  // which escapement module the node panel was built for
+let uiMode = 'lesson'; // the free-mode panel stays hidden while the lesson runs
 const powerUI = { power: 75 };
-// Анкерний вузол — це і є кліть турбійона (кліть сидить на його осі), тож у
-// списку він один раз, під назвою «Турбійон»: тумблер ховає весь вузол разом
-// із кліттю. Нерухоме колесо стоїть окремо в сцені, баланс — усередині кліті.
+// The escape arbor IS the tourbillon cage (the cage sits on its arbor), so it appears
+// once in the list, under the name «Tourbillon»: the toggle hides the whole node along
+// with the cage. The fixed wheel stands separately in the scene, the balance inside the cage.
 const cageArbor = movement.arbors.find((a) => a.spec.escapeTeeth);
 
 /**
- * Куди дивиться камера — одне місце.
+ * Where the camera looks — one place.
  *
- * Доти цю саму дію ділили троє: `movement` тримав точки, `main` — список
- * пресетів під іншим ключем (`nameKey` замість `id`), а панель — четверту
- * копію відповіді у `state.cam`. Половина станцій називала точку, якої в тому
- * списку не було, і переліт мовчки підмінявся загальним видом: картка казала
- * «Заведення», а камера показувала весь механізм.
+ * Until now three parties shared this one job: `movement` held the points, `main` a
+ * list of presets keyed differently (`nameKey` instead of `id`), and the panel a
+ * fourth copy of the answer in `state.cam`. Half the stations named a point that was
+ * not in that list, and the flight silently fell back to the overview: the card said
+ * «Winding» while the camera showed the whole movement.
  */
 const focus = (() => {
-  let current = null;   // null = загальний вид
+  let current = null;   // null = the overview
 
   const worldOf = (f) => new THREE.Vector3(f.pos.x, f.pos.y, f.z).add(movement.root.position);
 
-  /** Точки, які хром сцени показує кнопками. */
+  /** The points the scene chrome offers as buttons. */
   const targets = () => movement.focusPoints.filter((f) => f.preset)
     .map(({ id, nameKey }) => ({ id, nameKey }));
 
   function overview() {
     current = null;
-    userOrbited = false; // загальний вид повертає механізм у кадр і дозволяє підгонку
+    userOrbited = false; // the overview brings the movement back into frame and re-enables fitting
     const vTan = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
     const hTan = vTan * camera.aspect;
     fly.flyTo(viewDir.clone().multiplyScalar((fitR / Math.min(vTan, hTan)) * 1.05), new THREE.Vector3());
   }
 
   /**
-   * Навести камеру на точку за її стабільним `id`.
+   * Point the camera at a focus point by its stable `id`.
    *
-   * Невідомий id — помилка, а не тихий загальний вид: саме тиша й ховала те,
-   * що трьом станціям із шести не було куди летіти.
+   * An unknown id is an error, not a quiet overview: it was exactly that silence that
+   * hid the fact that three of the six stations had nowhere to fly.
    */
   function goto(id) {
     const f = movement.focusPoints.find((x) => x.id === id);
-    if (!f) throw new Error(`невідома точка фокуса: ${id}`);
+    if (!f) throw new Error(`unknown focus point: ${id}`);
     current = id;
-    // Переліт до вузла зупиняє автопідгонку кадру: інакше ресайз (а
-    // перемикання режиму — це ресайз) відсмикнув би камеру від вузла.
+    // A flight to a node switches off automatic framing: otherwise a resize (and a mode
+    // switch is a resize) would yank the camera away from the node.
     userOrbited = true;
     const target = worldOf(f);
     fly.flyTo(target.clone().add(new THREE.Vector3(0, f.up, f.back)), target);
@@ -196,7 +196,7 @@ const focus = (() => {
   return { targets, goto, overview, get current() { return current; } };
 })();
 
-/** Одна ручка вузла з оголошення власника. */
+/** One node knob, from its owner's declaration. */
 function addNode(folder, n) {
   const c = n.kind === 'range'
     ? folder.add(n.obj, n.prop, n.min, n.max, n.step)
@@ -206,7 +206,7 @@ function addNode(folder, n) {
   return c;
 }
 
-/** Одна ручка з таблиці налаштувань: вид, межі й підпис — усе звідти. */
+/** One knob from the settings table: kind, bounds and label — all from there. */
 function addParam(gui, name) {
   const s = settings.spec(name);
   const c = s.kind === 'range' ? gui.add(params, name, s.min, s.max, s.step)
@@ -216,7 +216,7 @@ function addParam(gui, name) {
   return c.name(t(s.labelKey));
 }
 
-/** lil-gui вшиває підписи при створенні, тож зміна мови = перебудова панелі. */
+/** lil-gui bakes labels in at creation time, so a language change = rebuilding the panel. */
 function buildGui() {
   gui?.destroy();
   gui = new GUI({ title: 'SimWatch' });
@@ -230,10 +230,10 @@ function buildGui() {
   gui.add(powerUI, 'power', 0, 100, 1).name(t('gui.charge')).listen().disable();
   gui.add(labels, 'visible').name(t('gui.labels'));
 
-  // Вузли: осі передачі, далі те, що оголосив сам механізм, далі ручки
-  // ВСТАНОВЛЕНОГО модуля спуску. Панель не називає жодного варіанта — доти
-  // вона тримала тумблери турбійона й показувала його деталі поряд із
-  // анкерним спуском, хоч у механізмі стоїть рівно один модуль.
+  // Nodes: the train arbors, then whatever the movement itself declared, then the knobs
+  // of the INSTALLED escapement module. The panel names no variant — until now it kept
+  // the tourbillon's toggles and showed that module's parts beside the lever
+  // escapement, even though the movement holds exactly one module.
   const nodes = gui.addFolder(t('gui.nodes'));
   for (const a of movement.arbors) {
     if (a !== cageArbor) nodes.add(a.group, 'visible').name(t(a.nameKey));
@@ -251,8 +251,8 @@ function buildGui() {
 
   gui.add({ lang: () => setLang(getLang() === 'ua' ? 'en' : 'ua') }, 'lang')
      .name(getLang() === 'ua' ? 'EN' : 'УКР');
-  // Зміна мови будує панель наново — вона мусить успадкувати режим,
-  // інакше в уроці зринає інтерфейс вільного режиму.
+  // A language change rebuilds the panel — it must inherit the mode, otherwise the
+  // free-mode interface surfaces during the lesson.
   gui.domElement.style.display = uiMode === 'free' ? '' : 'none';
 }
 buildGui();
@@ -263,9 +263,9 @@ onLangChange(() => {
   document.getElementById('hint').textContent = t('hint.controls');
 });
 
-// ── Ресайз ────────────────────────────────────────────────────────
-// Полотно живе в клітинці сітки, тож розмір беремо з нього, а не з вікна:
-// перемикання режиму міняє клітинку без жодної події вікна.
+// ── Resize ────────────────────────────────────────────────────────
+// The canvas lives in a grid cell, so the size is taken from it rather than from the
+// window: a mode switch changes the cell without any window event.
 function resize() {
   const w = canvas.clientWidth || window.innerWidth;
   const h = canvas.clientHeight || window.innerHeight;
@@ -273,14 +273,14 @@ function resize() {
   renderer.setSize(w, h, false);
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
-  if (!userOrbited) fitCamera(); // тримати механізм у кадрі, поки користувач не орбітав сам
+  if (!userOrbited) fitCamera(); // keep the movement in frame until the user orbits themselves
 }
 new ResizeObserver(resize).observe(canvas);
 window.addEventListener('resize', resize);
 resize();
 
-// ── Урок ──────────────────────────────────────────────────────────
-let freeLabels = true; // стан підписів у вільному режимі
+// ── Lesson ────────────────────────────────────────────────────────
+let freeLabels = true; // the state of the labels in free mode
 const highlighter = createHighlighter(movement.root);
 const statusOut = { real: false, speed: 1, charge: 0, time: 0 };
 const lesson = mountLesson({
@@ -290,8 +290,8 @@ const lesson = mountLesson({
   camera: focus,
   settings,
   run: (action) => { if (action === 'wind') movement.winder.wind(); },
-  // Кличеться з циклу рендеру, тому заповнює той самий об'єкт: читають його
-  // синхронно й не зберігають.
+  // Called from the render loop, so it fills the same object: it is read synchronously
+  // and not stored.
   status: () => {
     statusOut.real = params.timeMode === 'real';
     statusOut.speed = params.speed;
@@ -302,36 +302,35 @@ const lesson = mountLesson({
   onMode: (mode) => {
     uiMode = mode;
     gui.domElement.style.display = mode === 'free' ? '' : 'none';
-    // Вітрина міняє склад сцени місцями з рухом: експонат видно лише тут,
-    // рух — скрізь крім неї. Камера летить у домашню точку вітрини.
+    // The showcase swaps the scene's contents with the movement's: the exhibit is
+    // visible only here, the movement everywhere but here. The camera flies to the showcase's home point.
     const inShowcase = mode === 'showcase';
     movement.root.visible = !inShowcase;
     plate.visible = !inShowcase;
     showcase.group.visible = inShowcase;
     if (inShowcase) {
-      userOrbited = true; // не давати підгонці кадру відсмикнути камеру назад
+      userOrbited = true; // do not let frame fitting yank the camera back
       fly.flyTo(showcase.home.pos, showcase.home.target);
-      // Вхід — із замка: час дотягується до найближчого напівцілого, де колесо
-      // стоїть на виміряній фазі, а не посеред перекидання.
+      // The entry is from the lock: time is pulled to the nearest half-integer, where the
+      // wheel stands at the measured phase rather than mid-unlocking.
       show.t = Math.round(show.t - 0.5) + 0.5;
       document.getElementById('showcase-bar').hidden = false;
     } else {
       document.getElementById('showcase-bar').hidden = true;
     }
-    // Обидві панелі пишуть в одну таблицю, але lil-gui показує те, що
-    // прочитав при створенні. Без цього ручка, зрушена на картці станції,
-    // лишала б у вільному режимі старе число — при живому механізмі, що вже
-    // йде за новим.
-    // Панель вузлів будується під встановлений модуль спуску, тож після заміни
-    // її треба зібрати наново. Інакше — оновити показ: lil-gui показує те, що
-    // прочитав при створенні, а ручку могли зрушити на картці станції.
+    // Both panels write into one table, but lil-gui shows what it read at creation time.
+    // Without this, a knob moved on a station card would leave the old number in free
+    // mode — beside a live movement already running on the new one.
+    // The node panel is built for the installed escapement module, so after a swap it
+    // has to be assembled again. Otherwise: refresh the display — lil-gui shows what it
+    // read at creation, and the knob may have been moved on a station card.
     if (mode === 'free') {
       if (guiVariant !== movement.escapement.installed) buildGui();
       else for (const c of gui.controllersRecursive()) c.updateDisplay();
     }
-    // Підписи-спрайти мають сталий світовий розмір: зблизька вони закривають
-    // сам вузол. В уроці станцію називає картка, тож підписи ховаємо —
-    // у вільному режимі вони повертаються такими, як були.
+    // The sprite labels have a fixed world size: from close up they cover the very node
+    // they name. In the lesson the card names the station, so the labels are hidden —
+    // in free mode they come back exactly as they were.
     if (mode === 'lesson') { freeLabels = labels.visible; labels.visible = false; }
     else labels.visible = freeLabels;
     resize();
@@ -340,19 +339,19 @@ const lesson = mountLesson({
 lesson.setMode('lesson');
 document.getElementById('hint').textContent = t('hint.controls');
 
-// ── Цикл ──────────────────────────────────────────────────────────
+// ── Loop ──────────────────────────────────────────────────────────
 const clock = new THREE.Clock();
-let simT = 0; // час симуляції; механізм рухається від спуску («тік-так»)
+let simT = 0; // simulation time; the movement is driven by the escapement (the «tick-tock»)
 
 function tick() {
   const dt = clock.getDelta();
   if (params.running) {
     if (params.timeMode === 'real') {
-      simT += dt; // хід балансу в реальному темпі (beatHz), незалежно від «Швидкість»
+      simT += dt; // the balance beats at real tempo (beatHz), independent of «Speed»
       movement.setClockTime(new Date(), simT, params);
     } else if (movement.winder.charge > 0) {
-      // Демо-хід можливий лише поки є завод; витрату рахує сам диференціал
-      // (нижнє сонце живиться від обертання барабанного колеса).
+      // A demo run is possible only while there is wind; the differential counts the
+      // consumption itself (the lower sun is driven by the barrel wheel's rotation).
       simT += dt * params.speed;
       movement.setTime(simT, params);
     }
@@ -372,7 +371,7 @@ function tick() {
 }
 tick();
 
-// Дебаг-хук: ручне просування й рендер (для перевірки, коли вкладка прихована).
+// Debug hook: manual advance and render (for checking when the tab is hidden).
 window.__simwatch = {
   movement, params, renderer, scene, camera,
   setTime(t) { simT = t; return movement.setTime(t, params); },

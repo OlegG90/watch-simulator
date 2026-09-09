@@ -1,11 +1,11 @@
 /**
- * Оснастка для перевірок шару дослідження в jsdom.
+ * The rig for testing the Explore layer in jsdom.
  *
- * Сітка береться зі СПРАВЖНЬОГО `index.html`: розмітка й код мають розходитися
- * в тесті, а не в браузері. Механізм і підсвітка теж справжні — підроблені
- * тільки камера (політ камери не має чим летіти без рендерера) і час.
+ * The grid comes from the REAL `index.html`: markup and code should part ways in a test
+ * rather than in the browser. The movement and the highlighter are real too — only the
+ * camera (a camera flight has nothing to fly without a renderer) and time are faked.
  *
- * Не `*.test.js`, тож vitest її не збирає як набір.
+ * Not a `*.test.js`, so vitest does not collect it as a suite.
  */
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
@@ -16,10 +16,10 @@ import { mountLesson } from '../src/lesson/panel.js';
 import { setLang } from '../src/i18n.js';
 import { createSettings } from '../src/settings.js';
 
-/** Тіло `index.html` без скрипта — та сама сітка, що й у застосунку. */
+/** The body of `index.html` without its script — the same grid as in the app. */
 export function mountStage() {
-  // Шлях від кореня проєкту, а не від `import.meta.url`: у середовищі jsdom
-  // модулі мають http-адреси, і `new URL(...)` там не файловий.
+  // A path from the project root rather than from `import.meta.url`: in a jsdom
+  // environment modules have http addresses, and `new URL(...)` there is not a file one.
   const html = readFileSync(resolve(process.cwd(), 'index.html'), 'utf8');
   const body = html.slice(html.indexOf('<body>') + 6, html.indexOf('</body>'))
     .replace(/<script[\s\S]*?<\/script>/g, '');
@@ -27,11 +27,11 @@ export function mountStage() {
 }
 
 /**
- * Підняти урок над справжнім механізмом.
+ * Mount the lesson over the real movement.
  *
- * @returns `{ lesson, cam, params, movement, ui }` — `cam` збирає, куди
- *          просили летіти камеру: політ це подія, і перевіряти його треба як
- *          подію, а не як стан.
+ * @returns `{ lesson, cam, params, movement, ui }` — `cam` collects where the camera was
+ *          asked to fly: a flight is an event, and must be tested as an event rather than
+ *          as state.
  */
 export function mountTestLesson({ lang = 'ua' } = {}) {
   setLang(lang);
@@ -51,13 +51,13 @@ export function mountTestLesson({ lang = 'ua' } = {}) {
 
   const lesson = mountLesson({
     highlighter,
-    // Камера підроблена — летіти без рендерера нема чим, — але з тим самим
-    // інтерфейсом: точки бере з механізму, невідомий id кидає.
+    // The camera is faked — there is nothing to fly without a renderer — but with the
+    // same interface: it takes its points from the movement, and an unknown id throws.
     camera: {
       targets: () => movement.focusPoints.filter((f) => f.preset)
         .map(({ id, nameKey }) => ({ id, nameKey })),
       goto: (id) => {
-        if (!movement.focusPoints.some((f) => f.id === id)) throw new Error(`невідома точка фокуса: ${id}`);
+        if (!movement.focusPoints.some((f) => f.id === id)) throw new Error(`unknown focus point: ${id}`);
         cam.calls.push(id);
         cam.key = id;
       },
@@ -80,10 +80,10 @@ export function mountTestLesson({ lang = 'ua' } = {}) {
 }
 
 /**
- * Знімок усього, що видно: класи оболонки, розмітка кожної області, скільки
- * мешів приглушено підсвіткою і куди просили камеру. Три речі, що складають
- * «стан екрана», в одному рядку — щоб перебудову рендеру можна було довести
- * порівнянням, а не вірою.
+ * A snapshot of everything visible: the shell's classes, the markup of every region, how
+ * many meshes the highlighter dimmed and where the camera was asked to go. The three
+ * things that make up «the state of the screen» in one string — so that rebuilding the
+ * render can be proven by comparison rather than believed.
  */
 export function domSnapshot(scene = {}) {
   const ui = document.getElementById('ui');

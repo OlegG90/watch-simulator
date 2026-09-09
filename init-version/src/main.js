@@ -5,7 +5,7 @@ import GUI from 'lil-gui';
 import { buildMovement } from './movement.js';
 import { buildLabels, createCameraFly } from './ui.js';
 
-// ── Сцена / рендер ────────────────────────────────────────────────
+// ── Scene / renderer ──────────────────────────────────────────────
 const canvas = document.getElementById('app');
 const renderer = new THREE.WebGLRenderer({ canvas, antialias: true });
 renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
@@ -16,7 +16,7 @@ renderer.toneMapping = THREE.ACESFilmicToneMapping;
 const scene = new THREE.Scene();
 scene.background = new THREE.Color(0x1a1c20);
 
-// Оточення для відблисків на металі.
+// An environment map for the highlights on the metal.
 const pmrem = new THREE.PMREMGenerator(renderer);
 scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
 scene.environmentIntensity = 0.45;
@@ -27,7 +27,7 @@ const controls = new OrbitControls(camera, canvas);
 controls.enableDamping = true;
 controls.target.set(0, 0, 0);
 
-// ── Освітлення ────────────────────────────────────────────────────
+// ── Lighting ──────────────────────────────────────────────────────
 scene.add(new THREE.AmbientLight(0xffffff, 0.15));
 const key = new THREE.DirectionalLight(0xffffff, 2.2);
 key.position.set(25, 35, 30);
@@ -44,7 +44,7 @@ const fill = new THREE.DirectionalLight(0x88aaff, 0.5);
 fill.position.set(-20, 8, -12);
 scene.add(fill);
 
-// ── Матеріали ─────────────────────────────────────────────────────
+// ── Materials ─────────────────────────────────────────────────────
 const brass = new THREE.MeshStandardMaterial({ color: 0xcaa84a, roughness: 0.35, metalness: 0.9 });
 const steel = new THREE.MeshStandardMaterial({ color: 0xb8bec8, roughness: 0.3, metalness: 0.95 });
 const axleMat = new THREE.MeshStandardMaterial({ color: 0x666a72, roughness: 0.4, metalness: 0.8 });
@@ -53,15 +53,15 @@ const springMat = new THREE.LineBasicMaterial({ color: 0x5b7fd4 });
 const plateMat = new THREE.MeshStandardMaterial({ color: 0x8a7440, roughness: 0.55, metalness: 0.7 });
 const bluedMat = new THREE.MeshStandardMaterial({ color: 0x24418f, roughness: 0.3, metalness: 0.85 });
 
-// ── Механізм (передача + спуск) ───────────────────────────────────
+// ── The movement (train + escapement) ─────────────────────────────
 const movement = buildMovement({ brass, steel, axleMat, ruby, springMat, plateMat, bluedMat });
 scene.add(movement.root);
 
-// Підписи вузлів.
+// Node labels.
 const labels = buildLabels(movement.focusPoints);
 movement.root.add(labels);
 
-// ── Тло-плита ─────────────────────────────────────────────────────
+// ── Backdrop plate ────────────────────────────────────────────────
 const plateR = Math.max(movement.size.w, movement.size.h) / 2 + 10;
 const plate = new THREE.Mesh(
   new THREE.CircleGeometry(plateR, 64),
@@ -72,14 +72,14 @@ plate.position.y = -movement.size.h / 2 - 2.5;
 plate.receiveShadow = true;
 scene.add(plate);
 
-// ── Камера: вписати механізм у кадр (з урахуванням аспекту) ───────
+// ── Camera: fit the movement into the frame (allowing for the aspect) ─
 const fitR = Math.hypot(movement.size.w, movement.size.h) / 2;
 const viewDir = new THREE.Vector3(0.12, 0.22, 1).normalize();
 const fly = createCameraFly(camera, controls);
 let userOrbited = false;
 controls.addEventListener('start', () => {
   userOrbited = true;
-  fly.cancel(); // ручне орбітання перериває переліт
+  fly.cancel(); // orbiting by hand interrupts a flight
 });
 
 function fitCamera() {
@@ -99,32 +99,32 @@ const params = {
   wireframe: false,
 };
 const gui = new GUI({ title: 'SimWatch' });
-gui.add(params, 'running').name('Рух');
+gui.add(params, 'running').name('Running');
 gui.add(params, 'timeMode', {
-  'Демонстраційний час': 'demo',
-  'Реальний час': 'real',
-}).name('Режим часу');
-gui.add(params, 'speed', 0, 10, 0.1).name('Швидкість');
-gui.add(params, 'beatHz', 0.5, 6, 0.1).name('Хід, уд/с');
-gui.add(params, 'amplitude', 90, 270, 5).name('Амплітуда, °');
-gui.add(params, 'wireframe').name('Каркас').onChange((v) => {
+  'Demo time': 'demo',
+  'Real time': 'real',
+}).name('Time mode');
+gui.add(params, 'speed', 0, 10, 0.1).name('Speed');
+gui.add(params, 'beatHz', 0.5, 6, 0.1).name('Rate, beats/s');
+gui.add(params, 'amplitude', 90, 270, 5).name('Amplitude, °');
+gui.add(params, 'wireframe').name('Wireframe').onChange((v) => {
   brass.wireframe = v;
   steel.wireframe = v;
 });
-gui.add({ wind: () => movement.winder.wind() }, 'wind').name('⟳ Завести пружину');
-gui.add(labels, 'visible').name('Підписи');
-const nodes = gui.addFolder('Вузли');
+gui.add({ wind: () => movement.winder.wind() }, 'wind').name('⟳ Wind the spring');
+gui.add(labels, 'visible').name('Labels');
+const nodes = gui.addFolder('Nodes');
 for (const a of movement.arbors) nodes.add(a.group, 'visible').name(a.name);
-nodes.add(movement.escapement.fork, 'visible').name('Анкер (вилка)');
-nodes.add(movement.escapement.balance, 'visible').name('Баланс');
-nodes.add(movement.escapement.springGroup, 'visible').name('Спіраль');
+nodes.add(movement.escapement.fork, 'visible').name('Pallet fork (lever)');
+nodes.add(movement.escapement.balance, 'visible').name('Balance');
+nodes.add(movement.escapement.springGroup, 'visible').name('Hairspring');
 const mwVis = { hands: true, winding: true };
-nodes.add(mwVis, 'hands').name('Стрілки + моторний мех.').onChange((v) => {
+nodes.add(mwVis, 'hands').name('Hands + motion works').onChange((v) => {
   for (const g of Object.values(movement.motionWorks)) g.visible = v;
 });
-nodes.add(mwVis, 'winding').name('Заведення').onChange((v) => (movement.winder.group.visible = v));
+nodes.add(mwVis, 'winding').name('Winding').onChange((v) => (movement.winder.group.visible = v));
 
-// Пресети камери.
+// Camera presets.
 const worldOf = (name) => {
   const fp = movement.focusPoints.find((f) => f.name === name);
   return new THREE.Vector3(fp.pos.x, fp.pos.y, fp.z).add(movement.root.position);
@@ -132,35 +132,35 @@ const worldOf = (name) => {
 const goto = (target, back, up = 2) =>
   fly.flyTo(target.clone().add(new THREE.Vector3(0, up, back)), target);
 const cams = {
-  'Загальний вид': () => {
+  'Overview': () => {
     const vTan = Math.tan(THREE.MathUtils.degToRad(camera.fov / 2));
     const hTan = vTan * camera.aspect;
     fly.flyTo(viewDir.clone().multiplyScalar((fitR / Math.min(vTan, hTan)) * 1.05), new THREE.Vector3());
   },
-  'Барабан': () => goto(worldOf('Барабан'), 26),
-  'Передача': () => goto(worldOf('Проміжне колесо'), 34, 4),
-  'Спуск': () => goto(worldOf('Анкер'), 22),
-  'Баланс': () => goto(worldOf('Баланс'), 16, 1),
-  'Стрілки': () => goto(worldOf('Стрілки'), 22, 4),
-  'Заведення': () => goto(worldOf('Заведення'), 18),
+  'Barrel': () => goto(worldOf('Barrel'), 26),
+  'Going train': () => goto(worldOf('Third wheel'), 34, 4),
+  'Escapement': () => goto(worldOf('Pallet fork'), 22),
+  'Balance': () => goto(worldOf('Balance'), 16, 1),
+  'Hands': () => goto(worldOf('Hands'), 22, 4),
+  'Winding': () => goto(worldOf('Winding'), 18),
 };
-const camF = gui.addFolder('Камера');
+const camF = gui.addFolder('Camera');
 for (const k of Object.keys(cams)) camF.add(cams, k);
 
-// ── Ресайз ────────────────────────────────────────────────────────
+// ── Resize ────────────────────────────────────────────────────────
 function resize() {
   const w = window.innerWidth, h = window.innerHeight;
   renderer.setSize(w, h, false);
   camera.aspect = w / h;
   camera.updateProjectionMatrix();
-  if (!userOrbited) fitCamera(); // тримати механізм у кадрі, поки користувач не орбітав сам
+  if (!userOrbited) fitCamera(); // keep the movement in frame until the user orbits themselves
 }
 window.addEventListener('resize', resize);
 resize();
 
-// ── Цикл ──────────────────────────────────────────────────────────
+// ── Loop ──────────────────────────────────────────────────────────
 const clock = new THREE.Clock();
-let simT = 0; // час симуляції; механізм рухається від спуску («тік-так»)
+let simT = 0; // simulation time; the movement is driven by the escapement (the «tick-tock»)
 
 function tick() {
   const dt = clock.getDelta();
@@ -180,7 +180,7 @@ function tick() {
 }
 tick();
 
-// Дебаг-хук: ручне просування й рендер (для перевірки, коли вкладка прихована).
+// Debug hook: manual advance and render (for checking when the tab is hidden).
 window.__simwatch = {
   movement, params, renderer, scene, camera,
   setTime(t) { simT = t; return movement.setTime(t, params); },

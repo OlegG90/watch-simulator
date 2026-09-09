@@ -1,17 +1,17 @@
 import { t } from '../i18n.js';
 
 /**
- * Шість станцій ланцюга енергії — порядок дорівнює напряму потоку енергії,
- * а не зростанню складності.
+ * The six stations of the energy chain — the order equals the direction of the
+ * energy flow, not increasing complexity.
  *
- * `focus` — ім'я точки фокуса з `movement.focusPoints`; `null` = загальний вид.
- * `highlight` — набір для `createHighlighter().focus()`.
- * `chain` — місце станції в діаграмі підвалу: рядок ланцюга або відгалуження.
- * `test` — назва тесту, яким підперта головна теза станції; мета-тест звіряє,
- *          що такий тест справді існує в наборі.
+ * `focus` — the name of a focus point from `movement.focusPoints`; `null` = the overview.
+ * `highlight` — the set for `createHighlighter().focus()`.
+ * `chain` — the station's place in the footer diagram: a chain row or a branch.
+ * `test` — the name of the test backing the station's main claim; a meta-test
+ *          verifies that such a test really exists in the suite.
  *
- * `formula` і `stats` — функції від живих чисел (`readouts.js`), а не тексти:
- * жодне число в картці не вписане руками.
+ * `formula` and `stats` are functions of live numbers (`readouts.js`), not texts:
+ * not one number on a card is typed in by hand.
  */
 export const STATIONS = [
   {
@@ -20,7 +20,7 @@ export const STATIONS = [
     focus: 'part.winding',
     highlight: { mods: ['winding'] },
     chain: { row: 0 },
-    test: 'барабанне колесо нерухоме під час заведення',
+    test: 'the barrel wheel stays still while winding',
     prose: 'st.winding.prose',
     idea: 'st.winding.idea',
     hint: 'st.winding.hint',
@@ -37,7 +37,7 @@ export const STATIONS = [
     focus: 'part.barrel',
     highlight: { mods: ['barrel'], arbors: [0] },
     chain: { row: 1 },
-    test: 'стиснення: більший заряд → менший зовнішній радіус, більше витків',
+    test: 'compression: more charge → smaller outer radius, more turns',
     prose: 'st.energy.prose',
     idea: 'st.energy.idea',
     hint: 'st.energy.hint',
@@ -60,12 +60,12 @@ export const STATIONS = [
     focus: null,
     highlight: { mods: ['train'] },
     chain: { row: 2 },
-    test: 'інваріант зачеплення = 0 на всіх 4 парах за довільних кутів',
+    test: 'the meshing invariant = 0 on all 4 pairs at arbitrary angles',
     prose: 'st.train.prose',
     idea: 'st.train.idea',
     hint: 'st.train.hint',
     formula: () => [{ key: 'st.train.f1' }],
-    ladder: true, // драбина передавальних відношень замість пари чисел
+    ladder: true, // the ladder of gear ratios instead of a pair of numbers
     controls: [{ kind: 'slider', param: 'speed' }],
   },
   {
@@ -74,8 +74,8 @@ export const STATIONS = [
     focus: 'escapement',
     highlight: { mods: ['escapement'] },
     chain: { row: 3 },
-    // Теза станції — «темп задає баланс, а не конструкція», тож і тест саме той.
-    test: 'усі варіанти дають однаковий β — таймінг не залежить від конструкції',
+    // The station's claim is «the balance sets the tempo, not the construction», so that is the test.
+    test: 'every variant produces the same β — the timing does not depend on the construction',
     prose: 'st.escapement.prose',
     idea: 'st.escapement.idea',
     hint: 'st.escapement.hint',
@@ -101,7 +101,7 @@ export const STATIONS = [
     focus: 'part.hands',
     highlight: { mods: ['motionWorks'] },
     chain: { branch: 'hands' },
-    test: 'центральна секунда : хвилинна вісь = 60',
+    test: 'centre seconds : minute arbor = 60',
     prose: 'st.timeDisplay.prose',
     idea: 'st.timeDisplay.idea',
     hint: 'st.timeDisplay.hint',
@@ -119,7 +119,7 @@ export const STATIONS = [
     focus: 'part.powerReserve',
     highlight: { mods: ['powerReserve'] },
     chain: { branch: 'reserve' },
-    test: 'умова диференціала: Δводило = (ΔS_up + ΔS_low)/2 при заведенні й ході',
+    test: 'the differential condition: Δcarrier = (ΔS_up + ΔS_low)/2 while winding and while running',
     prose: 'st.powerReserve.prose',
     idea: 'st.powerReserve.idea',
     hint: 'st.powerReserve.hint',

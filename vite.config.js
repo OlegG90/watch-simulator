@@ -1,8 +1,8 @@
 import { defineConfig } from 'vite';
 import { readFileSync } from 'node:fs';
 
-// Версія береться з package.json під час збірки — щоб число в шапці
-// не треба було правити руками при кожному релізі.
+// The version comes from package.json at build time, so the number in the header
+// does not have to be edited by hand for every release.
 const { version } = JSON.parse(readFileSync('./package.json', 'utf8'));
 
 export default defineConfig({

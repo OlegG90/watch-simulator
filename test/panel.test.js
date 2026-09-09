@@ -1,13 +1,13 @@
 // @vitest-environment jsdom
 /**
- * Панель уроку — через її власний інтерфейс.
+ * The lesson panel — through its own interface.
  *
- * Досі набір перевіряв усе НАВКОЛО панелі (`STATIONS`, `readouts()`,
- * `lineText()`), а найбільший файл проєкту не виконувався в жодному тесті.
- * Помилки ж жили не в чистих функціях, а в тому, як їх кличуть.
+ * Until this suite existed, everything AROUND the panel was tested (`STATIONS`,
+ * `readouts()`, `lineText()`) while the largest file in the project ran in no test at
+ * all. The bugs, though, lived not in the pure functions but in how they were called.
  *
- * Тут піднімається справжня панель над справжнім механізмом, і перевіряється
- * те, що видно: рейка, картка, ланцюг і розріз мають говорити одне й те саме.
+ * Here the real panel is mounted over the real movement, and what is visible is
+ * checked: the rail, the card, the chain and the section must all say the same thing.
  */
 import { describe, it, expect, beforeEach } from 'vitest';
 import { mountTestLesson } from './lessonHarness.js';
@@ -19,7 +19,7 @@ const $ = (sel) => document.querySelector(sel);
 const $$ = (sel) => [...document.querySelectorAll(sel)];
 const btn = (sel, text) => $$(`${sel} button`).find((b) => b.textContent.includes(text));
 
-/** Що зараз показує кожна область — одним об'єктом, щоб звіряти їх між собою. */
+/** What each region currently shows — as one object, so they can be checked against each other. */
 function screen() {
   const railCurrent = $$('#rail .stop').findIndex((b) => b.getAttribute('aria-current') === 'true');
   const chainActive = $$('#chain rect')
@@ -35,60 +35,60 @@ function screen() {
   };
 }
 
-describe('панель уроку (jsdom)', () => {
+describe('lesson panel (jsdom)', () => {
   beforeEach(() => { setLang('ua'); });
 
-  it('відкривається стартовим екраном, і назад із нього нікуди', () => {
+  it('opens on the start screen, with nowhere to go back to', () => {
     mountTestLesson();
     expect($('#card .eyebrow').textContent).toBe(t('card.start').toUpperCase());
     expect($('#card .placeholder').textContent).toBe(t('rail.empty'));
-    // Порожня рейка: жодна станція ще не поточна.
+    // An empty rail: no station is current yet.
     expect(screen().railCurrent).toBe(-1);
-    // На самому старті «назад» нікуди — і лише тут кнопка вимкнена.
+    // At the very start «back» leads nowhere — and only here is the button disabled.
     expect($$('#card .nav button')[0].disabled).toBe(true);
   });
 
-  it('одна дія — один екран: рейка, картка й ланцюг згодні між собою', () => {
+  it('one action — one screen: the rail, the card and the chain agree with each other', () => {
     const { lesson } = mountTestLesson();
     for (let i = 0; i < STATIONS.length; i++) {
       lesson.go(i);
       const s = screen();
       expect(s.railCurrent).toBe(i);
       expect(s.cardTitle).toBe(t(STATIONS[i].nameKey));
-      // Ланцюг підсвічує рівно одну коробку — ту, де зараз станція.
+      // The chain highlights exactly one box — the one the station is at.
       expect(s.chainActive).toBe(1);
     }
   });
 
-  it('кожна станція наводить камеру на СВІЙ вузол', () => {
-    // Тут і була вада: половина станцій називала точку, якої не було в списку
-    // пресетів камери, і переліт мовчки підмінявся загальним видом — картка
-    // казала «Заведення», а камера показувала весь механізм.
+  it('every station points the camera at ITS OWN node', () => {
+    // This is where the bug was: half the stations named a point that was not in the list
+    // of camera presets, and the flight was silently replaced by the overview — the card
+    // said «Winding» while the camera showed the whole movement.
     const { lesson, cam } = mountTestLesson();
     for (let i = 0; i < STATIONS.length; i++) {
       lesson.go(i);
-      expect(cam.calls.at(-1), `станція ${STATIONS[i].id}`).toBe(STATIONS[i].focus ?? 'overview');
+      expect(cam.calls.at(-1), `station ${STATIONS[i].id}`).toBe(STATIONS[i].focus ?? 'overview');
     }
   });
 
-  it('хром позначає той вид, на якому камера справді стоїть', () => {
+  it('the chrome marks the view the camera is really at', () => {
     const { lesson, cam } = mountTestLesson();
     const pressed = () => $$('#stage-chrome .cams button')
       .find((b) => b.getAttribute('aria-pressed') === 'true')?.textContent ?? null;
 
-    lesson.go(3);                                  // спуск — є серед пресетів
+    lesson.go(3);                                  // the escapement — it is among the presets
     expect(cam.key).toBe('escapement');
     expect(pressed()).toBe(t('part.escapement'));
 
-    lesson.go(2);                                  // колісна передача — загальний вид
+    lesson.go(2);                                  // the going train — the overview
     expect(pressed()).toBe(t('cam.overview'));
 
-    lesson.go(0);                                  // заведення — пресета немає…
-    expect(cam.key).toBe('part.winding');          // …але камера все одно там
-    expect(pressed(), 'жодна кнопка не бреше').toBe(null);
+    lesson.go(0);                                  // winding — there is no preset…
+    expect(cam.key).toBe('part.winding');          // …but the camera is there all the same
+    expect(pressed(), 'no button is lying').toBe(null);
   });
 
-  it('кожна пройдена станція лишає по реченню в рейці', () => {
+  it('every station visited leaves a sentence in the rail', () => {
     const { lesson } = mountTestLesson();
     expect($('#rail .collected p').textContent).toBe(t('rail.empty'));
     lesson.go(0); lesson.go(1); lesson.go(2);
@@ -96,29 +96,29 @@ describe('панель уроку (jsdom)', () => {
     expect($('#rail .collected p').textContent).toContain(t('st.train.line'));
   });
 
-  it('заміна модуля спуску перемальовує і картку, і розріз', () => {
+  it('swapping the escapement module redraws both the card and the section', () => {
     const { lesson, cam, movement } = mountTestLesson();
     lesson.go(3);
     btn('#card', t('variants.open')).click();
     expect($('#variants').hidden).toBe(false);
 
     const rows = $$('#variants .v-row');
-    rows[1].click();                                  // турбійон
+    rows[1].click();                                  // the tourbillon
     btn('#variants', t('variants.apply')).click();
 
     expect(movement.escapement.installed).toBe('tourbillon');
     expect($('#variants').hidden).toBe(true);
-    // Камера ведеться до гнізда — це подія, а не стан, тож і перевіряємо як подію.
+    // The camera is taken to the socket — that is an event, not state, so it is checked as an event.
     expect(cam.calls.at(-1)).toBe('escapement');
-    // Розріз мусить піти за встановленим варіантом, а не лишитися старим.
+    // The section must follow the installed variant rather than stay on the old one.
     btn('#stage-chrome', t('view.side')).click();
     expect($('#section').hidden).toBe(false);
     expect($('#section').innerHTML).not.toBe('');
   });
 
-  it('зі станції 1 можна повернутися на початок, і зібране лишається', () => {
-    // Стартовий екран був дверима в один бік: кнопка «початок» стояла на
-    // місці, але вимкнена, і жоден шлях до нього не вів.
+  it('from station 1 you can go back to the beginning, and what was collected stays', () => {
+    // The start screen was a one-way door: the «beginning» button was in place, but
+    // disabled, and no path led there.
     const { lesson, cam } = mountTestLesson();
     lesson.go(0); lesson.go(1); lesson.go(0);
 
@@ -130,14 +130,14 @@ describe('панель уроку (jsdom)', () => {
     expect(screen().railCurrent).toBe(-1);
     expect($('#card .eyebrow').textContent).toBe(t('card.start').toUpperCase());
     expect(cam.calls.at(-1)).toBe('overview');
-    // Повернення — не новий прохід: зібране лишається, і текст це визнає.
+    // A return is not a new run: what was collected stays, and the text admits it.
     expect($$('#rail .bars i.on, #rail .bars i.now')).toHaveLength(2);
     expect($('#card .placeholder').textContent).toBe(t('card.resume'));
   });
 
-  it('модалка показує, що модуль РОБИТЬ, а не лише чого коштує', () => {
-    // #13 переніс сюди числа, які залежать від конструкції, — але приїхала
-    // сама ціна, а поведінка лишилася прозою без жодного числа.
+  it('the modal shows what a module DOES, not only what it costs', () => {
+    // #13 moved the construction-dependent numbers here — but only the cost arrived, and
+    // the behaviour stayed prose without a single number.
     const { lesson, settings } = mountTestLesson();
     lesson.go(3);
     btn('#card', t('variants.open')).click();
@@ -149,11 +149,11 @@ describe('панель уроку (jsdom)', () => {
     };
     const s = (x) => `${x} ${t('unit.s')}`;
 
-    // 2.5 уд/с → оберт анкерної осі 12 с. У турбійоні колесо ще й обкочується.
+    // 2.5 beats/s → a turn of the escape arbor in 12 s. In the tourbillon the wheel also rolls.
     expect(row('variants.metric.escapeTurn')).toEqual([s(12), s(6), '—']);
     expect(row('variants.metric.cageTurn')).toEqual(['—', s(12), '—']);
 
-    // Числа виводяться з ходу, а не вписані: удвічі швидший хід — удвічі коротші.
+    // The numbers are derived from the rate, not typed in: twice the rate, half the periods.
     settings.set('beatHz', 5);
     btn('#variants', t('variants.keep')).click();
     btn('#card', t('variants.open')).click();
@@ -161,10 +161,10 @@ describe('панель уроку (jsdom)', () => {
     expect(row('variants.metric.cageTurn')).toEqual(['—', s(6), '—']);
   });
 
-  it('силуети модулів намальовані в одному масштабі', () => {
-    // Обіцянка модалки: різницю у висоті видно чесно. Тримається вона на
-    // тому, що всі три силуети проєктуються одним відображенням з одними
-    // числами — окремі `X()`/`Y()` на кожен малюнок цю обіцянку не тримали б.
+  it('the modules\' silhouettes are drawn at one scale', () => {
+    // The modal's promise: the difference in height is shown honestly. It rests on all
+    // three silhouettes being projected by one mapping with one set of numbers — separate
+    // `X()`/`Y()` per drawing would not keep that promise.
     const { lesson } = mountTestLesson();
     lesson.go(3);
     btn('#card', t('variants.open')).click();
@@ -173,8 +173,8 @@ describe('панель уроку (jsdom)', () => {
     const zBase = Math.min(...['lever', 'tourbillon'].flatMap((v) => escOf(v).map((x) => x.z0)));
     const realAbove = (v) => Math.max(...escOf(v).map((x) => x.z1)) - zBase;
 
-    // Верх найвищої деталі над спільною основою — чиста позиція, без округлень.
-    // Основу беремо з лінії платини, яку малює сам силует, а не вписуємо.
+    // The top of the tallest part above the shared base — a raw position, no rounding.
+    // The base comes from the plate line the silhouette draws itself, rather than being typed in.
     const drawnAbove = (i) => {
       const sil = $$('#variants .v-row')[i].querySelector('.sil');
       const base = Number(sil.querySelector('line').getAttribute('y1')) - 1;
@@ -186,7 +186,7 @@ describe('панель уроку (jsdom)', () => {
       .toBeCloseTo(realAbove('tourbillon') / realAbove('lever'), 6);
   });
 
-  it('останній крок веде на підсумок, а «ще раз» починає з початку', () => {
+  it('the last step leads to the summary, and «again» starts from the beginning', () => {
     const { lesson } = mountTestLesson();
     lesson.go(STATIONS.length - 1);
     btn('#card', t('card.summary')).click();
@@ -194,22 +194,22 @@ describe('панель уроку (jsdom)', () => {
     const fin = screen();
     expect(fin.finishVisible).toBe(true);
     expect(fin.sectionHidden).toBe(true);
-    // Шість зібраних речень — по одному на станцію.
+    // The six collected sentences — one per station.
     expect($$('#finish .line')).toHaveLength(STATIONS.length);
 
     btn('#finish', t('finish.again')).click();
     const after = screen();
     expect(after.finishVisible).toBe(false);
-    // Саме стартовий екран, а не перша станція: там стоїть речення, що
-    // пояснює весь маршрут, і воно потрібне тому, хто йде наново.
+    // The start screen itself, not the first station: it carries the sentence that
+    // explains the whole route, and that is what someone starting again needs.
     expect(after.railCurrent).toBe(-1);
     expect($('#card .eyebrow').textContent).toBe(t('card.start').toUpperCase());
-    // Пройдене скинуто — і текст знову обіцяє порожнечу чесно.
+    // What was visited is cleared — and the text honestly promises emptiness again.
     expect($$('#rail .bars i.on, #rail .bars i.now')).toHaveLength(0);
     expect($('#card .placeholder').textContent).toBe(t('rail.empty'));
   });
 
-  it('вільний режим і назад не втрачають станцію', () => {
+  it('free mode and back does not lose the station', () => {
     const { lesson } = mountTestLesson();
     lesson.go(2);
     lesson.setMode('free');
@@ -221,7 +221,7 @@ describe('панель уроку (jsdom)', () => {
     expect(screen().cardTitle).toBe(t(STATIONS[2].nameKey));
   });
 
-  it('вітрина — третій режим: сцена сама, назад — без втрати станції', () => {
+  it('the showcase is a third mode: the scene alone, and back without losing the station', () => {
     const { lesson } = mountTestLesson();
     lesson.go(2);
     lesson.setMode('showcase');
@@ -234,20 +234,20 @@ describe('панель уроку (jsdom)', () => {
     expect(screen().cardTitle).toBe(t(STATIONS[2].nameKey));
   });
 
-  it('setMode кидає на невідомому режимі, а не мовчить', () => {
+  it('setMode throws on an unknown mode rather than staying silent', () => {
     const { lesson } = mountTestLesson();
-    expect(() => lesson.setMode('нема-такого')).toThrow();
+    expect(() => lesson.setMode('no-such-thing')).toThrow();
   });
 
-  it('перемикання мови перемальовує весь екран', () => {
+  it('switching the language redraws the whole screen', () => {
     const { lesson } = mountTestLesson();
     lesson.go(1);
     $$('#hdr .seg.lang button')[1].click();   // EN
     expect(screen().cardTitle).toBe(t(STATIONS[1].nameKey));
-    // Жодної кирилиці не лишилося ні в рейці, ні в картці, ні в ланцюзі.
-    // Виняток — зелена позначка: вона цитує НАЗВУ реального тесту з набору, а
-    // назва тесту це ідентифікатор, не текст інтерфейсу. Перекласти її означало
-    // б розірвати звʼязок, який мета-тест і перевіряє.
+    // No Cyrillic is left in the rail, the card or the chain.
+    // The exception is the green marker: it quotes the NAME of a real test from the suite,
+    // and a test name is an identifier, not interface text. Translating it would break the
+    // link the meta-test checks.
     for (const id of ['rail', 'card', 'chain']) {
       const node = document.getElementById(id).cloneNode(true);
       node.querySelectorAll('.marker.ok i').forEach((n) => n.remove());
@@ -256,7 +256,7 @@ describe('панель уроку (jsdom)', () => {
     setLang('ua');
   });
 
-  it('update() оновлює числа, не перебудовуючи картку', () => {
+  it('update() refreshes the numbers without rebuilding the card', () => {
     const { lesson, statusOut } = mountTestLesson();
     lesson.go(4);
     const card = $('#card');
@@ -264,12 +264,12 @@ describe('панель уроку (jsdom)', () => {
     statusOut.time = 125;
     statusOut.charge = 0.5;
     lesson.update();
-    // Той самий вузол: перемальовка щокадру вибила б повзунок з-під курсора.
+    // The same node: redrawing every frame would knock the slider out from under the cursor.
     expect(card.firstChild).toBe(before);
     expect($('#chain .clock b').textContent).toBe('02:05');
   });
 
-  it('розріз показується лише збоку, лише в уроці й не на підсумку', () => {
+  it('the section shows only from the side, only in the lesson, and not on the summary', () => {
     const { lesson } = mountTestLesson();
     lesson.go(0);
     expect($('#section').hidden).toBe(true);
@@ -288,21 +288,21 @@ describe('панель уроку (jsdom)', () => {
     expect($('#section').hidden).toBe(true);
   });
 
-  it('підсвітка йде за станцією і гасне поза уроком', () => {
+  it('the highlight follows the station and goes out outside the lesson', () => {
     const { lesson, highlighter } = mountTestLesson();
-    expect(highlighter.dimCount()).toBe(0);   // старт — усе в повну силу
+    expect(highlighter.dimCount()).toBe(0);   // at the start — everything at full strength
 
     lesson.go(0);
     expect(highlighter.dimCount()).toBeGreaterThan(0);
 
     lesson.setMode('free');
-    expect(highlighter.dimCount()).toBe(0);   // вільний режим нічого не глушить
+    expect(highlighter.dimCount()).toBe(0);   // free mode dims nothing
 
     lesson.setMode('lesson');
     expect(highlighter.dimCount()).toBeGreaterThan(0);
 
     lesson.go(STATIONS.length - 1);
     btn('#card', t('card.summary')).click();
-    expect(highlighter.dimCount()).toBe(0);   // підсумок показує механізм цілком
+    expect(highlighter.dimCount()).toBe(0);   // the summary shows the whole movement
   });
 });

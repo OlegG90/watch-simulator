@@ -1,21 +1,22 @@
 import { CONTENT } from './lesson/content.js';
 
 /**
- * Мова інтерфейсу. Українська — базова; англійські назви вузлів горологічні,
- * не буквальний переклад (проміжне = third wheel, секундне = fourth wheel).
+ * The interface language. Ukrainian is the base one; the English part names are
+ * horological rather than literal translations — `part.third` is the third wheel and
+ * `part.fourth` the fourth wheel, whatever the Ukrainian side calls them.
  *
- * Ключі `part.*` іменують деталі й течуть у 3D-підписи, тумблери видимості та
- * пресети камери — тому вони мусять бути ключами, а не рядками, ще до того, як
- * над сценою з'явиться будь-який текст уроку.
+ * The `part.*` keys name the parts and flow into the 3D labels, the visibility
+ * toggles and the camera presets — which is why they must be keys rather than
+ * strings, well before any lesson text appears over the scene.
  *
- * `%n` у значенні — місце для числа (див. `tn`).
+ * A `%n` inside a value is a slot for a number (see `tn`).
  */
 const DICT = {
   ua: {
-    // ── одиниці ──
+    // ── units ──
     'unit.s': 'с',
 
-    // ── деталі механізму ──
+    // ── parts of the movement ──
     'part.barrel': 'Барабан',
     'part.centre': 'Центральне колесо',
     'part.third': 'Проміжне колесо',
@@ -34,7 +35,7 @@ const DICT = {
     'part.click': 'Собачка',
     'part.powerReserve': 'Запас ходу',
 
-    // ── панель вільного режиму ──
+    // ── the free-mode panel ──
     'gui.running': 'Рух',
     'gui.timeMode': 'Режим часу',
     'gui.timeDemo': 'Демонстраційний час',
@@ -51,7 +52,7 @@ const DICT = {
     'gui.cageOpacity': 'Кліть — прозорість',
     'gui.cageTopPlate': 'Кліть — верхня платівка',
 
-    // ── модалка «Варіанти»: гніздо спуску ──
+    // ── the «Variants» modal: the escapement socket ──
     'variants.eyebrow': 'Гніздо спуску',
     'variants.title': 'Варіанти модуля',
     'variants.lead': 'У механізмі завжди рівно один спуск. Ці три виконують ту саму роботу — і коштують дуже по-різному.',
@@ -75,7 +76,7 @@ const DICT = {
     'gui.camera': 'Камера',
     'cam.overview': 'Загальний вид',
 
-    // ── станції ──
+    // ── stations ──
     'station.winding': 'Заведення',
     'station.energy': 'Енергія',
     'station.train': 'Колісна передача',
@@ -89,13 +90,13 @@ const DICT = {
     'station.timeDisplay.sub': '12 : 1 і 60 : 1',
     'station.powerReserve.sub': 'диференціал · віднімання кутів',
 
-    // ── оболонка уроку ──
+    // ── the lesson shell ──
     'app.subtitle': 'дослідження механіки годинника',
     'mode.lesson': 'Дослідження',
     'mode.free': 'Вільний режим',
     'mode.showcase': 'Модель спуску',
     'mode.back': '← Дослідження',
-    // ── вітрина: керування рухом ──
+    // ── showcase: motion controls ──
     'show.play': 'Грати',
     'show.pause': 'Пауза',
     'show.step': 'Крок',
@@ -263,22 +264,22 @@ const DICT = {
   },
 };
 
-// Копірайт уроку живе окремо (`lesson/content.js`) — тут лишається хром.
+// The lesson's copy lives separately (`lesson/content.js`) — the chrome stays here.
 for (const l of Object.keys(DICT)) Object.assign(DICT[l], CONTENT[l]);
 
 export const LANGS = Object.keys(DICT);
 const listeners = new Set();
 let lang = 'ua';
 
-/** Переклад ключа; невідомий ключ повертається як є — щоб пропуск було видно. */
+/** Translate a key; an unknown key comes back as itself — so a gap is visible. */
 export function t(key) {
   return DICT[lang][key] ?? DICT.ua[key] ?? key;
 }
 
-/** Переклад із підстановкою числа замість `%n`. */
+/** Translate with a number substituted for `%n`. */
 export const tn = (key, n) => t(key).replace('%n', String(n));
 
-/** Переклад із підстановкою `%1`, `%2`, … — усі входження кожного. */
+/** Translate with `%1`, `%2`, … substituted — every occurrence of each. */
 export function tf(key, ...vals) {
   let out = t(key);
   vals.forEach((v, i) => { out = out.split(`%${i + 1}`).join(String(v)); });
@@ -293,11 +294,11 @@ export function setLang(next) {
   for (const fn of listeners) fn(lang);
 }
 
-/** Підписатися на зміну мови; повертає функцію відписки. */
+/** Subscribe to a language change; returns the unsubscribe function. */
 export function onLangChange(fn) {
   listeners.add(fn);
   return () => listeners.delete(fn);
 }
 
-/** Для перевірок: набори ключів мають збігатися між мовами. */
+/** For the tests: the key sets must match across the languages. */
 export const dictKeys = (l) => Object.keys(DICT[l]);

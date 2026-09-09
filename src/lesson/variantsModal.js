@@ -4,32 +4,33 @@ import { cagePeriod as arborPeriod } from './readouts.js';
 import { el, svgEl, linear } from './draw.js';
 
 /**
- * Модалка «Варіанти» — порівняння модулів спуску.
+ * The «Variants» modal — a comparison of escapement modules.
  *
- * Механізм завжди має рівно один вбудований модуль. Тут його можна поміняти,
- * і тут же видно, у що обходиться складніший.
+ * The movement always has exactly one module built in. Here it can be swapped, and
+ * here it is visible what a more complex one costs.
  *
- * ЩО ТУТ ЧЕСНО, А ЩО НІ. Числа ціни виміряні обходом графа (`escapement/
- * metrics.js`), числа поведінки виведені з тих самих зачеплень, що рухають
- * меші, — жодне не вписане. А от вигоду турбійона модель не відтворює
- * взагалі, і про це сказано окремим рядком під бурштиновою позначкою.
+ * WHAT IS HONEST HERE AND WHAT IS NOT. The cost numbers are measured by walking the
+ * scene graph (`escapement/metrics.js`), the behaviour numbers are derived from the
+ * same meshings that move the meshes — none of them is typed in. The tourbillon's
+ * benefit, though, the model does not reproduce at all, and that is stated on its own
+ * line under an amber marker.
  *
- * Третій варіант показано, але не вибрати: його ще не збудовано, тож і міряти
- * нема чого — у його колонці стоять прочерки, а не вигадані числа.
+ * The third variant is shown but cannot be chosen: it has not been built, so there is
+ * nothing to measure — its column carries dashes, not invented numbers.
  */
 
 
 const SIL_W = 120, SIL_H = 66, SIL_PAD = 7;
 
 /**
- * Силует варіанта — той самий розріз, що й у вигляді збоку, тільки маленький.
+ * A variant's silhouette — the same section as in the side view, only small.
  *
- * Масштаб СПІЛЬНИЙ для всіх трьох: інакше висока вежа й низька плитка
- * виглядали б однаково, а різниця у висоті — це половина всієї розмови.
+ * The scale is SHARED by all three: otherwise a tall tower and a low slab would look
+ * the same, and the difference in height is half of the whole conversation.
  */
 function silhouette(id, scale) {
   const s = svgEl('svg', { viewBox: `0 0 ${SIL_W} ${SIL_H}`, class: 'sil' });
-  if (!scale) { // ще не збудований варіант — пунктирна рамка зі знаком питання
+  if (!scale) { // a variant not yet built — a dashed frame with a question mark
     s.append(svgEl('rect', { x: 26, y: 18, width: SIL_W - 52, height: SIL_H - 36,
       rx: 4, fill: 'none', stroke: '#3a4048', 'stroke-dasharray': '4 4' }));
     const q = svgEl('text', { x: SIL_W / 2, y: SIL_H / 2 + 6, 'text-anchor': 'middle',
@@ -41,11 +42,11 @@ function silhouette(id, scale) {
   const { parts, zMin, kx, ky } = scale;
   const mine = parts.get(id);
   const uMid = (Math.min(...mine.map((p) => p.u - p.r)) + Math.max(...mine.map((p) => p.u + p.r))) / 2;
-  // Той самий проєктор, що й у великій розгортці. `kx`/`ky` спільні для всіх
-  // трьох силуетів — на цьому й тримається обіцянка чесного порівняння висот.
+  // The same projector as in the full development. `kx`/`ky` are shared by all three
+  // silhouettes — that is what the promise of an honest height comparison rests on.
   const Y = linear({ from: zMin, at: SIL_H - SIL_PAD, k: -ky });
   const X = linear({ from: uMid, at: SIL_W / 2, k: kx });
-  // Лінія платини, щоб було видно, від чого рахується висота.
+  // The plate's line, so it is visible what the height is measured from.
   s.append(svgEl('line', { x1: 4, y1: Y(zMin) + 1, x2: SIL_W - 4, y2: Y(zMin) + 1, stroke: '#2b3038' }));
   for (const p of mine) {
     s.append(svgEl('rect', {
@@ -58,12 +59,12 @@ function silhouette(id, scale) {
 }
 
 /**
- * Спільний масштаб для всіх силуетів.
+ * The shared scale for every silhouette.
  *
- * По вертикалі — окремий, розтягнутий: деталі спуску завтовшки 0.2–0.4, і при
- * спільному масштабі перетворилися б на риски по 2 пікселі. Розтяг однаковий
- * для всіх трьох, тож порівняння висот лишається чесним — так само, як у
- * великій розгортці, де коефіцієнт рахується під в'юпорт.
+ * Vertically it is its own, stretched: escapement parts are 0.2–0.4 thick and at a
+ * shared scale would turn into 2-pixel strokes. The stretch is the same for all
+ * three, so comparing heights stays honest — just as in the full development, where
+ * the factor is computed for the viewport.
  */
 function silhouetteScale(ids) {
   const parts = new Map();
@@ -83,11 +84,11 @@ function silhouetteScale(ids) {
 }
 
 /**
- * @param escapement гніздо з `movement`
- * @param planned    ідентифікатори ще не збудованих варіантів
- * @param beatHz     поточний хід — періоди залежать від нього, тож беремо його
- *                   в момент показу, а не запамʼятовуємо
- * @param onApply    викликається з обраним id, коли натиснули «Змінити»
+ * @param escapement the socket from `movement`
+ * @param planned    identifiers of variants not yet built
+ * @param beatHz     the current rate — the periods depend on it, so it is taken at
+ *                   the moment of display rather than remembered
+ * @param onApply    called with the chosen id when «Change» is pressed
  */
 export function mountVariantsModal({ escapement, planned = [], beatHz, onApply }) {
   const host = document.getElementById('variants');
@@ -100,8 +101,8 @@ export function mountVariantsModal({ escapement, planned = [], beatHz, onApply }
   function render() {
     host.replaceChildren();
     const sheet = el('div', 'v-sheet');
-    // Тіло гортається саме, підвал із кнопками лишається на місці за будь-якої
-    // висоти вікна — інакше він або ховає вміст, або сам їде за екран.
+    // The body scrolls by itself, the footer with the buttons stays put at any window
+    // height — otherwise it either hides content or drifts off screen.
     const body = el('div', 'v-body');
 
     body.append(el('div', 'eyebrow', t('variants.eyebrow').toUpperCase()));
@@ -110,7 +111,7 @@ export function mountVariantsModal({ escapement, planned = [], beatHz, onApply }
 
     const scale = silhouetteScale(escapement.ids);
 
-    // ── Три варіанти ──
+    // ── The three variants ──
     const list = el('div', 'v-list');
     for (const id of ids) {
       const row = el('button', 'v-row');
@@ -134,7 +135,7 @@ export function mountVariantsModal({ escapement, planned = [], beatHz, onApply }
     }
     body.append(list);
 
-    // ── Дві таблиці: що модуль робить і чого коштує ──
+    // ── Two tables: what the module does, and what it costs ──
     const table = (headKey, rows, sourceOf) => {
       const tbl = el('table', 'v-table');
       const head = el('tr');
@@ -145,8 +146,8 @@ export function mountVariantsModal({ escapement, planned = [], beatHz, onApply }
         const tr = el('tr');
         tr.append(el('td', 'k', t(key)));
         for (const id of ids) {
-          // У ще не збудованого варіанта немає чого міряти — прочерк, а не
-          // вигадане число: правило «не вписувати виведене» діє й тут.
+          // A variant not yet built has nothing to measure — a dash, not an invented
+          // number: the rule «never type in what should be derived» holds here too.
           const v = isPlanned(id) ? '—' : fmt(sourceOf(id));
           tr.append(el('td', picked === id ? 'on' : null, v));
         }
@@ -155,9 +156,9 @@ export function mountVariantsModal({ escapement, planned = [], beatHz, onApply }
       return tbl;
     };
 
-    // Період анкерної осі — спільний для всіх модулів (його задає баланс).
-    // Різниця в тому, скільки обертів робить анкерне колесо на один оберт осі,
-    // і чи є взагалі кліть, якій є що обертати.
+    // The escape arbor's period is shared by every module (the balance sets it).
+    // The difference is how many turns the escape wheel makes per turn of the arbor,
+    // and whether there is a cage with anything to rotate at all.
     const arborT = arborPeriod(beatHz());
     const secs = (x) => `${Math.round(x * 10) / 10} ${t('unit.s')}`;
     body.append(table('variants.behaviour', [
@@ -172,14 +173,14 @@ export function mountVariantsModal({ escapement, planned = [], beatHz, onApply }
       ['variants.metric.size', (c) => `${c.r} × ${c.h}`],
     ], (id) => escapement.variant(id).cost));
 
-    // ── Чесність ──
+    // ── Honesty ──
     const m = el('div', 'marker warn');
     const span = el('span');
     span.append(document.createTextNode(t('card.simplified')), el('i', null, t('variants.honesty')));
     m.append(span);
     body.append(m);
 
-    // ── Кнопки ──
+    // ── Buttons ──
     const row = el('div', 'v-actions');
     const keep = el('button', 'ghost', t('variants.keep'));
     keep.addEventListener('click', close);

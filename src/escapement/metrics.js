@@ -1,37 +1,39 @@
 import * as THREE from 'three';
 
 /**
- * Ціна складності варіанта — виміряна, не вписана.
+ * A variant's cost of complexity — measured, not typed.
  *
- * Модель не відтворює того, ЩО дає турбійон: усереднення гравітаційної похибки
- * в скриптованій кінематиці не виникає. Але вона чесно показує, у що це
- * обходиться, і саме це тут рахується — обходом графа самого варіанта.
+ * The model does not reproduce WHAT a tourbillon gives: averaging out gravitational
+ * error does not arise in scripted kinematics. But it does honestly show what the
+ * thing costs, and that is what is counted here — by walking the variant's own
+ * scene graph.
  *
- * Жодного числа руками: спробуйте змінити конструкцію — числа підуть за нею.
+ * Not one number by hand: try changing the construction and the numbers follow it.
  *
- * ЩО САМЕ МІРЯЄМО
- * - `parts`   — скільки деталей у вузлі;
- * - `moving`  — скільки з них у русі (у турбійоні — всі: кліть везе весь спуск);
- * - `axes`    — скільки рівнів обертання вкладено одне в одне: анкерний — 1,
- *               турбійон — 2 (кліть, а в ній спуск), двовісний — 3;
- * - `r`, `h`  — півширина ніші й висота стека, тобто зайнятий простір.
+ * WHAT EXACTLY IS MEASURED
+ * - `parts`   — how many parts the node has;
+ * - `moving`  — how many of them move (in the tourbillon: all of them, the cage
+ *               carries the whole escapement);
+ * - `axes`    — how many levels of rotation are nested inside one another: lever — 1,
+ *               tourbillon — 2 (the cage, and the escapement inside it), double-axis — 3;
+ * - `r`, `h`  — half-width of the recess and the height of the stack, i.e. the space taken.
  */
 
-const T1 = 0.21, T2 = 0.63;   // два несиметричні моменти удару
+const T1 = 0.21, T2 = 0.63;   // two asymmetric moments of the beat
 const BEAT = 2.5, AMP = 220;
 
-/** Локальна поза вузла — за нею видно, чи він рухається. */
+/** The node's local pose — it shows whether the node moves. */
 const pose = (o) => `${o.rotation.x},${o.rotation.y},${o.rotation.z},` +
                     `${o.position.x},${o.position.y},${o.position.z}`;
 
 /**
- * @param variant `{ rotating, fixed, update }` — як його віддає гніздо
+ * @param variant `{ rotating, fixed, update }` — as the socket hands it out
  * @returns `{ parts, moving, axes, r, h }`
  */
 export function measureVariant({ rotating, fixed, update }) {
   const roots = [rotating, fixed];
 
-  // ── 1. Хто рухається: звіряємо пози у двох різних моментах ──
+  // ── 1. Who moves: compare poses at two different moments ──
   const before = new Map();
   update(T1, BEAT, AMP);
   for (const root of roots) root.traverse((o) => before.set(o, pose(o)));
@@ -39,37 +41,37 @@ export function measureVariant({ rotating, fixed, update }) {
   const spins = new Set();
   for (const root of roots) root.traverse((o) => { if (before.get(o) !== pose(o)) spins.add(o); });
 
-  // ── 2. Деталі, рух і глибина вкладених обертань ──
+  // ── 2. Parts, motion and the depth of nested rotations ──
   let parts = 0, moving = 0, axes = 0;
   const vtx = new THREE.Vector3();
   const toLocal = new THREE.Matrix4();
   const inRoot = new THREE.Matrix4();
   let rMax = 0, zMin = Infinity, zMax = -Infinity;
 
-  update(0, BEAT, AMP); // поза для вимірювання габариту — та сама, що при збірці
+  update(0, BEAT, AMP); // the pose for measuring the envelope — the same as at build time
   for (const root of roots) {
-    // Усе під `rotating` везе анкерна вісь: вона обертається завжди, тож це
-    // окремий, зовнішній рівень обертання.
+    // Everything under `rotating` is carried by the escape arbor: it always turns, so
+    // that is a separate, outer level of rotation.
     const carried = root === rotating ? 1 : 0;
     root.updateMatrixWorld(true);
-    // Габарит міряємо у системі координат ГНІЗДА, а не сцени: гніздо стоїть
-    // далеко від центра платини, і світові координати дали б радіус ніші
-    // разом із відстанню до неї.
+    // The envelope is measured in the SOCKET's coordinates, not the scene's: the socket
+    // stands far from the centre of the plate, and world coordinates would give the
+    // recess radius plus the distance to it.
     toLocal.copy(root.matrixWorld).invert();
     root.traverse((o) => {
       if (!o.isMesh) return;
       parts++;
 
-      // Скільки рівнів обертання над цією деталлю (враховуючи її саму).
+      // How many levels of rotation are above this part (counting the part itself).
       let levels = carried;
       for (let p = o; p && p !== root.parent; p = p.parent) if (spins.has(p)) levels++;
       if (levels > 0) moving++;
       axes = Math.max(axes, levels);
 
-      // Габарит — по самих вершинах, у системі координат гнізда.
-      // Обмежувальні тіла тут брешуть в обидва боки: коробка навколо тора дає
-      // свій кут (√2 × R), а сфера навколо високої колони — свою висоту, і
-      // кліть «розростається» з 4.3 до 5.6. Вершин небагато, а міряємо раз.
+      // The envelope — over the vertices themselves, in the socket's coordinates.
+      // Bounding volumes lie in both directions here: a box around a torus contributes
+      // its own corner (√2 × R), a sphere around a tall pillar its own height, and the
+      // cage «grows» from 4.3 to 5.6. There are few vertices, and it is measured once.
       inRoot.multiplyMatrices(toLocal, o.matrixWorld);
       const pos = o.geometry.attributes.position;
       for (let i = 0; i < pos.count; i++) {

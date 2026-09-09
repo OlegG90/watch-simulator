@@ -1,7 +1,7 @@
 {
   "name": "simwatch-init",
   "version": "0.1.0",
-  "description": "3D-симулятор простого годинникового механізму — рання версія (init)",
+  "description": "3D simulator of a simple watch movement — early version (init)",
   "type": "module",
   "scripts": {
     "dev": "vite --port 5174 --strictPort",

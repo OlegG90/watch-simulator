@@ -1,16 +1,16 @@
 import { t, tf } from '../i18n.js';
 
 /**
- * Один рядок формули → готовий текст.
+ * One formula line → finished text.
  *
- * Спільний для панелі й тестів навмисно: коли тест мав власну копію цієї
- * логіки, він проходив, а картка показувала сире «%1» — перевірявся намір,
- * а не той самий шлях коду.
+ * Shared between the panel and the tests on purpose: when the test kept its own
+ * copy of this logic it passed while the card showed a raw «%1» — the intent was
+ * being checked, not the same code path.
  */
 export function lineText(line) {
   const key = line.note ?? line.key;
   return line.vals ? tf(key, ...line.vals) : t(key);
 }
 
-/** Текст із необов'язковою підстановкою (проза й підказка станції). */
+/** Text with an optional substitution (station prose and hint). */
 export const maybe = (key, vals) => (vals ? tf(key, ...vals) : t(key));

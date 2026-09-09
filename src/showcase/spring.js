@@ -1,20 +1,20 @@
 import * as THREE from 'three';
 
 /**
- * Спіраль балансу вітрини — плоска стрічка, що дихає.
+ * The showcase's balance spring — a flat ribbon that breathes.
  *
- * Предмет вітрини — зачеплення, тож спіраль тут ілюстрація «пружина дихає»,
- * а не модель регулятора: кінцевої кривої Бреге нема, радіальне дихання
- * виходить з диференційного розвороту (внутрішній кінець їде з балансом,
- * зовнішній стоїть у колодці), а не з фізики. Це зафіксоване спрощення,
- * а не недоробка.
+ * The showcase's subject is the meshing, so the spring here illustrates «the spring
+ * breathes» rather than modelling the regulator: there is no Breguet overcoil, and the
+ * radial breathing comes from a differential twist (the inner end travels with the
+ * balance, the outer stands in the stud) rather than from physics. That is a recorded
+ * simplification, not an omission.
  *
- * Форма — стрічка в площині (не трубка): деформація планарна, тож нормалі
- * сталі (0,0,1) і буфер вершин переписується на місці — нуль алокацій
- * у кадрі, як вимагає практика руху.
+ * The shape is a ribbon in a plane (not a tube): the deformation is planar, so the
+ * normals are constant (0,0,1) and the vertex buffer is rewritten in place — zero
+ * allocations per frame, as the practice for motion requires.
  */
 
-/** Витків, точок, радіуси (внутрішній — на колодці осі, зовнішній — у stud). */
+/** Turns, points, radii (the inner one at the arbor's collet, the outer at the stud). */
 export const TURNS = 5;
 export const SPRING_N = 200;
 export const SPRING_R0 = 0.18;
@@ -40,14 +40,14 @@ export function buildSpring({ cx, cy, z, material }) {
 
   const mesh = new THREE.Mesh(geo, material);
   mesh.position.set(cx, cy, z);
-  mesh.frustumCulled = false; // вершини рухаються — кешованої сфери меж нема
+  mesh.frustumCulled = false; // the vertices move — there is no cached bounding sphere
   mesh.castShadow = true;
 
   const center = new Float32Array(SPRING_N * 2);
   /**
-   * Дихання: точка i повернута на кут балансу з вагою (1 − i/(N−1)) —
-   * внутрішній кінець (i=0) жорстко з балансом, зовнішній стоїть.
-   * Пише в той самий буфер, геометрію не чіпає.
+   * Breathing: point i is turned by the balance's angle with weight (1 − i/(N−1)) —
+   * the inner end (i=0) is rigid with the balance, the outer one stands still.
+   * Writes into the same buffer, never touches the geometry.
    */
   function update(bal) {
     for (let i = 0; i < SPRING_N; i++) {

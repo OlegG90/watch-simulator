@@ -2,13 +2,14 @@ import { t, onLangChange } from '../i18n.js';
 import { phaseName, activePallet } from './motion.js';
 
 /**
- * Панель керування вітриною — живе в сцені (`#showcase-bar`), бо в режимі
- * вітрини CSS ховає все крім сцени. Рядки лише через `t()`: паритет мов
- * тестований, як і в уроці.
+ * Showcase control panel — it lives inside the scene (`#showcase-bar`), because in
+ * showcase mode CSS hides everything but the scene. Strings go through `t()` only:
+ * language parity is tested here as it is in the lesson.
  *
- * Панель не володіє часом: вона пише в переданий стан `{ t, playing, speed }`
- * (одиниця `t` — удар), а накопичує його цикл у `main.js`. Крок — це ручне
- * просування на ⅛ удару: посередині вікна перекидання видно зрив.
+ * The panel does not own time: it writes into the state it was handed
+ * (`{ t, playing, speed }`, where `t` counts beats) and the loop in `main.js`
+ * advances it. A step is a manual advance of ⅛ of a beat: in the middle of the
+ * unlocking window the drop is visible.
  */
 export function mountShowcaseBar(root, state) {
   const play = document.createElement('button');
@@ -39,7 +40,7 @@ export function mountShowcaseBar(root, state) {
   }
 
   let lastPhase = '';
-  /** Підпис фази — з циклу рендеру, але текст чіпаємо лише на зміні. */
+  /** Phase caption — driven from the render loop, but the text is touched only on change. */
   function update() {
     const key = `${phaseName(state.t)}.${activePallet(state.t)}`;
     if (key === lastPhase) return;

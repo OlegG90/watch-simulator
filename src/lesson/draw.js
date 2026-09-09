@@ -1,15 +1,16 @@
 /**
- * Дрібний інструмент малювання, спільний для трьох діаграм шару дослідження:
- * розгортки збоку, силуетів у модалці «Варіанти» й ланцюга в підвалі.
+ * Small drawing toolkit shared by the three diagrams of the Explore layer:
+ * the developed section, the silhouettes in the variants modal, and the chain in
+ * the footer.
  *
- * Тут лежить тільки те, що справді однакове. Самі діаграми лишаються кожна
- * своєю: це три різні малюнки, і зводити їх до одного означало б перекладати
- * складність, а не прибирати її.
+ * Only what is genuinely the same lives here. The diagrams themselves stay their
+ * own: they are three different drawings, and collapsing them into one would move
+ * the complexity around rather than remove it.
  */
 
 const SVG = 'http://www.w3.org/2000/svg';
 
-/** Елемент HTML із класом і текстом. */
+/** An HTML element with a class and text. */
 export const el = (tag, cls, text) => {
   const n = document.createElement(tag);
   if (cls) n.className = cls;
@@ -17,7 +18,7 @@ export const el = (tag, cls, text) => {
   return n;
 };
 
-/** Елемент SVG з атрибутами. */
+/** An SVG element with attributes. */
 export const svgEl = (tag, attrs = {}) => {
   const n = document.createElementNS(SVG, tag);
   for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, String(v));
@@ -25,13 +26,14 @@ export const svgEl = (tag, attrs = {}) => {
 };
 
 /**
- * Лінійне відображення: величина механізму → піксель.
+ * Linear mapping: a movement quantity → a pixel.
  *
- * `from` лягає рівно в `at`, далі множиться на `k`. Для вертикалі `k` беруть
- * відʼємним — у SVG вісь Y дивиться вниз, а висоти механізму ростуть угору.
+ * `from` lands exactly on `at`, then everything scales by `k`. For the vertical
+ * axis `k` is taken negative — in SVG the Y axis points down, while the heights of
+ * the movement grow upwards.
  *
- * Спільна саме тому, що обіцянка силуетів у модалці («усі три в одному
- * масштабі, тож порівняння висот чесне») тримається на тому, що всі вони
- * проєктуються однією функцією з одними числами.
+ * It is shared precisely because the promise the modal's silhouettes make («all
+ * three at one scale, so comparing heights is honest») rests on all of them being
+ * projected by one function with one set of numbers.
  */
 export const linear = ({ from, at, k }) => (v) => at + (v - from) * k;

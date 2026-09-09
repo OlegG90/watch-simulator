@@ -1,41 +1,42 @@
 /**
- * Гніздо спуску: у механізмі завжди рівно один встановлений модуль.
+ * The escapement socket: the movement always has exactly one installed module.
  *
- * Усі варіанти збираються одразу при старті — заміна тоді миттєва, час і завод
- * її не помічають, і не треба коду розбирання (він тут уже одного разу виявився
- * мертвим і брехав про життєвий цикл). Але **оновлюється тільки встановлений**:
- * спіраль балансу переписує 1089 вершин щокадру, тож три працюючі спуски
- * потроїли б кадровий бюджет.
+ * Every variant is built at startup — a swap is then instantaneous, time and the
+ * wind state do not notice it, and no teardown code is needed (that code turned out
+ * to be dead here once already, and lied about the lifecycle). But **only the
+ * installed one is updated**: the balance spring rewrites 1089 vertices per frame,
+ * so three running escapements would triple the frame budget.
  *
- * Контракт варіанта: він отримує матеріали й параметри, а повертає
+ * A variant's contract: it is handed materials and parameters and returns
  * `{ id, nameKey, rotating, fixed, update(t, beatHz, amp) → β, nodes, motion }`,
- * де `nodes` — власні ручки для панелі вільного режиму, а `motion` — що модуль
- * робить (обертів анкерного колеса на оберт осі; чи є кліть). Усе інше лишається
- * всередині варіанта; перевірки дістають його меші через `internals` — окремі
- * двері, названі так, щоб їх не сплутали з інтерфейсом.
- * `rotating` чіпляється до анкерної осі, `fixed` стоїть у сцені. Більше про
- * варіант гніздо не знає — скільки в ньому вкладених клітей і навколо чого
- * вони крутяться, його справа.
+ * where `nodes` are its own knobs for the free-mode panel and `motion` says what
+ * the module does (escape-wheel turns per turn of the arbor; whether it has a cage).
+ * Everything else stays inside the variant; the tests reach its meshes through
+ * `internals` — a separate door, named so nobody mistakes it for interface.
+ * `rotating` is attached to the escape arbor, `fixed` stands in the scene. The
+ * socket knows nothing more about a variant — how many nested cages it has and what
+ * they turn about is its own business.
  */
 import { buildTourbillon, profile as tourbillonProfile, VARIANT_ID as TOURBILLON } from './tourbillon.js';
 import { buildLever, profile as leverProfile, VARIANT_ID as LEVER } from './lever.js';
 import { measureVariant } from './metrics.js';
 
-/** Порядок = зростання складності. Саме в ньому їх показує порівняння. */
+/** The order = increasing complexity. It is the order the comparison shows them in. */
 export const VARIANT_IDS = [LEVER, TOURBILLON];
 
 /**
- * Який варіант стоїть при старті — найпростіший: подача веде від нього до
- * складніших. Це НЕ те саме, що перший у списку (порядок — подача, типовий
- * варіант — поведінка), просто тут вони збігаються.
+ * Which variant is installed at startup — the simplest one: the narrative leads from
+ * it to the more complex ones. This is NOT the same thing as first in the list (the
+ * order is the narrative, the default variant is behaviour), they merely coincide here.
  *
- * Вибір НЕ зберігається між сесіями: щоразу починаємо з анкерного спуску.
+ * The choice is NOT kept between sessions: every start begins with the lever escapement.
  */
 export const DEFAULT_VARIANT = LEVER;
 
 /**
- * Варіанти, яких ще немає. Порівняння показує їх третім щаблем складності,
- * але вибрати не дає й чисел не вигадує — міряти нема чого.
+ * Variants that do not exist yet. The comparison shows them as a third step of
+ * complexity, but does not let them be chosen and invents no numbers for them —
+ * there is nothing to measure.
  */
 export const PLANNED_IDS = ['doubleAxis'];
 
@@ -45,19 +46,20 @@ const PROFILES = {
 };
 
 /**
- * Розгортка варіанта — без збирання мешів.
+ * A variant's profile — without building any meshes.
  *
- * Гніздо і тут лишається єдиними дверима до варіантів: доти розгортка
- * імпортувала `lever.js` і `tourbillon.js` навпростець, тримала власне
- * уявлення про те, який варіант типовий, і сама вписувала товщини їхніх тіл.
+ * The socket stays the only door to the variants here too: until now the section
+ * imported `lever.js` and `tourbillon.js` directly, kept its own idea of which
+ * variant was the default, and typed in their body thicknesses itself.
  *
- * @param id     який варіант малювати — без замовчування: типовий варіант
- *               знає гніздо (`DEFAULT_VARIANT`), і другої думки тут бути не має
- * @param zBase  висота основи гнізда
+ * @param id     which variant to draw — with no default: the default variant is
+ *               known to the socket (`DEFAULT_VARIANT`), and there must be no second
+ *               opinion here
+ * @param zBase  the height of the socket's base
  */
 export function variantProfile(id, zBase, opts = {}) {
   const fn = PROFILES[id];
-  if (!fn) throw new Error(`невідомий варіант спуску: ${id}`);
+  if (!fn) throw new Error(`unknown escapement variant: ${id}`);
   return fn(zBase, opts);
 }
 
@@ -76,12 +78,12 @@ const BUILDERS = {
 };
 
 /**
- * Зібрати всі варіанти й встановити один.
+ * Build every variant and install one.
  *
- * @param mount.arbor  група анкерної осі — до неї йде обертова частина
- * @param mount.root   корінь сцени — до нього йде нерухома частина
- * @param mount.pos    позиція гнізда у площині платини
- * @param mount.zBase  висота основи гнізда
+ * @param mount.arbor  the escape arbor's group — the rotating part goes there
+ * @param mount.root   the scene root — the fixed part goes there
+ * @param mount.pos    the socket's position in the plane of the plate
+ * @param mount.zBase  the height of the socket's base
  */
 export function buildEscapementSocket(mats, opts, mount, installed = DEFAULT_VARIANT) {
   const built = new Map();
@@ -92,8 +94,8 @@ export function buildEscapementSocket(mats, opts, mount, installed = DEFAULT_VAR
     mount.arbor.add(v.rotating);
     v.fixed.position.set(mount.pos.x, mount.pos.y, mount.zBase);
     mount.root.add(v.fixed);
-    // Ціна складності міряється ОДИН раз, тут: механізм ще не рухається, тож
-    // можна безпечно поставити варіантові дві пози й порівняти їх.
+    // The cost of complexity is measured ONCE, here: the movement is not running yet,
+    // so a variant can safely be put into two poses and have them compared.
     built.set(id, { id, nameKey: `part.${id}`, ...v, cost: measureVariant(v) });
   }
 
@@ -113,29 +115,29 @@ export function buildEscapementSocket(mats, opts, mount, installed = DEFAULT_VAR
     ids: [...VARIANT_IDS],
     get installed() { return current; },
     /**
-     * Назва ВСТАНОВЛЕНОГО модуля — для тих місць, де йдеться саме про нього:
-     * модалка «Варіанти», розгортка збоку, таблиця ціни.
+     * The INSTALLED module's name — for the places where the module itself is the
+     * subject: the «Variants» modal, the developed section, the cost table.
      *
-     * Хром сцени (3D-підпис, пресет камери, тумблер вузла) навмисно НЕ бере її
-     * звідси: він перелічує МІСЦЯ в механізмі — барабан, центральне колесо,
-     * стрілки, заведення, — і спуск там назване місцем, а не тим, що в ньому
-     * зараз стоїть. Рішення #21; не «бо інакше застаріє» — усі три поверхні
-     * вміють перебудовуватись, — а тому, що це один словник на весь список.
+     * The scene chrome (3D label, camera preset, node toggle) deliberately does NOT
+     * take it from here: it enumerates PLACES in the movement — barrel, centre wheel,
+     * hands, winding — and the escapement is named there as a place, not as whatever
+     * currently stands in it. Decision #21; not «because it would go stale» — all
+     * three surfaces can rebuild — but because that is one vocabulary for the whole list.
      */
     get nameKey() { return built.get(current).nameKey; },
     variant: (id) => built.get(id),
     install(id) {
-      if (!built.has(id)) throw new Error(`невідомий варіант спуску: ${id}`);
+      if (!built.has(id)) throw new Error(`unknown escapement variant: ${id}`);
       show(id);
     },
-    /** Рухається ТІЛЬКИ встановлений варіант — решта сховані й не рахуються. */
+    /** ONLY the installed variant moves — the rest are hidden and do not count. */
     update: (t, beatHz, amp) => built.get(current).update(t, beatHz, amp),
     /**
-     * Ручки вузлів ВСТАНОВЛЕНОГО варіанта — для панелі вільного режиму.
+     * The node knobs of the INSTALLED variant — for the free-mode panel.
      *
-     * Гніздо лишається єдиними дверима: панель не знає ні імені варіанта, ні
-     * що в ньому є. Доти вона зверталася до турбійона навпростець і могла
-     * показати його деталі поряд із анкерним спуском.
+     * The socket stays the only door: the panel knows neither the variant's name nor
+     * what is inside it. Until now it addressed the tourbillon directly and could show
+     * that module's parts beside the lever escapement.
      */
     nodes: () => built.get(current).nodes ?? [],
   };

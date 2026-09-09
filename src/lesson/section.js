@@ -1,15 +1,15 @@
 /**
- * Вигляд збоку — **розгортка вздовж ланцюга**, а не проекція.
+ * The side view — a **development along the chain**, not a projection.
  *
- * Чесна ортогональна проекція тут не працює: вона схлопує вісь Y, і кліть
- * турбійона (за 14 одиниць від барабана) налазить на диференціал. Тому
- * робимо так, як роблять у годинникових розрізах: висоти справжні, а по
- * горизонталі вузли стоять на своїх справжніх міжосьових відстанях уздовж
- * ланцюга. Побічний виграш — кожен тріб дотикається колеса сусіда рівно по
- * ділильних колах, бо відстані не вигадані.
+ * An honest orthographic projection does not work here: it collapses the Y axis, and
+ * the tourbillon cage (14 units from the barrel) lands on top of the differential. So
+ * we do what watch sections do: the heights are true, while horizontally the arbors
+ * stand at their real centre distances along the chain. A side benefit is that every
+ * pinion touches its neighbour's wheel exactly at the pitch circles, because the
+ * distances are not invented.
  *
- * Деталі беруться з тих самих `layout…()` і `LAYERS`, що будують сцену:
- * діаграма не може розійтися з механізмом.
+ * The parts come from the same `layout…()` and `LAYERS` that build the scene: the
+ * diagram cannot drift away from the mechanism.
  */
 import { TRAIN, layoutTrain } from '../train.js';
 import { pitchR, WHEEL_T, PINION_T } from '../common.js';
@@ -20,18 +20,18 @@ import { profile as motionProfile } from '../motionWorks.js';
 import { variantProfile } from '../escapement/index.js';
 import { CAGE_R } from '../movement.js';
 
-const V_EXAGGERATION = 2; // інакше шари в 1.1 зливаються; підписано у в'юпорті
+const V_EXAGGERATION = 2; // otherwise layers 1.1 apart merge; captioned in the viewport
 
 /**
- * Деталі розрізу: `u` — місце вздовж ланцюга, `z0..z1` — висота, `r` — півширина.
- * Усе в одиницях механізму.
+ * The section's parts: `u` — the place along the chain, `z0..z1` — the height, `r` —
+ * the half-width. All in movement units.
  *
- * Це КОМПОЗИТОР: власних чисел вузлів він не виводить. Кожен модуль сам каже,
- * з чого складається (`profile()`) і від якої осі висить (`anchor`) — тут лише
- * розставляються осі вздовж ланцюга.
+ * This is a COMPOSER: it derives none of the nodes' own numbers. Every module says
+ * for itself what it is made of (`profile()`) and which axis it hangs from
+ * (`anchor`) — all that happens here is placing the axes along the chain.
  *
- * @param variant яку конструкцію спуску малювати — обов'язково: типовий
- *                варіант знає гніздо, і другої думки про нього тут не буде
+ * @param variant which escapement construction to draw — required: the default
+ *                variant is known to the socket, and there will be no second opinion here
  */
 export function sectionParts(variant) {
   const arbors = layoutTrain();
@@ -43,7 +43,7 @@ export function sectionParts(variant) {
   const parts = [];
   const add = (p) => parts.push(p);
 
-  // ── Ланцюг передачі: сходинка, де кожен щабель торкається наступного ──
+  // ── The train's chain: a staircase where each step touches the next ──
   TRAIN.forEach((spec, k) => {
     if (spec.pinion) {
       add({ u: u[k], z0: arbors[k].pinionZ, z1: arbors[k].pinionZ + PINION_T,
@@ -55,7 +55,7 @@ export function sectionParts(variant) {
     }
   });
 
-  // Точки зачеплення — там, де ділильні кола дотикаються.
+  // The meshing points — where the pitch circles touch.
   const meshes = [];
   for (let k = 1; k < TRAIN.length; k++) {
     meshes.push({
@@ -65,35 +65,35 @@ export function sectionParts(variant) {
     });
   }
 
-  // ── Барабан із пружиною (нижче колеса) ──
+  // ── The barrel with its spring (below the wheel) ──
   const drumR = pitchR(TRAIN[0].wheel) - 1.2;
   add({ u: 0, z0: BARREL.drumCentre - BARREL.drumHeight / 2, z1: BARREL.drumCentre + BARREL.drumHeight / 2,
         r: drumR, mod: 'barrel', kind: 'drum' });
 
-  // ── Заведення: храповик на осі барабана + коронне колесо на своїй ──
+  // ── Winding: the ratchet on the barrel arbor + the crown wheel on its own ──
   add({ u: 0, z0: WIND.deck, z1: WIND.deck + 0.5, r: pitchR(RATCHET_T, RATCH_M), mod: 'winding', kind: 'wheel' });
   const uCrown = -((RATCHET_T + CROWN_T) / 2) * RATCH_M;
   add({ u: uCrown, z0: WIND.deck, z1: WIND.deck + 0.5, r: pitchR(CROWN_T, RATCH_M), mod: 'winding', kind: 'wheel',
         labelKey: 'part.winding' });
 
-  // ── Решта вузлів: кожен розповідає про себе сам ──
-  // Осі ланцюга — тут; що на них висить — справа самих модулів.
+  // ── The remaining nodes: each one tells its own story ──
+  // The chain's axes live here; what hangs on them is the modules' own business.
   const anchorU = { barrel: u[0], centre: u[1], seconds: u[3], escape: u[4] };
   const place = (mod, prof) => {
-    // `anchor` — це те, що модуль каже композиторові, а не властивість деталі:
-    // після розстановки він уже нічого не означає й у розгортку не йде.
+    // `anchor` is what the module tells the composer, not a property of a part:
+    // once placed it means nothing more and does not go into the section.
     for (const { anchor, ...p } of prof.parts) add({ ...p, u: anchorU[anchor] + p.u, mod });
   };
 
   place('powerReserve', reserveProfile());
   place('motionWorks', motionProfile(arbors));
 
-  // ── Гніздо спуску: показуємо ТЕ, ЩО СТОЇТЬ ──
-  // Розгортка — єдина діаграма, яку тут тримають правдивою, тож вона мусить
-  // малювати встановлений варіант, а не один назавжди обраний.
+  // ── The escapement socket: we show WHAT IS INSTALLED ──
+  // The development is the one diagram kept truthful here, so it must draw the
+  // installed variant rather than one chosen forever.
   place('escapement', variantProfile(variant, arbors[4].wheelZ, { cageR: CAGE_R }));
 
-  // ── Платина ──
+  // ── The main plate ──
   const uMin = Math.min(...parts.map((p) => p.u - p.r));
   const uMax = Math.max(...parts.map((p) => p.u + p.r));
   add({ u: (uMin + uMax) / 2, z0: -3.6, z1: -2.8, r: (uMax - uMin) / 2, mod: 'plate', kind: 'plate' });
@@ -101,7 +101,7 @@ export function sectionParts(variant) {
   return { parts, meshes, arborU: u, bounds: { uMin, uMax } };
 }
 
-/** Z-рівні для шкали ліворуч — беруться з тих самих даних. */
+/** The Z levels for the scale on the left — taken from the same data. */
 export function zTicks() {
   const arbors = layoutTrain();
   return [...new Set([
