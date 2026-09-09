@@ -341,25 +341,6 @@ Headless [Vitest](https://vitest.dev/) suite (no browser needed — three.js bui
 
 The Explore layer is covered too. `test/panel.test.js` runs under **jsdom** (declared per file, so the geometry suites keep the faster Node environment): it mounts the real panel — over the real movement, in the real `index.html` grid — and asserts that the rail, the card, the chain and the developed section always agree with each other. `test/lessonHarness.js` is the rig; it is not a suite, so the runner does not collect it.
 
-## Versions
-
-The repo keeps two versions side by side:
-
-- **Latest** — the repo root (`src/`). Compact layered layout, open barrel with visible
-  mainspring, hands raised to the top of the staff, demo/real time modes. Runs on **port 5173**.
-- **Init** — [`init-version/`](init-version/). An earlier snapshot with the original
-  spread-out arc layout (balance mounted separately, solid barrel). Runs on **port 5174**.
-
-Run the early version:
-
-```bash
-cd init-version
-npm install
-npm run dev   # http://localhost:5174
-```
-
-Both can run at the same time (different ports).
-
 ## License
 
 [MIT](LICENSE) © OlegG90. See [CHANGELOG.md](CHANGELOG.md) for release notes.

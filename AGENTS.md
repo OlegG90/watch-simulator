@@ -80,7 +80,6 @@ finish it.
 | `src/i18n.js` | every interface string, Ukrainian and English (with `lesson/content.js`, the only Ukrainian in the repo) |
 | `src/lesson/` | the Explore layer: panel, stations, live figures, developed section, modal |
 | `test/` | four suites; `lessonHarness.js` is the rig, not a suite |
-| `init-version/` | an early snapshot with its own deps. Not built, not tested, kept on purpose |
 | `dist/` | build output. Never edit; `.github/workflows/pages.yml` regenerates it |
 
 ## The module contract — three phases
@@ -173,8 +172,6 @@ npm test         # all four suites
 npm run build    # production build into dist/
 npm run serve    # build, then serve dist/ statically on 8642
 ```
-
-`init-version/` has its own `package.json` and runs on 5174.
 
 ## Testing
 
