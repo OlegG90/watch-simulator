@@ -1,22 +1,22 @@
 /**
- * Підсвітка вузла: приглушити все, крім заданого набору.
+ * Node highlight: dim everything except a given set.
  *
- * Матеріали в сцені СПІЛЬНІ (одна `brass` на десятках мешів), тому міняти
- * `material.opacity` не можна — зблякне пів-механізму. Натомість тримаємо по
- * одному приглушеному клону на кожен матеріал і підмінюємо `mesh.material`.
+ * Materials in the scene are SHARED (one `brass` across dozens of meshes), so
+ * `material.opacity` must not be touched — half the movement would fade. Instead we
+ * keep one dimmed clone per material and swap `mesh.material`.
  *
- * Приналежність береться з `userData.mod` (модуль) та `userData.arbor` (номер
- * вузла передачі) — їх проставляють самі модулі під час збірки.
+ * Membership comes from `userData.mod` (the module) and `userData.arbor` (the train
+ * node's index) — the modules set those themselves while building.
  */
 
 const DIM_OPACITY = 0.12;
 
 export function createHighlighter(root, { dimOpacity = DIM_OPACITY } = {}) {
-  const dimOf = new Map();   // оригінальний матеріал → приглушений клон
+  const dimOf = new Map();   // original material → dimmed clone
   const items = [];          // { obj, base, mod, arbor }
 
   root.traverse((o) => {
-    if (!o.isMesh && !o.isLine) return; // спрайти-підписи не чіпаємо
+    if (!o.isMesh && !o.isLine) return; // sprite labels are left alone
     items.push({ obj: o, base: o.material, mod: o.userData.mod ?? null, arbor: o.userData.arbor });
   });
 
@@ -29,17 +29,17 @@ export function createHighlighter(root, { dimOpacity = DIM_OPACITY } = {}) {
       d.depthWrite = false;
       dimOf.set(mat, d);
     }
-    // Клон робиться один раз, а база може змінитися після цього: тумблер
-    // «Каркас» у вільному режимі перемикає саме оригінали. Без цієї звірки
-    // повернення в дослідження показало б підсвічене каркасом, а приглушене —
-    // суцільним.
+    // The clone is made once, but the base may change afterwards: the «Wireframe»
+    // toggle in free mode switches the originals. Without this check, returning to
+    // Explore would show the highlighted parts as wireframe and the dimmed ones as
+    // solid.
     d.wireframe = mat.wireframe;
     return d;
   }
 
   /**
    * @param {?{mods?: string[], arbors?: number[]}} spec
-   *        null або порожній набір — показати все у повну силу.
+   *        null or an empty set — show everything at full strength.
    */
   function focus(spec) {
     const mods = new Set(spec?.mods ?? []);
@@ -51,18 +51,18 @@ export function createHighlighter(root, { dimOpacity = DIM_OPACITY } = {}) {
     }
   }
 
-  /** Повернути сцену до повної яскравості. */
+  /** Return the scene to full brightness. */
   const clear = () => focus(null);
 
-  /** Які модулі взагалі є в сцені (для перевірок). */
+  /** Which modules exist in the scene at all (for the tests). */
   const modules = () => new Set(items.map((it) => it.mod));
 
-  /** Скільки мешів зараз приглушено (для перевірок). */
+  /** How many meshes are dimmed right now (for the tests). */
   const dimCount = () => items.filter((it) => it.obj.material !== it.base).length;
 
-  // Знищувати нічого не треба: клонів рівно стільки, скільки різних матеріалів
-  // у сцені (одиниці), а підсвітка живе стільки ж, скільки сама сторінка.
-  // `dispose()` тут був мертвим кодом і вдавав керований життєвий цикл.
+  // There is nothing to destroy: there are exactly as many clones as there are
+  // distinct materials in the scene (a handful), and the highlighter lives as long as
+  // the page does. `dispose()` here was dead code pretending to manage a lifecycle.
 
   clear();
   return { focus, clear, modules, dimCount, count: items.length };

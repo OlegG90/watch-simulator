@@ -1,32 +1,32 @@
 /**
- * Фаза удару — спільна для всіх варіантів спуску.
+ * The beat phase — shared by every escapement variant.
  *
- * Ця математика вже двічі жила копіями: у `escapement.js` (до турбійона) і в
- * `tourbillon.js` — з тими самими `FORK_MAX`, `FLIP_W` і тією самою `smooth`.
- * Третій варіант скопіював би її втретє, і однаковий таймінг тримався б на
- * дисципліні. Тепер фаза рахується один раз, а варіант робить єдине: розкладає
- * її по СВОЇЙ геометрії.
+ * This maths already lived as two copies: in `escapement.js` (before the
+ * tourbillon) and in `tourbillon.js` — with the same `FORK_MAX`, the same `FLIP_W`
+ * and the same `smooth`. A third variant would have copied it a third time, and
+ * identical timing would rest on discipline. Now the phase is computed once, and a
+ * variant does one thing only: it lays that phase out on ITS OWN geometry.
  *
- * Саме тому вимога «у всіх варіантів однаковий хід» стає структурною: `β`
- * фізично один, його нема з чим розсинхронізувати.
+ * That is what makes «every variant keeps the same beat» structural: there is
+ * physically one `β`, with nothing to fall out of sync with.
  */
 
-/** Розмах анкера, рад (~8°). */
+/** The fork's swing, rad (~8°). */
 export const FORK_MAX = 0.14;
-/** Пів-ширина вікна перекидання, частка удару. */
+/** Half-width of the unlocking window, as a fraction of a beat. */
 export const FLIP_W = 0.12;
 
 const smooth = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
 
 /**
- * Фаза на момент `t`.
+ * The phase at the moment `t`.
  *
- * Кличеться щокадру, тому приймає буфер `out` і не алокує.
+ * Called every frame, so it takes an `out` buffer and allocates nothing.
  *
  * @returns {{u, n, ss, sigma, thetaB, beta, forkAngle}}
- *   `u` — час у ударах; `n` — номер удару; `ss` — smoothstep у вікні
- *   перекидання; `sigma` — чергування сторін; `thetaB` — кут балансу;
- *   `beta` — приводний кут механізму; `forkAngle` — кут вилки.
+ *   `u` — time in beats; `n` — beat number; `ss` — the smoothstep inside the
+ *   unlocking window; `sigma` — the alternating side; `thetaB` — the balance's
+ *   angle; `beta` — the movement's driving angle; `forkAngle` — the fork's angle.
  */
 export function beatPhase(t, beatHz, ampDeg, escTeeth, out = {}) {
   const u = t * beatHz;
@@ -42,7 +42,7 @@ export function beatPhase(t, beatHz, ampDeg, escTeeth, out = {}) {
   out.ss = ss;
   out.sigma = sigma;
   out.thetaB = thetaB;
-  // Пів-кроку зубця за удар: анкерне колесо просувається на π/Z за кожен удар.
+  // Half a tooth pitch per beat: the escape wheel advances by π/Z on every beat.
   out.beta = (Math.PI / escTeeth) * (n - 1 + ss);
   out.forkAngle = -FORK_MAX * sigma * (2 * ss - 1);
   return out;

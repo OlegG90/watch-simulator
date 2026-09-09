@@ -4,21 +4,22 @@ import { tagModule, tagVariant } from '../common.js';
 import { beatPhase } from './beat.js';
 import { buildHairspring } from './hairspring.js';
 
-// ── Константи спуску (ті самі, що в escapement.js) ────────────────
-/** Локальні Z-рівні кліті (від її основи) — спільні з розрізом збоку. */
+// ── Escapement constants (the same as in escapement.js) ───────────
+/** Local Z levels of the cage (from its base) — shared with the developed section. */
 export const LAYERS = { bottom: -0.55, pin: 0, escape: 0.55, fork: 0.95, balance: 1.75, hair: 2.25, top: 2.6 };
 
-/** Радіус обода балансу: або власний розмір, або скільки лишає кліть. */
+/** The balance rim's radius: either its own size, or whatever the cage leaves it. */
 export const balanceR = (cageR) => Math.min(1.95, cageR - 1.95);
 
-/** Товщини тіл — ті самі числа в мешах і в розгортці. */
+/** Body thicknesses — the same numbers in the meshes and in the section. */
 const T = { balRim: 0.18 };
 
 /**
- * Що варіант каже про себе в розгортці — до появи мешів.
+ * What the variant says about itself in the section — before any mesh exists.
  *
- * Вежа з двох платівок: усе інше всередині неї, тож у розгортці видно саме
- * кліть, а не начинку. `u` — від анкерної осі, `z` — від основи гнізда.
+ * A tower of two plates: everything else is inside it, so what the section shows is
+ * the cage rather than its contents. `u` is measured from the escape arbor, `z` from
+ * the socket's base.
  */
 export function profile(zBase = 0, { cageR } = {}) {
   return {
@@ -43,55 +44,56 @@ function bar(from, to, w, t, material) {
 }
 
 /**
- * Турбійон: увесь спуск (анкерне колесо + вилка + баланс зі спіраллю) сидить
- * у обертовій кліті. Анкерний триб (Zp) обкочується навколо НЕРУХОМОГО колеса
- * (Zf) в центрі кліті; при Zf = Zp кут кліті θ_cage дорівнює биттю спуску β,
- * тож привід передачі не змінюється (θ_cage замінює старий кут анкерного колеса).
+ * Tourbillon: the whole escapement (escape wheel + fork + balance with its
+ * hairspring) sits in a rotating cage. The escape pinion (Zp) rolls around the FIXED
+ * wheel (Zf) at the centre of the cage; when Zf = Zp, the cage angle θ_cage equals
+ * the escapement's beat β, so the drive to the train does not change (θ_cage takes
+ * over from the old escape-wheel angle).
  *
- * update(t, beatHz, ampDeg) → θ_cage (кут кліті; ним рухається вся передача).
+ * update(t, beatHz, ampDeg) → θ_cage (the cage's angle; it drives the whole train).
  *
- * Геометрія — компактна, у локальних координатах кліті (центр = вісь нерухомого
- * колеса). Кліть додається дочірньою до групи, що вже обертається на θ_cage
- * (у нас — arbor4.group); нерухоме колесо додається окремо, у нерухому групу.
+ * The geometry is compact, in the cage's local coordinates (the centre = the fixed
+ * wheel's axis). The cage is added as a child of a group that already turns by
+ * θ_cage (here: arbor4.group); the fixed wheel is added separately, to a fixed group.
  */
-/** Ідентифікатор варіанта в гнізді спуску. */
+/** The variant's identifier in the escapement socket. */
 export const VARIANT_ID = 'tourbillon';
 
 export function buildTourbillon(
   { steel, brass, ruby, springSteel, axleMat, plateMat },
   { escTeeth = 15, fixedTeeth = 10, pinionTeeth = 10, moduleT = 0.26, cageR = 4.3, escDirLocal = 0 }
 ) {
-  const cage = new THREE.Group();   // обертова частина (додати до arbor4.group)
-  const fixed = new THREE.Group();  // нерухома частина (додати до root у cagePos)
+  const cage = new THREE.Group();   // the rotating part (add to arbor4.group)
+  const fixed = new THREE.Group();  // the fixed part (add to root at cagePos)
 
-  // Z-рівні (локальні; кліть ставиться на zBase у movement).
-  const zPin = 0;      // площина нерухомого колеса й анкерного триба (зачеплення)
-  const zEsc = 0.55;   // анкерне колесо
-  const zFork = 0.95;  // вилка
-  const zBal = 1.75;   // баланс
-  const zHair = 2.25;  // спіраль
-  const zBot = -0.55, zTop = 2.6; // платівки кліті
+  // Z levels (local; the cage is placed at zBase in movement).
+  const zPin = 0;      // the plane of the fixed wheel and the escape pinion (the meshing)
+  const zEsc = 0.55;   // the escape wheel
+  const zFork = 0.95;  // the fork
+  const zBal = 1.75;   // the balance
+  const zHair = 2.25;  // the hairspring
+  const zBot = -0.55, zTop = 2.6; // the cage plates
 
-  // Анкерний вузол обкочується навколо нерухомого колеса: відносно кліті він
-  // повертається на β·(Zf/Zp), а разом із кліттю — ще на β. Звідси й швидший
-  // абсолютний оберт анкерного колеса. Формула одна: нею рухається меш, із
-  // неї ж береться число для порівняння модулів.
+  // The escape node rolls around the fixed wheel: relative to the cage it turns by
+  // β·(Zf/Zp), and together with the cage by another β. Hence the escape wheel's faster
+  // absolute turn. There is one formula: it moves the mesh, and the number for the
+  // module comparison is taken from it too.
   const escPerBeta = fixedTeeth / pinionTeeth;
-  const escOff = moduleT * (fixedTeeth + pinionTeeth) / 2; // центр анкерного вузла від центра кліті
+  const escOff = moduleT * (fixedTeeth + pinionTeeth) / 2; // centre of the escape node from the cage's centre
   const escCenter = dir2(escDirLocal).multiplyScalar(escOff);
-  const escR = Math.min(1.7, cageR - escOff - 0.2); // анкерне колесо не виходить за кліть
+  const escR = Math.min(1.7, cageR - escOff - 0.2); // the escape wheel stays inside the cage
 
-  // ── Нерухоме колесо (fourth wheel) — у центрі, НЕ обертається з кліттю ──
+  // ── The fixed wheel (fourth wheel) — at the centre, does NOT turn with the cage ──
   const fixedWheel = makeGear({ teeth: fixedTeeth, module: moduleT, thickness: 0.4, bore: 0.5 }, steel);
   fixedWheel.position.z = zPin;
   fixed.add(fixedWheel);
-  // Колонка нерухомого колеса (від платини вгору до центра кліті).
+  // The fixed wheel's pillar (from the plate up to the centre of the cage).
   const fixedPost = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.22, 3.0, 12), axleMat);
   fixedPost.rotation.x = Math.PI / 2;
   fixedPost.position.z = zPin - 1.0;
   fixed.add(fixedPost);
 
-  // ── Анкерний вузол (колесо + триб) — обкочується навколо нерухомого ──
+  // ── The escape node (wheel + pinion) — rolls around the fixed wheel ──
   const escSub = new THREE.Group();
   escSub.position.set(escCenter.x, escCenter.y, 0);
   const escWheel = makeEscapeWheel(
@@ -109,29 +111,29 @@ export function buildTourbillon(
   escSub.add(escAxle);
   cage.add(escSub);
 
-  // ── Вилка (анкер) — між анкерним колесом і балансом у центрі ──
-  // Рубінові палети — гранований фізичний матеріал з transmission, щоб камінь
-  // просвічувався і мав відблиск, на відміну від матового Box.
+  // ── The fork (lever) — between the escape wheel and the balance at the centre ──
+  // Ruby pallets — a faceted physical material with transmission, so the stone lets
+  // light through and catches a highlight, unlike a matte Box.
   const palletMat = new THREE.MeshPhysicalMaterial({
     color: 0xc0304a, roughness: 0.12, metalness: 0.0,
     transmission: 0.28, thickness: 0.4, ior: 1.76,
     emissive: 0x1a050a, emissiveIntensity: 0.25,
     clearcoat: 0.6, clearcoatRoughness: 0.15,
   });
-  // Імпульсний камінь балансу теж фізичний — просвічує.
+  // The balance's impulse stone is physical too — it lets light through.
   const impulseRubyMat = palletMat.clone();
   impulseRubyMat.emissiveIntensity = 0.18;
   const fork = new THREE.Group();
-  const forkPivot = dir2(escDirLocal).multiplyScalar(escOff * 0.52); // ближче до центра
+  const forkPivot = dir2(escDirLocal).multiplyScalar(escOff * 0.52); // closer to the centre
   fork.position.set(forkPivot.x, forkPivot.y, zFork);
   {
-    // Палети на ободі анкерного колеса, ±30° від лінії до балансу.
-    const inward = escDirLocal + Math.PI; // від анкерного колеса до центра
+    // Pallets on the escape wheel's rim, ±30° from the line to the balance.
+    const inward = escDirLocal + Math.PI; // from the escape wheel towards the centre
     for (const s of [+1, -1]) {
       const rimPt = escCenter.clone().add(dir2(inward + s * (30 * Math.PI) / 180).multiplyScalar(escR - 0.12));
       const local = rimPt.clone().sub(forkPivot);
       fork.add(bar(new THREE.Vector2(0, 0), local, 0.3, 0.28, steel));
-      // Гранована призма замість Box — фаска через bevel Extrude.
+      // A faceted prism instead of a Box — the chamfer comes from a bevelled Extrude.
       const pShape = new THREE.Shape();
       const pw = 0.3, ph = 0.6;
       pShape.moveTo(-pw / 2, -ph / 2);
@@ -149,7 +151,7 @@ export function buildTourbillon(
       stone.castShadow = true;
       fork.add(stone);
     }
-    // Стрижень до центра (балансу) + ріжки.
+    // The stem towards the centre (the balance), plus the horns.
     const stemEnd = dir2(inward).multiplyScalar(forkPivot.length() - 0.55);
     fork.add(bar(new THREE.Vector2(0, 0), stemEnd, 0.26, 0.28, steel));
     const forkAxle = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 1.3, 12), axleMat);
@@ -158,7 +160,7 @@ export function buildTourbillon(
   }
   cage.add(fork);
 
-  // ── Баланс — у ЦЕНТРІ кліті (коаксіально з нерухомим колесом) — збільшено для видимості ──
+  // ── The balance — at the CENTRE of the cage (coaxial with the fixed wheel) — enlarged for visibility ──
   const balance = new THREE.Group();
   balance.position.z = zBal;
   const balR = balanceR(cageR);
@@ -172,14 +174,14 @@ export function buildTourbillon(
     spoke.castShadow = true;
     balance.add(spoke);
   }
-  // Регулювальні гвинти/ваги на ободі — 4 шт хрест-навхрест з офсетом, щоб не збігались зі спицями.
+  // Timing screws/weights on the rim — 4 of them crosswise, offset so they do not coincide with the spokes.
   const screwGeo = new THREE.CylinderGeometry(0.09, 0.09, 0.26, 12);
   for (let i = 0; i < 4; i++) {
     const a = (i * Math.PI * 2) / 4 + Math.PI / 8;
     const sx = Math.cos(a) * balR, sy = Math.sin(a) * balR;
     const screw = new THREE.Mesh(screwGeo, steel);
     screw.position.set(sx, sy, 0.08);
-    // Гвинт стирчить радіально назовні.
+    // The screw sticks out radially.
     screw.rotation.z = a;
     screw.rotation.x = Math.PI / 2;
     screw.castShadow = true;
@@ -198,7 +200,7 @@ export function buildTourbillon(
   balAxle.rotation.x = Math.PI / 2;
   balAxle.position.z = -0.35;
   balance.add(balAxle);
-  // Імпульсний камінь — прямокутна призма рубіну з фаскою (не циліндр).
+  // The impulse stone — a rectangular ruby prism with a chamfer (not a cylinder).
   const impulseGeo = new THREE.BoxGeometry(0.18, 0.28, 0.9);
   const pin = new THREE.Mesh(impulseGeo, impulseRubyMat);
   const pinPos = dir2(escDirLocal).multiplyScalar(0.45);
@@ -206,14 +208,14 @@ export function buildTourbillon(
   balance.add(pin);
   cage.add(balance);
 
-  // ── Спіраль (волосок) — спільна для всіх варіантів спуску ──
+  // ── The hairspring — shared by every escapement variant ──
   const hair = buildHairspring({ balR, dirAngle: escDirLocal, springSteel, steel });
   const hairGroup = hair.group;
   hairGroup.position.z = zHair;
   cage.add(hairGroup);
   const updateHair = hair.update;
 
-  // ── Кліть: дві платівки з об'ємом і фаскою + 3 колони з оголовками ──
+  // ── The cage: two plates with body and chamfer + 3 pillars with caps ──
   const cagePlateMat = plateMat.clone();
   cagePlateMat.side = THREE.DoubleSide;
   const cagePillars = [];
@@ -294,17 +296,17 @@ export function buildTourbillon(
   }
   function setTopPlateVisible(v) { topPlateGroup.visible = v; }
 
-  // ── Фазування анкерного колеса: вістря проти вхідної палети при β=0 ──
+  // ── Phasing the escape wheel: a tip against the entry pallet at β=0 ──
   const stepE = (2 * Math.PI) / escTeeth;
   escWheel.rotation.z = mod(escDirLocal + Math.PI + Math.PI / 6, stepE);
 
-  // ── Кінематика удару (та сама, що в escapement.js) ──
-  // Буфер фази: `update()` у циклі рендеру, новий об'єкт на кадр був би сміттям.
+  // ── Beat kinematics (the same as in escapement.js) ──
+  // Phase buffer: `update()` runs in the render loop, a new object per frame would be garbage.
   const phase = {};
 
   function update(t, beatHz, ampDeg) {
     const { thetaB, beta, forkAngle } = beatPhase(t, beatHz, ampDeg, escTeeth, phase);
-    escSub.rotation.z = beta * escPerBeta;   // обкочування навколо нерухомого колеса
+    escSub.rotation.z = beta * escPerBeta;   // rolling around the fixed wheel
     fork.rotation.z = forkAngle;
     balance.rotation.z = thetaB;
     updateHair(thetaB);
@@ -312,14 +314,14 @@ export function buildTourbillon(
   }
   update(0, 2.5, 220);
 
-  // Гніздо — 'escapement'; який саме модуль у ньому стоїть — у variant.
+  // The socket is 'escapement'; which module stands in it is in variant.
   for (const g of [cage, fixed, bottomPlateGroup, topPlateGroup]) {
     tagModule(g, 'escapement');
     tagVariant(g, VARIANT_ID);
   }
-  // Ручки вузлів вільного режиму — див. `lever.js`. Прозорість кліті й верхня
-  // платівка є тільки тут: вони описують саме кліть, і в анкерному спуску їм
-  // немає відповідника.
+  // The free-mode node knobs — see `lever.js`. The cage's transparency and the top
+  // plate exist only here: they describe the cage itself, and the lever escapement has
+  // no counterpart for them.
   const view = { cageOpacity: 1.0, topPlate: true };
   const nodes = [
     { kind: 'flag', labelKey: 'part.fixedWheel', obj: fixed, prop: 'visible' },
@@ -330,8 +332,8 @@ export function buildTourbillon(
       onChange: setTopPlateVisible },
   ];
 
-  // Що модуль РОБИТЬ — на відміну від того, чого він коштує. Обидва числа
-  // виводяться з тих самих сталих, що будують геометрію; вписати їх не можна.
+  // What the module DOES — as opposed to what it costs. Both numbers are derived from
+  // the same constants that build the geometry; they cannot be typed in.
   const motion = { escapeTurns: 1 + escPerBeta, hasCage: true };
 
   return { cage, fixed, update, nodes, motion, balance, fork, escSub, hairGroup, cageR, balR,

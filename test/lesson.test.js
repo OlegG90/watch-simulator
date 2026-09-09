@@ -27,84 +27,84 @@ const build = () => buildMovement({
 describe('i18n', () => {
   beforeEach(() => setLang('ua'));
 
-  it('набори ключів однакові в усіх мовах', () => {
+  it('the key sets are identical in every language', () => {
     const base = [...dictKeys(LANGS[0])].sort();
-    for (const l of LANGS) expect([...dictKeys(l)].sort(), `мова ${l}`).toEqual(base);
+    for (const l of LANGS) expect([...dictKeys(l)].sort(), `language ${l}`).toEqual(base);
   });
 
-  it('жоден підпис GUI не вписаний повз словник', () => {
-    // Ключі-парність не ловлять хардкод: рядок, вписаний просто в `.name()`,
-    // у словник узагалі не потрапляє й лишається українським для EN.
+  it('no GUI label is written past the dictionary', () => {
+    // Key parity does not catch hard-coding: a string written straight into `.name()` never
+    // reaches the dictionary at all and stays Ukrainian for EN.
     const src = readFileSync(new URL('../src/main.js', import.meta.url), 'utf8');
     const bad = [...src.matchAll(/\.name\(\s*(['"`])(.*?)\1\s*\)/g)]
       .map((m) => m[2])
       .filter((s) => /[Ѐ-ӿ]/.test(s) && s !== 'УКР');
-    expect(bad, 'підписи в обхід t(): ' + bad.join(' | ')).toEqual([]);
+    expect(bad, 'labels bypassing t(): ' + bad.join(' | ')).toEqual([]);
   });
 
-  it('жодне значення не порожнє', () => {
+  it('no value is empty', () => {
     for (const l of LANGS) {
       setLang(l);
       for (const k of dictKeys(l)) expect(t(k).trim(), `${l}/${k}`).not.toBe('');
     }
   });
 
-  it('setLang перемикає переклад і сповіщає підписників', () => {
+  it('setLang switches the translation and notifies subscribers', () => {
     const seen = [];
     const off = onLangChange((l) => seen.push(l));
     expect(t('part.third')).toBe('Проміжне колесо');
     setLang('en');
-    expect(t('part.third')).toBe('Third wheel'); // не «intermediate» — горологічна назва
+    expect(t('part.third')).toBe('Third wheel'); // not «intermediate» — the horological name
     expect(seen).toEqual(['en']);
     off();
     setLang('ua');
-    expect(seen).toEqual(['en']); // після відписки більше не сповіщає
+    expect(seen).toEqual(['en']); // after unsubscribing it notifies no more
   });
 
-  it('невідомий ключ повертається як є — щоб пропуск було видно', () => {
-    expect(t('нема.такого')).toBe('нема.такого');
+  it('an unknown key comes back as itself — so a gap is visible', () => {
+    expect(t('no.such.key')).toBe('no.such.key');
     expect(getLang()).toBe('ua');
   });
 });
 
-describe('станції уроку', () => {
-  it('усі точки фокуса існують у механізмі', () => {
-    // Станції адресують точки за стабільним `id`, а не за назвою: у гнізда
-    // спуску назва йде за встановленим варіантом.
+describe('lesson stations', () => {
+  it('every focus point exists in the movement', () => {
+    // Stations address points by a stable `id` rather than by name: for the escapement
+    // socket the name follows the installed variant.
     const keys = new Set(build().focusPoints.map((f) => f.id));
     for (const s of STATIONS) {
-      if (s.focus === null) continue; // загальний вид
-      expect(keys, `станція ${s.id}`).toContain(s.focus);
+      if (s.focus === null) continue; // the overview
+      expect(keys, `station ${s.id}`).toContain(s.focus);
     }
   });
 
-  it('усі назви станцій мають переклад в обох мовах', () => {
+  it('every station name has a translation in both languages', () => {
     const keys = new Set(dictKeys('ua'));
     for (const s of STATIONS) expect(keys, s.id).toContain(s.nameKey);
   });
 
-  it('усі підзаголовки станцій перекладені', () => {
+  it('every station subtitle is translated', () => {
     const keys = new Set(dictKeys('ua'));
     for (const s of STATIONS) expect(keys, s.id).toContain(`${s.nameKey}.sub`);
   });
 
-  it('кожна станція має місце в ланцюгу підвалу', () => {
+  it('every station has a place in the footer chain', () => {
     const rows = new Set(), branches = new Set();
     for (const s of STATIONS) {
-      expect(s.chain, `станція ${s.id} без місця в ланцюгу`).toBeTruthy();
+      expect(s.chain, `station ${s.id} has no place in the chain`).toBeTruthy();
       if (s.chain.row !== undefined) {
         expect(s.chain.row, s.id).toBeGreaterThanOrEqual(0);
-        expect(s.chain.row, s.id).toBeLessThan(5); // головний ряд — 5 вузлів
+        expect(s.chain.row, s.id).toBeLessThan(5); // the main row has 5 nodes
         rows.add(s.chain.row);
       } else {
         expect(['hands', 'reserve'], s.id).toContain(s.chain.branch);
         branches.add(s.chain.branch);
       }
     }
-    expect(rows.size + branches.size, 'дві станції ділять одне місце').toBe(STATIONS.length);
+    expect(rows.size + branches.size, 'two stations share one place').toBe(STATIONS.length);
   });
 
-  it('кожен тест, на який посилається станція, справді існує в наборі', () => {
+  it('every test a station points at really exists in the suite', () => {
     const names = new Set();
     const quoted = /\bit\(\s*'([^']*)'/g;
     for (const f of readdirSync('test').filter((n) => n.endsWith('.test.js'))) {
@@ -112,36 +112,36 @@ describe('станції уроку', () => {
       for (const m of src.matchAll(quoted)) names.add(m[1]);
     }
     for (const s of STATIONS) {
-      expect(names, `станція «${s.id}» посилається на неіснуючий тест`).toContain(s.test);
+      expect(names, `station «${s.id}» points at a test that does not exist`).toContain(s.test);
     }
   });
 });
 
-describe('підсвітка вузла', () => {
-  it('усі модулі станцій присутні у сцені', () => {
+describe('node highlight', () => {
+  it('every module the stations name is present in the scene', () => {
     const h = createHighlighter(build().root);
     const present = h.modules();
     for (const s of STATIONS) {
-      for (const m of s.highlight.mods ?? []) expect(present, `станція ${s.id}`).toContain(m);
+      for (const m of s.highlight.mods ?? []) expect(present, `station ${s.id}`).toContain(m);
     }
   });
 
-  it('кожен меш має мітку модуля', () => {
+  it('every mesh carries a module tag', () => {
     const h = createHighlighter(build().root);
-    expect(h.modules().has(null), 'є меші без userData.mod').toBe(false);
+    expect(h.modules().has(null), 'there are meshes without userData.mod').toBe(false);
   });
 
-  it('фокус приглушує решту, clear() повертає все', () => {
+  it('focus dims the rest, clear() brings everything back', () => {
     const h = createHighlighter(build().root);
     expect(h.dimCount()).toBe(0);
     h.focus({ mods: ['escapement'] });
     expect(h.dimCount()).toBeGreaterThan(0);
-    expect(h.dimCount()).toBeLessThan(h.count); // щось таки лишилось світитись
+    expect(h.dimCount()).toBeLessThan(h.count); // something did stay lit
     h.clear();
     expect(h.dimCount()).toBe(0);
   });
 
-  it('приглушення не тече між мешами зі спільним матеріалом', () => {
+  it('dimming does not leak between meshes sharing a material', () => {
     const mv = build();
     const h = createHighlighter(mv.root);
     h.focus({ mods: ['barrel'], arbors: [0] });
@@ -150,59 +150,59 @@ describe('підсвітка вузла', () => {
       if (!o.isMesh && !o.isLine) return;
       (o.material.opacity === 1 ? lit : dim).push(o.userData.mod);
     });
-    // барабан світиться, а турбійон — ні, попри спільні матеріали
+    // the barrel is lit while the tourbillon is not, despite the shared materials
     expect(lit).toContain('barrel');
     expect(lit).not.toContain('escapement');
     expect(dim).toContain('escapement');
   });
 
-  it('кожна станція лишає щось освітленим', () => {
+  it('every station leaves something lit', () => {
     const h = createHighlighter(build().root);
     for (const s of STATIONS) {
       h.focus(s.highlight);
-      expect(h.count - h.dimCount(), `станція ${s.id} нічого не підсвічує`).toBeGreaterThan(0);
+      expect(h.count - h.dimCount(), `station ${s.id} highlights nothing`).toBeGreaterThan(0);
     }
   });
 
-  it('приглушені клони йдуть за каркасом, увімкненим після їх створення', () => {
+  it('the dimmed clones follow a wireframe switched on after they were made', () => {
     const mv = build();
     const h = createHighlighter(mv.root);
-    h.focus({ mods: ['escapement'] });          // клони створюються тут
+    h.focus({ mods: ['escapement'] });          // the clones are made here
     const dimmedMesh = [];
     mv.root.traverse((o) => { if (o.isMesh && o.material.opacity < 1) dimmedMesh.push(o); });
     expect(dimmedMesh.length).toBeGreaterThan(0);
 
-    // Тумблер «Каркас» у вільному режимі перемикає ОРИГІНАЛИ матеріалів.
+    // The «Wireframe» toggle in free mode switches the ORIGINAL materials.
     h.clear();
     mv.root.traverse((o) => { if (o.isMesh) o.material.wireframe = true; });
     h.focus({ mods: ['escapement'] });
     for (const o of dimmedMesh) {
-      expect(o.material.wireframe, 'приглушений меш лишився суцільним').toBe(true);
+      expect(o.material.wireframe, 'a dimmed mesh stayed solid').toBe(true);
     }
   });
 });
 
-describe('станція «Спуск і регулятор» не залежить від встановленого модуля', () => {
+describe('the «Escapement and regulator» station does not depend on the installed module', () => {
   const station = STATIONS.find((s) => s.id === 'escapement');
   const at = (charge) => readouts({ beatHz: 2.5, amplitude: 220, speed: 1, charge });
 
-  it('усі числа картки — з тих, що заміна не чіпає', () => {
-    // Найсильніший доказ тези станції: замінюєш спуск на очах у глядача, а на
-    // картці не ворухнеться жодне число. Тому картка й не має права показувати
-    // нічого, що залежить від конструкції.
+  it('every number on the card is one the swap does not touch', () => {
+    // The strongest proof of the station's claim: swap the escapement in front of the
+    // viewer and not a single number on the card moves. Which is why the card has no right
+    // to show anything that depends on the construction.
     const r = at(0.75);
     const shown = [
       ...station.formula(r).map((l) => (l.vals ?? []).join('|')),
       ...station.stats(r).map(([, v]) => v),
     ].join(' ');
-    // Ці величини однакові при будь-якому варіанті: пів-кроку зубця, оберт
-    // анкерної осі (це кут приводу, а не кліті) і секундне колесо.
+    // These quantities are the same for any variant: half a tooth pitch, the turn of the
+    // escape arbor (that is the drive angle, not the cage's) and the fourth wheel.
     expect(shown).toContain(String(r.halfStepDeg));
     expect(shown).toContain(`${r.cagePeriod} с`);
     expect(shown).toContain(`${r.secondsPeriod} с`);
   });
 
-  it('картка не називає жодного конкретного варіанта', () => {
+  it('the card names no particular variant', () => {
     const keys = [station.prose, station.idea, station.hint, station.simplification,
                   ...station.formula(at(0.75)).map((l) => l.key ?? l.note)];
     for (const lang of LANGS) {
@@ -210,53 +210,53 @@ describe('станція «Спуск і регулятор» не залежи�
       const text = keys.map((k) => t(k)).join(' ').toLowerCase();
       for (const id of VARIANT_IDS) {
         const name = t(`part.${id}`).toLowerCase();
-        expect(text, `${lang}: картка згадує «${name}»`).not.toContain(name);
+        expect(text, `${lang}: the card mentions «${name}»`).not.toContain(name);
       }
     }
     setLang('ua');
   });
 
-  it('жодна станція не вписує одиниць повз словник', () => {
-    // «12 с» лишалося кириличним і в англійській: одиниця була вшита в
-    // stations.js, а не взята з t(). Ключі-парність такого не бачать.
+  it('no station writes units past the dictionary', () => {
+    // «12 с» stayed Cyrillic in English too: the unit was baked into stations.js instead of
+    // being taken from t(). Key parity does not see that.
     const r = at(0.75);
     setLang('en');
     for (const st of STATIONS) {
       for (const [, value] of st.stats?.(r) ?? []) {
-        expect(value, `станція ${st.id}: «${value}»`).not.toMatch(/[Ѐ-ӿ]/);
+        expect(value, `station ${st.id}: «${value}»`).not.toMatch(/[Ѐ-ӿ]/);
       }
     }
     setLang('ua');
   });
 
-  it('станція спирається на тест про незалежність від конструкції', () => {
-    expect(station.test).toContain('однаковий β');
+  it('the station rests on the test about independence from the construction', () => {
+    expect(station.test).toContain('the same β');
   });
 });
 
-describe('розріз збоку не має власних копій розмірів', () => {
+describe('the developed section keeps no copies of the dimensions', () => {
   const byKind = (mod, kind, variant = DEFAULT_VARIANT) =>
     sectionParts(variant).parts.filter((p) => p.mod === mod && p.kind === kind).map((p) => p.r);
 
-  it('без варіанта розгортка не малюється — типовий знає гніздо', () => {
-    // Друге замовчування розійшлося б із гніздом і показало б те, чого не стоїть.
+  it('without a variant the section is not drawn — the default is known to the socket', () => {
+    // A second default would part from the socket and show something that is not installed.
     expect(() => sectionParts()).toThrow();
   });
 
-  it('кліть і баланс — з констант турбійона, а не вписані', () => {
+  it('the cage and the balance come from the tourbillon\'s constants, not typed in', () => {
     expect(byKind('escapement', 'cage', 'tourbillon')).toEqual([CAGE_R]);
     expect(byKind('escapement', 'flat', 'tourbillon')).toEqual([balanceR(CAGE_R)]);
   });
 
-  it('анкерний варіант малює свої три тіла з власних констант', () => {
-    // Розгортка — єдина діаграма, яку тут тримають правдивою: вона мусить
-    // показувати ТЕ, ЩО СТОЇТЬ, і брати розміри з того ж модуля.
+  it('the lever variant draws its three bodies from its own constants', () => {
+    // The development is the one diagram kept truthful here: it must show WHAT IS
+    // INSTALLED, and take its dimensions from that same module.
     const parts = sectionParts('lever').parts.filter((p) => p.mod === 'escapement');
     expect(parts.map((p) => p.r)).toEqual([ESC_R, FORK_REACH, BALANCE_R]);
-    expect(parts.some((p) => p.kind === 'cage'), 'кліті в анкерному спуску немає').toBe(false);
+    expect(parts.some((p) => p.kind === 'cage'), 'the lever escapement has no cage').toBe(false);
   });
 
-  it('силует анкерного варіанта нижчий за турбійонний — це і є ціна складності', () => {
+  it('the lever variant\'s silhouette is lower than the tourbillon\'s — that is the cost of complexity', () => {
     const span = (v) => {
       const p = sectionParts(v).parts.filter((x) => x.mod === 'escapement');
       return Math.max(...p.map((x) => x.z1)) - Math.min(...p.map((x) => x.z0));
@@ -264,11 +264,11 @@ describe('розріз збоку не має власних копій розм
     expect(span('lever')).toBeLessThan(span('tourbillon'));
   });
 
-  it('розгортка ставить рівно те, що оголосив профіль вузла', () => {
-    // Композитор не має власних чисел: він лише розставляє осі. Що на них
-    // висить — і якого розміру — каже сам вузол. (Що модуль центральної
-    // секунди справді виведений із відстані осей, тримають інваріанти
-    // зачеплення в `movement.test.js`.)
+  it('the section places exactly what a node\'s profile declared', () => {
+    // The composer has no numbers of its own: it only places the axes. What hangs on them
+    // — and how big it is — is said by the node itself. (That the centre-seconds module is
+    // really derived from the arbor distance is held by the meshing invariants in
+    // `movement.test.js`.)
     const arbors = layoutTrain();
     const shape = (p) => `${p.kind} r=${p.r} z=${p.z0}..${p.z1}`;
     const drawn = sectionParts(DEFAULT_VARIANT).parts;
@@ -279,55 +279,55 @@ describe('розріз збоку не має власних копій розм
   });
 });
 
-describe('налаштування ходу — одна таблиця', () => {
-  // Доти три повзунки були оголошені двічі: у панелі вільного режиму й у
-  // картках станцій, з межами, зведеними вручну. Ніщо не звіряло їх між собою.
+describe('running parameters — one table', () => {
+  // Until now three sliders were declared twice: in the free-mode panel and in the station
+  // cards, with bounds kept in step by hand. Nothing checked them against each other.
   const settings = createSettings();
 
-  it('кожна ручка станції називає наявний параметр', () => {
-    // `params[c.param] = …` мовчки створював новий ключ: повзунок їздив, а в
-    // механізмі не відбувалося нічого.
+  it('every station knob names a parameter that exists', () => {
+    // `params[c.param] = …` silently created a new key: the slider moved, and nothing at
+    // all happened in the movement.
     for (const st of STATIONS) {
       for (const c of st.controls ?? []) {
-        if (!c.param) continue;                       // кнопка або «Варіанти»
-        expect(() => settings.spec(c.param), `станція ${st.id}`).not.toThrow();
+        if (!c.param) continue;                       // a button, or «Variants»
+        expect(() => settings.spec(c.param), `station ${st.id}`).not.toThrow();
       }
     }
   });
 
-  it('станція не тримає власних меж і форматів', () => {
-    // Вид ручки — справа станції; межі, крок, формат і підпис — таблиці.
+  it('a station keeps no bounds or formats of its own', () => {
+    // The kind of knob is the station's business; bounds, step, format and label are the table's.
     const src = readFileSync(new URL('../src/lesson/stations.js', import.meta.url), 'utf8');
     for (const own of ['min:', 'max:', 'step:', 'fmt:']) {
-      expect(src, `у stations.js лишилося власне «${own}»`).not.toContain(own);
+      expect(src, `stations.js still carries its own «${own}»`).not.toContain(own);
     }
   });
 
-  it('панель вільного режиму будується з тієї ж таблиці', () => {
-    // Якщо ручку додадуть повз таблицю, вона розійдеться з карткою мовчки.
+  it('the free-mode panel is built from the same table', () => {
+    // If a knob is added past the table, it will part from the card in silence.
     const src = readFileSync(new URL('../src/main.js', import.meta.url), 'utf8');
     expect(src).toContain('for (const name of settings.names)');
-    // Ручка, вписана повз таблицю, впізнається за літералом імені параметра:
-    // адаптер завжди передає імʼя змінною.
+    // A knob written past the table is recognised by a literal parameter name: the adapter
+    // always passes the name as a variable.
     const byHand = src.match(/gui\.add\(params,\s*['"]/g) ?? [];
-    expect(byHand, 'ручка повз таблицю: ' + byHand.join(' | ')).toHaveLength(0);
-    // lil-gui показує те, що прочитав при створенні, тож вхід у вільний режим
-    // мусить оновити показ — інакше ручка, зрушена на картці, лишить там старе
-    // число. Перевірка по тексту: `main.js` потребує WebGL і в наборі не йде.
-    expect(src, 'вільний режим не оновлює показ ручок').toContain('c.updateDisplay()');
+    expect(byHand, 'a knob past the table: ' + byHand.join(' | ')).toHaveLength(0);
+    // lil-gui shows what it read at creation time, so entering free mode must refresh the
+    // display — otherwise a knob moved on a card leaves the old number there. Checked as
+    // text: `main.js` needs WebGL and is not part of the suite.
+    expect(src, 'free mode does not refresh the knobs\' display').toContain('c.updateDisplay()');
   });
 
-  it('панель вільного режиму не називає жодного модуля спуску', () => {
-    // Композитор більше не перевидає нутрощі варіанта, а панель бере ручки
-    // вузлів у гнізда — тож імені варіанта в ній бути не має.
+  it('the free-mode panel names no escapement module', () => {
+    // The composer no longer re-publishes a variant's internals, and the panel takes its
+    // node knobs from the socket — so no variant's name should be in it.
     const src = readFileSync(new URL('../src/main.js', import.meta.url), 'utf8');
     for (const id of VARIANT_IDS) {
-      expect(src, `main.js називає варіант «${id}»`).not.toContain(`'${id}'`);
+      expect(src, `main.js names the variant «${id}»`).not.toContain(`'${id}'`);
     }
     expect(src).not.toContain('movement.tourbillon');
   });
 
-  it('кожен підпис таблиці має переклад в обох мовах', () => {
+  it('every label in the table has a translation in both languages', () => {
     const keys = new Set(dictKeys('ua'));
     for (const name of settings.names) {
       const spec = settings.spec(name);
@@ -336,27 +336,27 @@ describe('налаштування ходу — одна таблиця', () => 
     }
   });
 
-  it('значення поза межами затискається за тією ж таблицею', () => {
+  it('a value out of bounds is clamped by that same table', () => {
     expect(settings.set('beatHz', 99)).toBe(settings.spec('beatHz').max);
     expect(settings.set('beatHz', -1)).toBe(settings.spec('beatHz').min);
-    expect(settings.set('beatHz', '3.5')).toBe(3.5);   // з повзунка приходить рядок
+    expect(settings.set('beatHz', '3.5')).toBe(3.5);   // a slider hands over a string
   });
 
-  it('невідомий параметр — помилка, а не тиша', () => {
-    expect(() => settings.spec('нема')).toThrow();
-    expect(() => settings.set('нема', 1)).toThrow();
+  it('an unknown parameter is an error, not silence', () => {
+    expect(() => settings.spec('nope')).toThrow();
+    expect(() => settings.set('nope', 1)).toThrow();
   });
 });
 
-describe('вузол — єдине джерело своїх чисел', () => {
-  // Міжосьову кожної пари виводить сам модуль (`profile()`). Доти той самий
-  // вираз стояв у трьох місцях — у модулі, у картках і в розгортці, — і будь-яке
-  // з них могло тихо розійтися з іншими.
+describe('a node is the single source of its own numbers', () => {
+  // Each pair's centre distance is derived by the module itself (`profile()`). Until now
+  // the same expression sat in three places — in the module, in the cards and in the
+  // section — and any one of them could quietly part from the others.
 
   const src = (rel) => readFileSync(new URL(`../src/${rel}`, import.meta.url), 'utf8');
   const snap = { beatHz: 2.5, amplitude: 220, speed: 1, charge: 0.5 };
 
-  it('вираз міжосьової не повторюється поза своїм модулем', () => {
+  it('the centre-distance expression is not repeated outside its own module', () => {
     const guarded = [
       ['powerReserve.js', 'PRT_HUB + PRT_P'],
       ['motionWorks.js', 'CANNON_T + MINUTE_T'],
@@ -364,15 +364,15 @@ describe('вузол — єдине джерело своїх чисел', () =>
     ];
     for (const [owner, expr] of guarded) {
       for (const rel of ['lesson/readouts.js', 'lesson/section.js']) {
-        expect(src(rel), `${expr} має жити тільки в ${owner}`).not.toContain(expr);
+        expect(src(rel), `${expr} must live only in ${owner}`).not.toContain(expr);
       }
     }
   });
 
-  it('картка, профіль і зібраний механізм кажуть ту саму міжосьову', () => {
-    // Найсильніша звірка: число з картки проти відстані між осями у мешах.
+  it('the card, the profile and the built movement report the same centre distance', () => {
+    // The strongest check of all: the number from the card against the distance between
+    // the arbors in the meshes.
     const m = build();
-    // Група проміжного стоїть відносно осі барабана, тож її зсув і Є міжосьова.
     const { x, y } = m.internals.powerReserve.idler.position;
     const built = Math.hypot(x, y);
 
@@ -380,16 +380,16 @@ describe('вузол — єдине джерело своїх чисел', () =>
     expect(readouts(snap).reserve.centreA).toBeCloseTo(built, 3);
   });
 
-  it('обидві пари моторного механізму мають однакову міжосьову', () => {
-    // Саме тому `MW_M2` виведений із `MW_M1`, а не заданий окремо.
+  it('both motion-works pairs have the same centre distance', () => {
+    // Which is exactly why `MW_M2` is derived from `MW_M1` rather than given separately.
     const prof = motionProfile(layoutTrain());
     expect(prof.centres.equal).toBe(true);
     expect(readouts(snap).mw.equal).toBe(true);
   });
 
-  it('розгортка малює баланс однакової товщини в обох варіантах', () => {
-    // Обід балансу той самий у кожному варіанті, тож і смуга та сама. Доти
-    // кожен варіант мав у розгортці власне окомірне число.
+  it('the section draws the balance at the same thickness in both variants', () => {
+    // The balance rim is the same in every variant, so the band is the same too. Until now
+    // each variant had its own eyeballed number in the section.
     const band = (v) => {
       const p = sectionParts(v).parts
         .filter((x) => x.mod === 'escapement' && x.kind === 'flat').at(-1);
@@ -399,76 +399,76 @@ describe('вузол — єдине джерело своїх чисел', () =>
   });
 });
 
-describe('знімок чисел не смітить у циклі рендеру', () => {
+describe('the numbers snapshot does not litter the render loop', () => {
   const inp = { beatHz: 2.5, amplitude: 220, speed: 1, charge: 0.5 };
 
-  it('без буфера знімки незалежні', () => {
+  it('without a buffer the snapshots are independent', () => {
     const a = readouts(inp);
     const b = readouts({ ...inp, charge: 1 });
     expect(a).not.toBe(b);
     expect(a.chargePct).toBe(50);
   });
 
-  it('з буфером не створює нових обʼєктів', () => {
+  it('with a buffer it creates no new objects', () => {
     const buf = {};
     expect(readouts(inp, buf)).toBe(buf);
     const spring = buf.spring, ratios = buf.ratios;
     readouts({ ...inp, charge: 1 }, buf);
-    expect(buf.spring, 'вкладений обʼєкт пружини перестворено').toBe(spring);
-    expect(buf.ratios, 'сталі перераховано').toBe(ratios);
-    expect(buf.chargePct).toBe(100); // і при цьому оновився
+    expect(buf.spring, 'the nested spring object was recreated').toBe(spring);
+    expect(buf.ratios, 'the constants were recomputed').toBe(ratios);
+    expect(buf.chargePct).toBe(100); // and it was updated all the same
   });
 });
 
-describe('живі числа карток', () => {
+describe('live numbers on the cards', () => {
   const at = (beatHz, charge = 0.75, speed = 1) =>
     readouts({ beatHz, amplitude: 220, speed, charge });
 
-  it('відтворюють перевірені величини при 2.5 уд/с', () => {
+  it('reproduce the verified quantities at 2.5 beats/s', () => {
     const r = at(2.5);
-    expect(r.cagePeriod).toBe(12);       // той самий період, що й у тесті кліті
-    expect(r.secondsPeriod).toBe(32);    // і в тесті секундного колеса
-    expect(r.halfStepDeg).toBe(12);      // пів-кроку зубця
-    expect(r.clickPct).toBe(37.5);       // один клік заведення
+    expect(r.cagePeriod).toBe(12);       // the same period as in the cage test
+    expect(r.secondsPeriod).toBe(32);    // and in the fourth-wheel test
+    expect(r.halfStepDeg).toBe(12);      // half a tooth pitch
+    expect(r.clickPct).toBe(37.5);       // one click of winding
     expect(Math.round(r.fullRun)).toBe(213);
   });
 
-  it('хід масштабує обидва періоди, а їхнє відношення лишається', () => {
+  it('the rate scales both periods while their ratio stays', () => {
     const a = at(2.5), b = at(5);
     expect(b.cagePeriod).toBeCloseTo(a.cagePeriod / 2, 6);
     expect(b.secondsPeriod).toBeCloseTo(a.secondsPeriod / 2, 6);
-    // саме це й обіцяє картка: незмінне — відношення, а не самі числа
+    // this is exactly what the card promises: what is unchanging is the ratio, not the numbers
     expect(b.secondsPeriod / b.cagePeriod).toBeCloseTo(a.secondsPeriod / a.cagePeriod, 9);
   });
 
-  it('однакова міжосьова в обох компаундних вузлах', () => {
+  it('the same centre distance in both compound nodes', () => {
     const r = at(2.5);
-    expect(r.mw.equal, 'моторний механізм').toBe(true);
+    expect(r.mw.equal, 'motion works').toBe(true);
     expect(r.mw.centreA).toBe(6.72);
-    expect(r.reserve.equal, 'передача запасу ходу').toBe(true);
+    expect(r.reserve.equal, 'the power-reserve train').toBe(true);
     expect(r.reserve.centreA).toBe(6);
   });
 
-  it('передавальні відношення збігаються з тестом передачі', () => {
+  it('the gear ratios agree with the train test', () => {
     const w = at(2.5).ratios.map((x) => Number(x.omega.toFixed(3)));
     expect(w).toEqual([1, -4, 13.333, -40, 106.667]);
   });
 
-  it('кути конічної пари доповнюють один одного до 90°', () => {
+  it('the bevel pair\'s angles complement each other to 90°', () => {
     expect(at(2.5).bevel.sum).toBe(90);
   });
 
-  it('заряд і швидкість входять у числа, а не вписані текстом', () => {
+  it('the charge and the speed enter the numbers rather than being written as text', () => {
     expect(at(2.5, 0).spring.turns).toBe(3.4);
     expect(at(2.5, 1).spring.turns).toBe(7);
     expect(at(2.5, 1, 2).fullRunMin).toBeCloseTo(at(2.5, 1, 1).fullRunMin / 2, 6);
   });
 });
 
-describe('зміст карток', () => {
+describe('card content', () => {
   const r = readouts({ beatHz: 2.5, amplitude: 220, speed: 1, charge: 0.75 });
 
-  it('усі ключі карток є в обох мовах', () => {
+  it('every card key exists in both languages', () => {
     const need = [];
     for (const s of STATIONS) {
       need.push(s.prose, s.idea, s.hint);
@@ -482,27 +482,27 @@ describe('зміст карток', () => {
     }
     for (const l of LANGS) {
       const keys = new Set(dictKeys(l));
-      for (const k of need) expect(keys, `${l}: бракує ${k}`).toContain(k);
+      for (const k of need) expect(keys, `${l}: ${k} is missing`).toContain(k);
     }
   });
 
-  it('після підстановки не лишається незаповнених місць', () => {
+  it('after substitution no slot is left unfilled', () => {
     for (const l of LANGS) {
       setLang(l);
       for (const s of STATIONS) {
-        // Ті самі хелпери, що й у панелі — інакше тест перевіряє намір, а не
-        // те, що справді потрапляє на екран.
+        // The same helpers as in the panel — otherwise the test checks the intent rather
+        // than what actually reaches the screen.
         const texts = [
           maybe(s.prose, s.proseVals?.(r)),
           maybe(s.hint, s.hintVals?.(r)),
           ...s.formula(r).map(lineText),
           ...(s.stats?.(r) ?? []).map(([, v]) => String(v)),
         ];
-        // Шукаємо саме місця підстановки, а не знак відсотка в «+37.5 %».
+        // We look for the substitution slots themselves, not for a percent sign in «+37.5 %».
         const holes = ['%1', '%2', '%3', '%n'];
         for (const x of texts) {
           const left = holes.find((h) => x.includes(h));
-          expect(left, `${l}/${s.id}: незаповнене ${left} у «${x}»`).toBeUndefined();
+          expect(left, `${l}/${s.id}: unfilled ${left} in «${x}»`).toBeUndefined();
         }
       }
     }
@@ -510,30 +510,30 @@ describe('зміст карток', () => {
   });
 });
 
-describe('підсумок маршруту', () => {
-  it('кожна станція лишає по себе речення — в обох мовах', () => {
+describe('the route\'s summary', () => {
+  it('every station leaves a sentence behind — in both languages', () => {
     for (const l of LANGS) {
       const keys = new Set(dictKeys(l));
       for (const s of STATIONS) {
-        expect(keys, `${l}: бракує речення станції ${s.id}`).toContain(`st.${s.id}.line`);
+        expect(keys, `${l}: the sentence for station ${s.id} is missing`).toContain(`st.${s.id}.line`);
       }
     }
   });
 
-  it('речення не порожні й не збігаються між собою', () => {
+  it('the sentences are neither empty nor identical to each other', () => {
     setLang('ua');
     const lines = STATIONS.map((s) => t(`st.${s.id}.line`));
     for (const x of lines) expect(x.length).toBeGreaterThan(20);
-    expect(new Set(lines).size, 'два однакові речення').toBe(STATIONS.length);
+    expect(new Set(lines).size, 'two identical sentences').toBe(STATIONS.length);
   });
 
-  it('усі написи підсумку перекладені', () => {
+  it('every caption in the summary is translated', () => {
     const need = ['finish.eyebrow', 'finish.title', 'finish.lead', 'finish.loop', 'finish.next',
                   'finish.side', 'finish.sideBody', 'finish.freeBody', 'finish.again',
                   'finish.goFree', 'finish.footnote', 'rail.more'];
     for (const l of LANGS) {
       const keys = new Set(dictKeys(l));
-      for (const k of need) expect(keys, `${l}: бракує ${k}`).toContain(k);
+      for (const k of need) expect(keys, `${l}: ${k} is missing`).toContain(k);
     }
   });
 });

@@ -2,42 +2,42 @@ import * as THREE from 'three';
 import { makeGear, makeEscapeWheel, makeHand } from './gear.js';
 import { buildEscapement } from './escapement.js';
 
-// ── Параметри механізму ───────────────────────────────────────────
-const M = 0.35;        // модуль зубців (спільний для всіх зчеплень)
-const WHEEL_T = 0.7;   // товщина коліс
-const PINION_T = 1.2;  // товщина трібів (довші, бо зчеплення на іншій площині)
-const Z_STEP = 1.1;    // крок між z-площинами сусідніх вузлів
-const AXLE_R = 0.3;    // радіус осей
+// ── Movement parameters ───────────────────────────────────────────
+const M = 0.35;        // tooth module (shared by every meshing)
+const WHEEL_T = 0.7;   // wheel thickness
+const PINION_T = 1.2;  // pinion thickness (longer: they mesh on another plane)
+const Z_STEP = 1.1;    // step between the z-planes of neighbouring arbors
+const AXLE_R = 0.3;    // arbor radius
 
 /**
- * Колісна передача: кожен вузол (arbor) несе тріб (ведений попереднім
- * колесом) та власне колесо (веде наступний тріб). Барабан має лише колесо,
- * анкерний вузол — тріб + анкерне колесо (поки заглушка, спуск у Фазі 3).
+ * The going train: every arbor carries a pinion (driven by the previous wheel) and its
+ * own wheel (driving the next pinion). The barrel has only a wheel; the escape arbor has
+ * a pinion + the escape wheel (a stub for now, the escapement comes in Phase 3).
  */
 const TRAIN = [
-  { name: 'Барабан',           wheel: 48, axleTop: 2.6 },                  // вісь вище — під храповик
-  { name: 'Центральне колесо', pinion: 12, wheel: 40, crossings: 4, axleTop: 7.4 }, // вісь до канонного триба
-  { name: 'Проміжне колесо',   pinion: 12, wheel: 36, crossings: 4 },
-  { name: 'Секундне колесо',   pinion: 12, wheel: 32, crossings: 3, axleTop: 5.15 }, // вісь під секундну стрілку
-  { name: 'Анкерне колесо',    pinion: 12, escapeTeeth: 15 },
+  { name: 'Barrel',       wheel: 48, axleTop: 2.6 },                              // a taller arbor — for the ratchet
+  { name: 'Centre wheel', pinion: 12, wheel: 40, crossings: 4, axleTop: 7.4 },    // arbor up to the cannon pinion
+  { name: 'Third wheel',  pinion: 12, wheel: 36, crossings: 4 },
+  { name: 'Fourth wheel', pinion: 12, wheel: 32, crossings: 3, axleTop: 5.15 },   // arbor for the seconds hand
+  { name: 'Escape wheel', pinion: 12, escapeTeeth: 15 },
 ];
 
-// Напрям (у площині XY) від осі k до осі k+1 — механізм закручується дугою.
+// Direction (in the XY plane) from arbor k to arbor k+1 — the movement curls into an arc.
 const MESH_ANGLES = [0, 35, 70, 105].map((d) => (d * Math.PI) / 180);
 
 const pitchR = (z) => (M * z) / 2;
 const mod = (a, m) => ((a % m) + m) % m;
 
 /**
- * Початкова фаза веденого триба: його зубець має стояти у западині ведучого
- * колеса вздовж лінії центрів (theta — напрям від ведучого до веденого).
- * Виводиться з умови: коли западина ведучого дивиться на theta, зубець
- * веденого дивиться на theta + PI.
+ * Starting phase of the driven pinion: its tooth must sit in a space of the driving wheel
+ * along the line of centres (theta — the direction from driver to driven). Derived from
+ * the condition that when the driver's space faces theta, the driven tooth faces
+ * theta + PI.
  */
 function meshPhase(theta, ZA, ZB, phiA) {
   const stepA = (2 * Math.PI) / ZA;
   const stepB = (2 * Math.PI) / ZB;
-  const tau = mod(theta - phiA, stepA); // докрут ведучого до вирівнювання западини
+  const tau = mod(theta - phiA, stepA); // how far the driver turns to align the space
   return theta + Math.PI - stepB / 2 + (ZA / ZB) * tau;
 }
 
@@ -46,21 +46,21 @@ export function buildMovement({ brass, steel, axleMat, ruby, springMat, plateMat
   const arbors = [];
   const handRefs = {};
 
-  // ── Розстановка осей + кінематика (швидкість і фаза кожного вузла) ──
+  // ── Laying out the arbors + kinematics (each arbor's speed and phase) ──
   let pos = new THREE.Vector2(0, 0);
   TRAIN.forEach((spec, k) => {
-    let omega = 1; // швидкість відносно барабана (барабан = 1)
+    let omega = 1; // speed relative to the barrel (barrel = 1)
     let phi = 0;
     if (k > 0) {
       const prev = arbors[k - 1];
       const ZA = TRAIN[k - 1].wheel;
       const ZB = spec.pinion;
       const theta = MESH_ANGLES[k - 1];
-      const d = pitchR(ZA) + pitchR(ZB); // міжосьова відстань по ділильних колах
+      const d = pitchR(ZA) + pitchR(ZB); // centre distance across the pitch circles
       pos = prev.pos
         .clone()
         .add(new THREE.Vector2(Math.cos(theta), Math.sin(theta)).multiplyScalar(d));
-      omega = -prev.omega * (ZA / ZB); // зовнішнє зчеплення міняє напрям
+      omega = -prev.omega * (ZA / ZB); // an external meshing reverses the direction
       phi = meshPhase(theta, ZA, ZB, prev.phi);
     }
     arbors.push({
@@ -69,43 +69,43 @@ export function buildMovement({ brass, steel, axleMat, ruby, springMat, plateMat
       pos,
       omega,
       phi,
-      pinionZ: (k - 1) * Z_STEP, // тріб у площині колеса попереднього вузла
+      pinionZ: (k - 1) * Z_STEP, // pinion in the wheel plane of the previous arbor
       wheelZ: k * Z_STEP,
     });
   });
 
-  // ── Розкладка спуску: анкер і баланс продовжують дугу механізму ──
-  const ESC_R = 4.9; // зовнішній радіус анкерного колеса
+  // ── Laying out the escapement: the fork and balance continue the movement's arc ──
+  const ESC_R = 4.9; // the escape wheel's outer radius
   const escDir = (140 * Math.PI) / 180;
   const dir2 = (a) => new THREE.Vector2(Math.cos(a), Math.sin(a));
   const escPos = arbors[4].pos;
   const anchorPos = escPos.clone().add(dir2(escDir).multiplyScalar(ESC_R * 1.5));
   const balancePos = anchorPos.clone().add(dir2(escDir).multiplyScalar(6.0));
 
-  // ── Розкладка моторного механізму (стрілки) і заведення ──
-  // Канонний тріб (12) → хвилинне колесо (36); тріб хвилинного (10) → годинне (40) → ×12.
+  // ── Laying out the motion works (hands) and the winding ──
+  // Cannon pinion (12) → minute wheel (36); minute pinion (10) → hour wheel (40) → ×12.
   const P1 = arbors[1].pos;
-  const MW_M1 = 0.28;                  // модуль пари канон → хвилинне
-  const MW_M2 = (MW_M1 * 48) / 50;     // модуль пари тріб → годинне (та сама міжосьова)
+  const MW_M1 = 0.28;                  // module of the cannon → minute pair
+  const MW_M2 = (MW_M1 * 48) / 50;     // module of the pinion → hour pair (same centre distance)
   const MW_ANGLE = (-65 * Math.PI) / 180;
   const mwPos = P1.clone().add(dir2(MW_ANGLE).multiplyScalar(((12 + 36) / 2) * MW_M1));
-  // Заведення: храповик на осі барабана → коронне колесо → вал із заводною головкою.
+  // Winding: the ratchet on the barrel arbor → the crown wheel → the stem with the crown.
   const RATCH_M = 0.33;
   const CW_ANGLE = (200 * Math.PI) / 180;
   const cwPos = arbors[0].pos.clone().add(dir2(CW_ANGLE).multiplyScalar(((28 + 18) / 2) * RATCH_M));
   const crownPos = cwPos.clone().add(dir2(CW_ANGLE).multiplyScalar(5.2));
 
-  // ── Центрування механізму навколо початку координат ──
+  // ── Centring the movement about the origin ──
   const outerR = (s) => (s.escapeTeeth ? ESC_R + 0.3 : pitchR(s.wheel) + M * 1.3);
   let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
   const extents = [
     ...arbors.map((a) => ({ pos: a.pos, r: outerR(a.spec) })),
     { pos: anchorPos, r: 1.5 },
     { pos: balancePos, r: 3.8 },
-    { pos: P1, r: 9.2 },        // розмах хвилинної стрілки
-    { pos: mwPos, r: 5.6 },     // хвилинне колесо
-    { pos: cwPos, r: 3.4 },     // коронне колесо
-    { pos: crownPos, r: 1.8 },  // заводна головка
+    { pos: P1, r: 9.2 },        // the minute hand's sweep
+    { pos: mwPos, r: 5.6 },     // the minute wheel
+    { pos: cwPos, r: 3.4 },     // the crown wheel
+    { pos: crownPos, r: 1.8 },  // the winding crown
   ];
   for (const e of extents) {
     minX = Math.min(minX, e.pos.x - e.r); maxX = Math.max(maxX, e.pos.x + e.r);
@@ -114,7 +114,7 @@ export function buildMovement({ brass, steel, axleMat, ruby, springMat, plateMat
   root.position.set(-(minX + maxX) / 2, -(minY + maxY) / 2, 0);
   const size = { w: maxX - minX, h: maxY - minY };
 
-  // ── Меші ──
+  // ── Meshes ──
   arbors.forEach((a, k) => {
     const g = new THREE.Group();
     g.position.set(a.pos.x, a.pos.y, 0);
@@ -141,14 +141,14 @@ export function buildMovement({ brass, steel, axleMat, ruby, springMat, plateMat
         brass
       );
       e.position.z = a.wheelZ;
-      // Фазування: при E=0 вістря зубця стоїть проти вхідної палети
-      // (світовий кут колеса = phi + E, палета на escDir + 30°).
+      // Phasing: at E=0 a tooth tip stands against the entry pallet
+      // (the wheel's world angle = phi + E, the pallet at escDir + 30°).
       const stepE = (2 * Math.PI) / a.spec.escapeTeeth;
       e.rotation.z = mod(escDir + Math.PI / 6 - a.phi, stepE);
       g.add(e);
     }
     if (k === 0) {
-      // Барабан пружини — циліндр позаду колеса.
+      // The spring barrel — a cylinder behind the wheel.
       const drum = new THREE.Mesh(
         new THREE.CylinderGeometry(pitchR(48) - 1.2, pitchR(48) - 1.2, 1.8, 48),
         brass
@@ -159,7 +159,7 @@ export function buildMovement({ brass, steel, axleMat, ruby, springMat, plateMat
       g.add(drum);
     }
 
-    // Вісь: від нижньої до верхньої деталі вузла.
+    // Arbor: from the lowest to the highest part of the node.
     const zFrom = k === 0 ? -2.6 : a.pinionZ - 1.0;
     const zTo = a.spec.axleTop ?? a.wheelZ + 1.0;
     const axle = new THREE.Mesh(
@@ -175,7 +175,7 @@ export function buildMovement({ brass, steel, axleMat, ruby, springMat, plateMat
     a.group = g;
   });
 
-  // ── Спусковий вузол (анкер + баланс) ──
+  // ── The escapement node (fork + balance) ──
   const escapement = buildEscapement(
     { brass, steel, ruby, springMat, axleMat },
     {
@@ -190,7 +190,7 @@ export function buildMovement({ brass, steel, axleMat, ruby, springMat, plateMat
   );
   root.add(escapement.group);
 
-  // ── Платина (задня плита) + рубінові камені під осями ──
+  // ── Main plate (back plate) + ruby jewels under the arbors ──
   const cx = (minX + maxX) / 2, cy = (minY + maxY) / 2;
   const plateMargin = 1.8;
   let plateR = Math.hypot(size.w, size.h) * 0.5 + plateMargin;
@@ -212,13 +212,13 @@ export function buildMovement({ brass, steel, axleMat, ruby, springMat, plateMat
     root.add(jewel);
   }
 
-  // ── Моторний механізм + стрілки ──
-  // Канонний тріб і хвилинна стрілка сидять на осі центрального колеса
-  // (обертаються з ним); годинне колесо — коаксіально, у 12 разів повільніше.
+  // ── Motion works + hands ──
+  // The cannon pinion and the minute hand sit on the centre wheel's arbor (turning with
+  // it); the hour wheel is coaxial, twelve times slower.
   const Z_MW = 7.2, Z_HR = 7.9;
   const phi1 = arbors[1].phi;
 
-  const cannonSub = new THREE.Group(); // канонний тріб + трубка + хвилинна стрілка
+  const cannonSub = new THREE.Group(); // cannon pinion + tube + minute hand
   {
     const cannon = makeGear({ teeth: 12, module: MW_M1, thickness: 0.8, bore: AXLE_R * 0.9 }, steel);
     cannon.position.z = Z_MW;
@@ -240,7 +240,7 @@ export function buildMovement({ brass, steel, axleMat, ruby, springMat, plateMat
   }
   arbors[1].group.add(cannonSub);
 
-  const mwArbor = new THREE.Group(); // хвилинне колесо + його тріб
+  const mwArbor = new THREE.Group(); // the minute wheel and its pinion
   mwArbor.position.set(mwPos.x, mwPos.y, 0);
   {
     const wheel = makeGear({ teeth: 36, module: MW_M1, thickness: 0.55, bore: 0.2, crossings: 4 }, brass);
@@ -256,7 +256,7 @@ export function buildMovement({ brass, steel, axleMat, ruby, springMat, plateMat
   }
   root.add(mwArbor);
 
-  const hourGroup = new THREE.Group(); // годинне колесо + годинна стрілка
+  const hourGroup = new THREE.Group(); // the hour wheel and the hour hand
   hourGroup.position.set(P1.x, P1.y, 0);
   {
     const wheel = makeGear({ teeth: 40, module: MW_M2, thickness: 0.5, bore: 0.68, crossings: 4 }, brass);
@@ -279,11 +279,11 @@ export function buildMovement({ brass, steel, axleMat, ruby, springMat, plateMat
   }
   root.add(hourGroup);
 
-  // Фазування моторних зчеплень (та сама умова «зубець у западину»).
+  // Phasing the motion-works meshings (the same «tooth into a space» condition).
   const phiMW = meshPhase(MW_ANGLE, 12, 36, phi1);
   const phiHW = meshPhase(MW_ANGLE + Math.PI, 10, 40, phiMW);
 
-  // Секундна стрілка — на осі секундного колеса (маленька секунда, не по центру).
+  // The seconds hand — on the fourth wheel's arbor (a small seconds, not at the centre).
   {
     const secondHandG = new THREE.Group();
     const secondHand = makeHand({ length: 3.9, width: 0.4, tail: 0.3 }, bluedMat);
@@ -297,7 +297,7 @@ export function buildMovement({ brass, steel, axleMat, ruby, springMat, plateMat
     handRefs.second = secondHandG;
   }
 
-  // ── Заведення: храповик на осі барабана → коронне колесо → головка ──
+  // ── Winding: the ratchet on the barrel arbor → the crown wheel → the crown ──
   const winderGroup = new THREE.Group();
   const ratchetG = new THREE.Group();
   ratchetG.position.set(arbors[0].pos.x, arbors[0].pos.y, 0);
@@ -315,7 +315,7 @@ export function buildMovement({ brass, steel, axleMat, ruby, springMat, plateMat
   cwG.rotation.z = phiCW;
   winderGroup.add(cwG);
 
-  // Собачка (клік) — тримає храповик.
+  // The click — it holds the ratchet.
   {
     const clickPivot = arbors[0].pos.clone().add(dir2((120 * Math.PI) / 180).multiplyScalar(6.0));
     const post = new THREE.Mesh(new THREE.CylinderGeometry(0.18, 0.18, 1.4, 12), axleMat);
@@ -330,7 +330,7 @@ export function buildMovement({ brass, steel, axleMat, ruby, springMat, plateMat
     winderGroup.add(clickBar);
   }
 
-  // Вал і заводна головка.
+  // The stem and the winding crown.
   const stemLen = crownPos.clone().sub(cwPos).length() + 1.0;
   const stem = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, stemLen, 12), axleMat);
   stem.rotation.z = CW_ANGLE - Math.PI / 2;
@@ -348,8 +348,8 @@ export function buildMovement({ brass, steel, axleMat, ruby, springMat, plateMat
   winderGroup.add(crownOrient);
   root.add(winderGroup);
 
-  // Анімація заведення: головка і храповик крутяться, барабанне колесо — ні
-  // (в реальності заводиться вісь барабана відносно його корпуса).
+  // Winding animation: the crown and the ratchet turn, the barrel wheel does not
+  // (in reality the barrel arbor is wound relative to its case).
   let windPending = 0, windAngle = 0, crownSpin = 0;
   const winder = {
     group: winderGroup,
@@ -366,29 +366,29 @@ export function buildMovement({ brass, steel, axleMat, ruby, springMat, plateMat
     },
   };
 
-  // ── Точки фокуса (для підписів і пресетів камери) ──
+  // ── Focus points (for the labels and the camera presets) ──
   const focusPoints = [
     ...arbors.map((a) => ({ name: a.name, pos: a.pos, z: a.wheelZ, r: outerR(a.spec) })),
-    { name: 'Анкер', pos: anchorPos, z: arbors[4].wheelZ, r: 2.2 },
-    { name: 'Баланс', pos: balancePos, z: arbors[4].wheelZ + 1.3, r: 3.6 },
-    { name: 'Стрілки', pos: P1, z: 8.6, r: 4.5 },
-    { name: 'Заведення', pos: cwPos, z: 2.0, r: 4.5 },
+    { name: 'Pallet fork', pos: anchorPos, z: arbors[4].wheelZ, r: 2.2 },
+    { name: 'Balance', pos: balancePos, z: arbors[4].wheelZ + 1.3, r: 3.6 },
+    { name: 'Hands', pos: P1, z: 8.6, r: 4.5 },
+    { name: 'Winding', pos: cwPos, z: 2.0, r: 4.5 },
   ];
 
-  // ── Кінематика: кут кожного вузла з кута барабана ──
+  // ── Kinematics: every arbor's angle from the barrel's angle ──
   function update(driveAngle) {
     for (const a of arbors) a.group.rotation.z = a.phi + a.omega * driveAngle;
     handRefs.hour.rotation.z = 0;
     handRefs.minute.rotation.z = 0;
     handRefs.second.rotation.z = 0;
-    // Моторний механізм: від центрального колеса (канон = вісь центрального).
+    // Motion works: from the centre wheel (the cannon = the centre arbor).
     const dR1 = arbors[1].omega * driveAngle; // R1 - phi1
     mwArbor.rotation.z = phiMW - (12 / 36) * dR1;
-    hourGroup.rotation.z = phiHW + (10 / 40) * (12 / 36) * dR1; // = центральне / 12
+    hourGroup.rotation.z = phiHW + (10 / 40) * (12 / 36) * dR1; // = centre / 12
   }
   update(0);
 
-  // Головний вхід: час → баланс/анкер → кут анкерного колеса → вся передача.
+  // The main entry point: time → balance/fork → the escape wheel's angle → the whole train.
   function setTime(t, { beatHz, amplitude }) {
     const E = escapement.update(t, beatHz, amplitude);
     update(E / arbors[4].omega);
@@ -399,8 +399,8 @@ export function buildMovement({ brass, steel, axleMat, ruby, springMat, plateMat
     return Math.PI / 2 - unit * Math.PI * 2;
   }
 
-  // Режим реального часу: секундна вісь веде механізм, а годинна/хвилинна
-  // стрілки компенсують спрощені навчальні передавальні числа моделі.
+  // Real-time mode: the fourth arbor drives the movement, while the hour/minute hands
+  // compensate for the model's simplified teaching ratios.
   function setClockTime(date, { beatHz, amplitude }) {
     const h = date.getHours() % 12;
     const m = date.getMinutes();

@@ -1,30 +1,31 @@
 import { TEETH, WHEEL_LOCK_PHASE } from './leverModel.js';
 
 /**
- * Рух вітрини — власна фазова кінематика.
+ * The showcase's motion — its own phase kinematics.
  *
- * Форма кривих повторює `escapement/beat.js` (півзубця за удар, перекидання
- * вилки у вікні ±0.12), але код НЕ імпортує його: вітрина ізольована за
- * рішенням, а її таймінг ні з чим не синхронізується, тож спільності тут
- * нема — лише випадковий збіг форми. Дубль малий (smoothstep і розклад
- * фази), задокументований тут, а не розмазаний мовчки.
+ * The shape of the curves repeats `escapement/beat.js` (half a tooth per beat, the fork
+ * unlocking inside a ±0.12 window), but the code does NOT import it: the showcase is
+ * isolated by decision, and its timing synchronises with nothing, so there is no
+ * commonality here — only an incidental agreement of shape. The duplication is small
+ * (smoothstep and the phase decomposition), and documented here rather than smeared
+ * over the code in silence.
  *
- * Усе — чисті функції часу в ударах `u`: пауза й покроковість — це просто
- * зупинка й ручне просування `u`, жодної пам'яті в інтеграторах.
+ * Everything is a pure function of time in beats `u`: pause and stepping are just a
+ * stop and a manual advance of `u`, with no memory in any integrator.
  */
 
-/** Темп вітрини: повільний, щоб замок було видно; швидкість — множник панелі. */
+/** The showcase's tempo: slow, so the lock is visible; speed is the panel's multiplier. */
 export const BEAT_HZ = 1.0;
-/** Амплітуда балансу, градуси. */
+/** The balance's amplitude, degrees. */
 export const AMPLITUDE = 270;
-/** Розмах вилки, рад: хвіст ходить між обмежувачами. */
+/** The fork's swing, rad: the tail travels between the banking pins. */
 export const FORK_MAX = 0.07;
-/** Півширина вікна перекидання, частка удару. */
+/** Half-width of the unlocking window, as a fraction of a beat. */
 export const FLIP_W = 0.12;
 
 const smooth = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
 
-/** Розклад фази: номер удару, прогрес перекидання, чергування сторін. */
+/** The phase decomposition: beat number, unlocking progress, alternating side. */
 export function phaseAt(u) {
   const n = Math.round(u);
   const ss = smooth((u - n) / (2 * FLIP_W) + 0.5);
@@ -32,27 +33,27 @@ export function phaseAt(u) {
   return { n, ss, sigma };
 }
 
-/** Колесо: півзубця за удар поверх виміряної фази замка. */
+/** The wheel: half a tooth per beat, on top of the measured lock phase. */
 export function wheelAngle(u) {
   const { n, ss } = phaseAt(u);
   return WHEEL_LOCK_PHASE + (Math.PI / TEETH) * (n - 1 + ss);
 }
 
-/** Вилка: перекидання між упорами, сторона чергується кожного удару. */
+/** The fork: flipping between the banking pins, the side alternating on every beat. */
 export function forkAngle(u) {
   const { ss, sigma } = phaseAt(u);
   return -FORK_MAX * sigma * (2 * ss - 1);
 }
 
-/** Баланс: синус, нуль двічі на удар — зрив відбувається в нулі. */
+/** The balance: a sine, zero twice per beat — unlocking happens at the zero. */
 export function balanceAngle(u, ampDeg = AMPLITUDE) {
   return ((ampDeg * Math.PI) / 180) * Math.sin(Math.PI * u);
 }
 
 /**
- * Ім'я фази для підпису: поза вікном — замок; всередині вікно ділиться
- * на зрив → імпульс → падіння. Це постановка послідовності, не виміряний
- * контакт: справжні межі розв'яже посадка падіння.
+ * The phase's name for the caption: outside the window it is the lock; inside, the
+ * window divides into unlocking → impulse → drop. This is staging of the sequence, not
+ * measured contact: the real boundaries will be settled by seating the drop.
  */
 export function phaseName(u) {
   if (Math.abs(u - Math.round(u)) > FLIP_W) return 'lock';
@@ -63,9 +64,9 @@ export function phaseName(u) {
 }
 
 /**
- * Активна палета: замок тримається по черзі. Індекс замка — округлене
- * `u − 0.5` (замки сидять на напівцілих): парний тримає вхідна — це умовність
- * першого кадру, де посадка виміряна саме на ній.
+ * The active pallet: the lock is held by each in turn. The lock's index is the rounded
+ * `u − 0.5` (locks sit on half-integers): an even one is held by the entry pallet — a
+ * convention taken from the first frame, where the seating was measured on it.
  */
 export function activePallet(u) {
   return Math.round(u - 0.5) % 2 === 0 ? 'entry' : 'exit';

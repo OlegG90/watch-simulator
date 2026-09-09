@@ -5,67 +5,69 @@ import { beatPhase } from './beat.js';
 import { buildHairspring } from './hairspring.js';
 
 /**
- * Швейцарський анкерний спуск — найпростіший модуль у гнізді.
+ * The Swiss lever escapement — the simplest module in the socket.
  *
- * Кліті немає: анкерне колесо сидить прямо на анкерній осі (`arbor4`), тож
- * обертається рівно на β. Вилка й баланс стоять на платині й крутяться навколо
- * власних осей.
+ * There is no cage: the escape wheel sits directly on the escape arbor (`arbor4`),
+ * so it turns by exactly β. The fork and the balance stand on the plate and turn
+ * about their own axes.
  *
- * ЩО МІНЯЄТЬСЯ МІСЦЯМИ. У турбійоні в центрі осі стоїть баланс, а анкерне
- * колесо зсунуте на 2.6 й обкочується навколо нерухомого. Тут навпаки: центр
- * зайняте анкерне колесо (інакше передача його не жене), а баланс зсунутий на
- * ту саму відстань. Ті самі деталі, переставлені ролями — це і є те, що показує
- * заміна.
+ * WHAT SWAPS PLACES. In the tourbillon the balance stands at the centre of the
+ * arbor, while the escape wheel is offset by 2.6 and rolls around the fixed wheel.
+ * Here it is the other way round: the escape wheel occupies the centre (otherwise
+ * the train would not drive it), and the balance is offset by that same distance.
+ * The same parts with their roles swapped — that is what the swap shows.
  *
- * ДОПУЩЕННЯ: у справжньому анкерному спуску баланс стоїть далі від анкерного
- * колеса. Ми тримаємо його на 2.6 й радіусом 1.95 — так само, як у турбійоні, —
- * щоб при заміні не рухалось нічого, крім самої конструкції вузла.
+ * ASSUMPTION: in a real lever escapement the balance stands further from the escape
+ * wheel. We keep it at 2.6 with a radius of 1.95 — exactly as in the tourbillon —
+ * so that nothing but the node's construction itself moves on a swap.
  */
 
-/** Ідентифікатор варіанта в гнізді спуску. */
+/** The variant's identifier in the escapement socket. */
 export const VARIANT_ID = 'lever';
 
-/** Локальні Z-рівні (від основи гнізда). Платівок немає — звідси низький силует. */
+/** Local Z levels (from the socket's base). There are no plates — hence the low silhouette. */
 export const LAYERS = { escape: 0.55, fork: 0.95, balance: 1.75, hair: 2.25 };
 
-/** Зсув балансу від анкерної осі — там, де в турбійоні анкерне колесо. */
+/** The balance's offset from the escape arbor — where the tourbillon keeps its escape wheel. */
 export const BALANCE_OFF = 2.6;
-/** Радіус обода балансу — навмисно той самий, що в турбійоні (див. допущення). */
+/** The balance rim's radius — deliberately the same as in the tourbillon (see the assumption). */
 export const BALANCE_R = 1.95;
 
-/** Радіус анкерного колеса — той самий, що в кліті турбійона. */
+/** The escape wheel's radius — the same as in the tourbillon cage. */
 export const ESC_R = 1.5;
 
 /**
- * Фаза замка: сталий доворот колеса, щоб у замкнених станах вістря стояло на
- * камені активної палети. Колесо йде півкроку за удар, палети дзеркальні —
- * одна константа обслуговує обидві, з розкидом ±1.6° від центра каменя
- * (півширина каменя ~6°, тож вістря лишається на ньому). Це не фізика контакту,
- * а постановка: β і криві руху не чіпаються.
+ * The lock phase: a constant extra rotation of the wheel, so that in the locked
+ * states a tooth tip stands on the active pallet's stone. The wheel advances half a
+ * step per beat and the pallets are mirrored — one constant serves both, with a
+ * spread of ±1.6° from the centre of the stone (the stone's half-width is ~6°, so
+ * the tip stays on it). This is not contact physics but staging: β and the motion
+ * curves are untouched.
  */
 export const ESC_LOCK_PHASE = Math.PI / 10;
 
-const PALLET_HALF = (30 * Math.PI) / 180; // палети на ±30° від лінії центрів
-const ROLLER_R = 0.55;                    // радіус ролика з імпульсним каменем
+const PALLET_HALF = (30 * Math.PI) / 180; // pallets at ±30° from the line of centres
+const ROLLER_R = 0.55;                    // radius of the roller carrying the impulse pin
 
-/** Вісь вилки — між анкерним колесом і балансом. */
+/** The fork's pivot — between the escape wheel and the balance. */
 export const FORK_PIVOT = BALANCE_OFF * 0.48;
-/** Найдальша точка вилки від її осі — розгортка бере півширину звідси. */
+/** The fork's furthest point from its pivot — the section takes its half-width from here. */
 export const FORK_REACH = BALANCE_OFF - FORK_PIVOT - ROLLER_R;
 
 /**
- * Товщини тіл. Ті самі числа йдуть у меші й у розгортку — доти розгортка мала
- * власні окомірні ±0.18 / ±0.14 / ±0.1, і вони вже розійшлися з мешами.
+ * Body thicknesses. The same numbers go into the meshes and into the section — until
+ * now the section had its own eyeballed ±0.18 / ±0.14 / ±0.1, and they had already
+ * drifted away from the meshes.
  */
 const T = { escape: 0.35, fork: 0.4, balRim: 0.18 };
 
 const dir2 = (a) => new THREE.Vector2(Math.cos(a), Math.sin(a));
 
 /**
- * Що варіант каже про себе в розгортці — до появи мешів.
+ * What the variant says about itself in the section — before any mesh exists.
  *
- * `u` — від анкерної осі, `z` — від основи гнізда (`zBase` додає композитор).
- * Три тіла на своїх висотах, без платівок — звідси низький плаский силует.
+ * `u` is measured from the escape arbor, `z` from the socket's base (`zBase` is added
+ * by the composer). Three bodies at their heights, no plates — hence the low flat silhouette.
  */
 export function profile(zBase = 0) {
   const band = (z, half) => ({ z0: zBase + z - half, z1: zBase + z + half });
@@ -78,7 +80,7 @@ export function profile(zBase = 0) {
   };
 }
 
-/** Коробка між двома точками у площині XY (плечі й стрижень вилки). */
+/** A box between two points in the XY plane (the fork's arms and stem). */
 function bar(from, to, w, t, material) {
   const d = to.clone().sub(from);
   const mesh = new THREE.Mesh(new THREE.BoxGeometry(d.length(), w, t), material);
@@ -92,16 +94,16 @@ export function buildLever(
   { steel, brass, springSteel, axleMat },
   { escTeeth = 15, escR = ESC_R, escDirLocal = 0 }
 ) {
-  const rotating = new THREE.Group(); // на анкерній осі — крутиться на β
-  const fixed = new THREE.Group();    // на платині — власні осі обертання
+  const rotating = new THREE.Group(); // on the escape arbor — turns by β
+  const fixed = new THREE.Group();    // on the plate — its own axes of rotation
 
-  // ── Анкерне колесо: у центрі осі, жорстко на ній ──
+  // ── The escape wheel: at the centre of the arbor, rigidly on it ──
   const escWheel = makeEscapeWheel(
     { teeth: escTeeth, outerR: escR, rootR: escR - 0.5, thickness: T.escape, bore: 0.18, crossings: 3 },
     brass
   );
   escWheel.position.z = LAYERS.escape;
-  escWheel.rotation.z = ESC_LOCK_PHASE; // фаза замка — вістря на палету, не між зубцями
+  escWheel.rotation.z = ESC_LOCK_PHASE; // lock phase — a tip on a pallet, not between teeth
   rotating.add(escWheel);
   const escAxle = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 1.4, 10), axleMat);
   escAxle.rotation.x = Math.PI / 2;
@@ -110,9 +112,9 @@ export function buildLever(
 
   const balCenter = dir2(escDirLocal).multiplyScalar(BALANCE_OFF);
 
-  // ── Вилка: між анкерним колесом і балансом ──
-  // Рубінові палети — фізичний матеріал із заломленням, як у турбійоні: камінь
-  // має просвічуватись, а не бути матовим блоком.
+  // ── The fork: between the escape wheel and the balance ──
+  // Ruby pallets — a physical material with refraction, as in the tourbillon: a stone
+  // should let light through rather than be a matte block.
   const palletMat = new THREE.MeshPhysicalMaterial({
     color: 0xc0304a, roughness: 0.12, metalness: 0.0,
     transmission: 0.28, thickness: T.fork, ior: 1.76,
@@ -127,7 +129,7 @@ export function buildLever(
   fork.position.set(forkPivot.x, forkPivot.y, LAYERS.fork);
   {
     for (const s of [+1, -1]) {
-      // Точка на ободі анкерного колеса (його центр — початок координат).
+      // A point on the escape wheel's rim (its centre is the origin).
       const rimPt = dir2(escDirLocal + s * PALLET_HALF).multiplyScalar(escR - 0.12);
       const local = rimPt.clone().sub(forkPivot);
       fork.add(bar(new THREE.Vector2(0, 0), local, 0.3, 0.28, steel));
@@ -148,7 +150,7 @@ export function buildLever(
       stone.castShadow = true;
       fork.add(stone);
     }
-    // Стрижень до ролика балансу + ріжки.
+    // The stem out to the balance roller, plus the horns.
     const stemEnd = dir2(escDirLocal).multiplyScalar(FORK_REACH);
     fork.add(bar(new THREE.Vector2(0, 0), stemEnd, 0.26, 0.28, steel));
     for (const s of [+1, -1]) {
@@ -165,7 +167,7 @@ export function buildLever(
   }
   fixed.add(fork);
 
-  // ── Баланс: зсунутий на BALANCE_OFF, того ж розміру, що в турбійоні ──
+  // ── The balance: offset by BALANCE_OFF, the same size as in the tourbillon ──
   const balance = new THREE.Group();
   balance.position.set(balCenter.x, balCenter.y, LAYERS.balance);
   const balR = BALANCE_R;
@@ -186,7 +188,7 @@ export function buildLever(
   balAxle.rotation.x = Math.PI / 2;
   balAxle.position.z = -0.5;
   balance.add(balAxle);
-  // Імпульсний камінь на ролику — дивиться в бік вилки.
+  // The impulse pin on the roller — it faces the fork.
   const pin = new THREE.Mesh(new THREE.CylinderGeometry(0.11, 0.11, 0.7, 10), impulseRubyMat);
   pin.rotation.x = Math.PI / 2;
   const pinPos = dir2(escDirLocal + Math.PI).multiplyScalar(ROLLER_R);
@@ -195,7 +197,7 @@ export function buildLever(
   balance.add(pin);
   fixed.add(balance);
 
-  // ── Спіраль: над балансом, спільний модуль ──
+  // ── The hairspring: above the balance, the shared module ──
   const hair = buildHairspring({ balR, dirAngle: escDirLocal, springSteel, steel });
   hair.group.position.set(balCenter.x, balCenter.y, LAYERS.hair);
   fixed.add(hair.group);
@@ -204,9 +206,9 @@ export function buildLever(
 
   function update(t, beatHz, ampDeg) {
     const { thetaB, beta, forkAngle } = beatPhase(t, beatHz, ampDeg, escTeeth, phase);
-    // Анкерне колесо не має власного кута: воно жорстко на осі, а вісь уже
-    // повернута на β. Саме тому воно робить оберт за 12 с, а не за 6, як у
-    // турбійоні, де їде на кліті й додає її оберт до свого.
+    // The escape wheel has no angle of its own: it is rigid on the arbor, and the
+    // arbor is already turned by β. That is why it makes a turn in 12 s rather than in
+    // 6, as in the tourbillon, where it rides the cage and adds the cage's turn to its own.
     fork.rotation.z = forkAngle;
     balance.rotation.z = thetaB;
     hair.update(thetaB);
@@ -219,17 +221,17 @@ export function buildLever(
     tagVariant(g, VARIANT_ID);
   }
 
-  // Ручки вузлів вільного режиму. Оголошує їх сам варіант: композитор не
-  // має знати, що саме стоїть у гнізді, а доти панель зверталася до
-  // турбійона на імʼя — і його деталі можна було показати поряд із чужими.
+  // The free-mode node knobs. The variant declares them itself: the composer must not
+  // know what stands in the socket, and until now the panel addressed the tourbillon by
+  // name — so that module's parts could be shown beside somebody else's.
   const nodes = [
     { kind: 'flag', labelKey: 'part.escapeWheel', obj: escWheel, prop: 'visible' },
     { kind: 'flag', labelKey: 'part.fork', obj: fork, prop: 'visible' },
     { kind: 'flag', labelKey: 'part.balance', obj: balance, prop: 'visible' },
   ];
 
-  // Анкерне колесо сидить прямо на анкерній осі — оберт рівно один на оберт
-  // осі; кліті немає, тож і періоду її обертання немає.
+  // The escape wheel sits directly on the escape arbor — exactly one turn per turn of
+  // the arbor; there is no cage, so there is no cage period either.
   const motion = { escapeTurns: 1, hasCage: false };
 
   return { rotating, fixed, update, nodes, motion, balance, fork, escWheel, hairGroup: hair.group, balR };

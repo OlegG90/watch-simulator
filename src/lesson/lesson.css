@@ -1,7 +1,7 @@
 @import './fonts.css';
 
-/* Оболонка уроку. Палітра — з матеріалів сцени (латунь #caa84a, воронена
-   сталь #5b7fd4, рубін #c0304a), щоб інтерфейс і механізм читались як одне. */
+/* The lesson shell. The palette comes from the scene materials (brass #caa84a,
+   blued steel #5b7fd4, ruby #c0304a), so the interface and the mechanism read as one. */
 
 :root {
   --ground: #16181c;
@@ -28,7 +28,7 @@
 html, body { margin: 0; height: 100%; overflow: hidden; background: var(--ground); }
 body { font-family: var(--ui); color: var(--body); }
 
-/* ── Сітка ─────────────────────────────────────────────────────── */
+/* ── Grid ──────────────────────────────────────────────────────── */
 #ui {
   display: grid;
   height: 100vh;
@@ -42,7 +42,7 @@ body { font-family: var(--ui); color: var(--body); }
 #card { grid-area: card; }
 #chain { grid-area: chain; }
 
-/* Вільний режим — сама сцена, як було до уроку. */
+/* Free mode — the bare scene, as it was before the lesson. */
 #ui.mode-free {
   grid-template-columns: minmax(0, 1fr);
   grid-template-rows: minmax(0, 1fr);
@@ -51,7 +51,7 @@ body { font-family: var(--ui); color: var(--body); }
 #ui.mode-free > :not(#stage) { display: none; }
 #ui.mode-free #stage-chrome { display: none; }
 
-/* Вітрина — та сама повноекранна сцена під окремий експонат. */
+/* Showcase — the same full-screen scene for a single exhibit. */
 #ui.mode-showcase {
   grid-template-columns: minmax(0, 1fr);
   grid-template-rows: minmax(0, 1fr);
@@ -60,9 +60,9 @@ body { font-family: var(--ui); color: var(--body); }
 #ui.mode-showcase > :not(#stage) { display: none; }
 #ui.mode-showcase #stage-chrome { display: none; }
 
-/* Панель вітрини: керування рухом поверх сцени, лише в її режимі.
-   Ширина зафіксована: підписи фаз різної довжини («Замок» проти «Імпульс»)
-   і тумблер «Грати/Пауза» не мають рухати панель — текст гуляє всередині. */
+/* Showcase bar: motion controls over the scene, only in showcase mode.
+   The width is fixed: phase captions of different lengths («Lock» against «Impulse»)
+   and the «Play/Pause» toggle must not move the bar — the text shifts inside it. */
 #showcase-bar {
   position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%);
   display: flex; align-items: center; gap: 12px;
@@ -93,7 +93,7 @@ body { font-family: var(--ui); color: var(--body); }
   pointer-events: none; user-select: none;
 }
 
-/* ── Шапка ─────────────────────────────────────────────────────── */
+/* ── Header ────────────────────────────────────────────────────── */
 #hdr {
   display: flex; align-items: center; gap: 20px; padding: 0 20px;
   background: var(--bar); border-bottom: 1px solid var(--line);
@@ -107,7 +107,7 @@ body { font-family: var(--ui); color: var(--body); }
 .status i { color: #3a4048; font-style: normal; }
 .divider { width: 1px; height: 20px; background: var(--line); }
 
-/* ── Перемикачі ────────────────────────────────────────────────── */
+/* ── Toggles ───────────────────────────────────────────────────── */
 .seg { display: flex; gap: 2px; padding: 3px; background: var(--chip); border-radius: 5px; }
 .seg button {
   border: 0; cursor: pointer; background: transparent; color: var(--muted);
@@ -122,7 +122,7 @@ body { font-family: var(--ui); color: var(--body); }
 .seg.mini button { padding: 5px 12px; font: 500 11px/1 var(--ui); }
 .seg.mini button[aria-pressed="true"] { background: #3a4048; color: var(--ink); }
 
-/* ── Ліва рейка ────────────────────────────────────────────────── */
+/* ── Left rail ─────────────────────────────────────────────────── */
 #rail {
   background: var(--panel); border-right: 1px solid var(--line);
   padding: 22px 20px; display: flex; flex-direction: column; gap: 18px;
@@ -169,7 +169,7 @@ body { font-family: var(--ui); color: var(--body); }
 .bars i.on { background: var(--brass); }
 .bars i.now { background: var(--brass); opacity: .45; }
 
-/* ── Хром сцени ────────────────────────────────────────────────── */
+/* ── Scene chrome ──────────────────────────────────────────────── */
 #stage-chrome {
   position: absolute; top: 16px; right: 16px;
   display: flex; flex-direction: column; gap: 8px; align-items: flex-end;
@@ -182,7 +182,7 @@ body { font-family: var(--ui); color: var(--body); }
 .cams button:hover { color: var(--body); }
 .cams button[aria-pressed="true"] { background: var(--brass); color: #1a1c20; font-weight: 600; }
 
-/* ── Права рейка: картка станції ───────────────────────────────── */
+/* ── Right rail: station card ──────────────────────────────────── */
 #card {
   background: var(--panel); border-left: 1px solid var(--line);
   padding: 22px 20px; display: flex; flex-direction: column; gap: 16px;
@@ -204,7 +204,7 @@ body { font-family: var(--ui); color: var(--body); }
 .nav button.next { background: var(--brass); color: #1a1c20; font-weight: 600; }
 .nav button:disabled { color: #5f656d; cursor: default; }
 
-/* ── Підвал: ланцюг ────────────────────────────────────────────── */
+/* ── Footer: chain ─────────────────────────────────────────────── */
 #chain {
   background: var(--bar); border-top: 1px solid var(--line);
   padding: 0 24px; display: flex; align-items: center; gap: 28px;
@@ -216,7 +216,7 @@ body { font-family: var(--ui); color: var(--body); }
 .clock { display: flex; align-items: center; gap: 14px; font: 400 12px/1.5 var(--mono); color: var(--muted); }
 .clock b { display: block; color: var(--ink); font: 400 15px/1.3 var(--mono); font-weight: 400; }
 
-/* ── Блоки картки ──────────────────────────────────────────────── */
+/* ── Card blocks ───────────────────────────────────────────────── */
 .prose { font: 400 14px/1.6 var(--serif); color: #c3c9d1; }
 .block { display: flex; flex-direction: column; gap: 9px; }
 .block > b { font: 600 11px/1 var(--mono); color: var(--muted); letter-spacing: .6px; }
@@ -259,11 +259,11 @@ body { font-family: var(--ui); color: var(--body); }
 .marker.warn span { color: #c4ab6e; }
 .marker.warn span i { color: #8a7440; font-style: normal; display: block; }
 
-/* ── Розріз збоку ──────────────────────────────────────────────── */
+/* ── Developed section ─────────────────────────────────────────── */
 #section { position: absolute; inset: 0; background: var(--ground); }
 #section svg { display: block; width: 100%; height: 100%; }
 
-/* ── Підсумок ──────────────────────────────────────────────────── */
+/* ── Summary ───────────────────────────────────────────────────── */
 #finish { grid-area: finish; display: none; overflow-y: auto; padding: 34px 40px 28px; }
 #ui.mode-finish {
   grid-template-columns: minmax(0, 1fr);
@@ -303,17 +303,17 @@ body { font-family: var(--ui); color: var(--body); }
 .fin-actions span { margin-left: auto; font: 400 11.5px/1 var(--mono); color: #5f656d; }
 .collected .more { font: 400 11px/1 var(--mono); color: #5f656d; }
 
-/* ── Версія й деградація шапки ─────────────────────────────────── */
+/* ── Version and header degradation ────────────────────────────── */
 .brand .ver {
   padding: 3px 7px; border-radius: 4px; background: var(--chip);
   font: 500 10.5px/1 var(--mono); color: var(--muted);
 }
 .brand .sub { font: 400 13px/1 var(--mono); color: var(--faint); white-space: nowrap; }
-/* Коли шапці тісно, першою йде назва — вона найменш потрібна в роботі. */
+/* When the header runs out of room the subtitle goes first — it is the least useful at work. */
 @media (max-width: 1260px) { .brand .sub { display: none; } }
 @media (max-width: 1080px) { .status .mode { display: none; } }
 
-/* ── Повернення з вільного режиму ──────────────────────────────── */
+/* ── Return from free mode ─────────────────────────────────────── */
 #to-lesson {
   position: absolute; top: 16px; left: 16px; z-index: 2;
   border: 0; cursor: pointer; padding: 7px 13px; border-radius: 5px;
@@ -321,9 +321,9 @@ body { font-family: var(--ui); color: var(--body); }
 }
 #to-lesson:hover { background: var(--raised); color: var(--ink); }
 
-/* ── Модалка «Варіанти» ────────────────────────────────────────── */
-/* Атрибут hidden прибирає елемент лише поки його не перебили display-ом —
-   тому вимикаємо явно, інакше оверлей висів би завжди. */
+/* ── The «Variants» modal ──────────────────────────────────────── */
+/* The hidden attribute only removes an element while nothing has overridden display —
+   hence the explicit rule, or the overlay would hang there permanently. */
 #variants[hidden] { display: none; }
 #variants { position: absolute; inset: 0; z-index: 40; display: grid; place-items: center;
   background: rgba(10, 11, 13, 0.72); backdrop-filter: blur(2px); }
@@ -356,7 +356,7 @@ body { font-family: var(--ui); color: var(--body); }
 .v-table td { color: var(--body); }
 .v-table .on { color: var(--brass); }
 
-/* Підвал поза областю гортання — видимий за будь-якої висоти вікна. */
+/* The footer sits outside the scroll area — visible at any window height. */
 .v-actions { display: flex; justify-content: flex-end; gap: 8px; flex: none;
   padding-top: 12px; margin-top: 10px; border-top: 1px solid var(--line); }
 .v-actions button { padding: 9px 18px; border-radius: 6px; font: 500 12.5px var(--ui); cursor: pointer; }

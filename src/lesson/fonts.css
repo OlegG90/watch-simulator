@@ -1,9 +1,9 @@
-/* Шрифти інтерфейсу — локальні копії, щоб застосунок не залежав від мережі.
- * Literata та IBM Plex — SIL Open Font License 1.1 (див. fonts/LICENSE.md).
- * Лишено тільки латиницю й кирилицю; unicode-range збережено, тож браузер
- * вантажить субсет лише коли він справді потрібен.
+/* Interface fonts — local copies, so the app does not depend on the network.
+ * Literata and IBM Plex — SIL Open Font License 1.1 (see fonts/LICENSE.md).
+ * Only latin and cyrillic are kept; unicode-range is preserved, so the browser
+ * downloads a subset only when it is really needed.
  *
- * Згенеровано з fonts.googleapis.com; не редагувати руками.
+ * Generated from fonts.googleapis.com; do not edit by hand.
  */
 @font-face {
   font-family: 'IBM Plex Mono';

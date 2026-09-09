@@ -3,103 +3,103 @@ import { wheelAngle, forkAngle, balanceAngle, activePallet } from './motion.js';
 import { buildSpring, SPRING_R1 } from './spring.js';
 
 /**
- * Самодостатня модель анкерного спуску — окремий експонат, не модуль руху.
+ * A self-contained model of the lever escapement — a separate exhibit, not a module of
+ * the movement.
  *
- * Ізоляція за рішенням з власником: ні синхронізації з гніздом спуску, ні
- * вбудовуваності, ні спільних будівельників. Файл імпортує лише three —
- * будь-який імпорт з `movement/`, `escapement/` чи `lesson/` перетворив би
- * вітрину на придаток руху (текстовий тест у `test/showcase.test.js` це стереже).
+ * Isolated by a decision made with the owner: no synchronisation with the escapement
+ * socket, no embeddability, no shared builders. The file imports nothing but three —
+ * any import from `movement/`, `escapement/` or `lesson/` would turn the showcase into
+ * an appendage of the movement (a text test in `test/showcase.test.js` guards this).
  *
- * Компоновка (вид зверху, вісь X — лінія центрів):
- *   W=(0,0)     анкерне колесо, 15 клубових зубців, хід проти годинникової;
- *   P=(2.35,0)  вісь вилки: палети з обох боків лінії центрів;
- *   B=(4.35,0)  вісь балансу: ролик з імпульсним каменем у прорізі вилки.
+ * Layout (seen from above, the X axis is the line of centres):
+ *   W=(0,0)     escape wheel, 15 club teeth, travel anticlockwise;
+ *   P=(2.35,0)  the fork's pivot: pallets on both sides of the line of centres;
+ *   B=(4.35,0)  the balance's axis: a roller with the impulse pin in the fork's slot.
  *
- * Стек по Z (справжній порядок швейцарського ходу, не вигадка):
- *   колесо z≈0 → камені-палети в його площині → тіло вилки вище (z≈0.85) →
- *   ролик під вилкою, камінь стирчить вгору в проріз → баланс над усім →
- *   спіраль над балансом (z≈2.05), зовнішній кінець у нерухомій колодці.
- * Спіраль — ілюстрація дихання, не модель регулятора (див. `spring.js`).
+ * The Z stack (the true order of a Swiss escapement, not an invention):
+ *   the wheel at z≈0 → the pallet stones in its plane → the fork's body higher
+ *   (z≈0.85) → the roller below the fork, its pin reaching up into the slot → the
+ *   balance above everything → the hairspring above the balance (z≈2.05), its outer
+ *   end in a fixed stud.
+ * The hairspring illustrates breathing, it does not model the regulator (see `spring.js`).
  *
- * Точні кути граней — розв'язані, не номінальні: камінь стоїть стовпчиком
- * над колесом, запірний ріжок сідає на вістря замка (seatPallet), далі
- * імпульсна площина вздовж відходу вістря. Геометрія віддає фазній машині
- * півотні групи й камені — більше їй нічого не треба.
+ * The exact face angles are solved, not nominal: the stone stands as a column above the
+ * wheel, the locking corner seats on the lock's tip (seatPallet), and the impulse face
+ * then follows the tip's retreat. The geometry hands the phase machine the pivot groups
+ * and the stones — it needs nothing else.
  */
 
 export const TEETH = 15;
 export const WHEEL_R = 1.5;
 const WHEEL_ROOT = 0.95;
 const WHEEL_T = 0.35;
-/** Зубець-паличка: ширина вістря/основи й нахил за ходом, частки кроку. */
+/** A stick tooth: the width of tip/base and the lean with the travel, as fractions of a pitch. */
 const CLUB_TOOTH = { tw: 0.18, bw: 0.3, lean: 0.5 };
 
-/** W→P: вісь вилки. P→B: вісь балансу (хід вилки вміщується між ними). */
+/** W→P: the fork's pivot. P→B: the balance's axis (the fork's travel fits between them). */
 export const FORK_D = 2.35;
 export const BAL_D = 2.0;
 
 /**
- * Камені стоять стовпчиком НАД колесом і дістають смугу лише запірним
- * ріжком: попередня посадка (центр у смузі) ховала вістря всередину тіла
- * (−0.46 у замку) — жоден розворот цілого каменя це не лікував, бо тіло
- * 0.34×0.62 впоперек шляху зубців. Контакт — ріжком A з мікрозазором EPS.
+ * The stones stand as a column ABOVE the wheel and reach into the tooth band with the
+ * locking corner only: the earlier seating (centre inside the band) hid a tip inside the
+ * body (−0.46 at lock) — no rotation of the whole stone cured that, because the body is
+ * 0.34×0.62 across the teeth's path. Contact is by corner A, with a micro-clearance EPS.
  *
- * Зона (кут) каже, ЯКЕ вістря ловити: найближче до зони в момент замка.
- * Точну позицію і розворот дає seatPallet() розв'язком, а не числами:
- * ріжок сідає на вістря, грань — з притягуванням DRAW.
+ * The zone (an angle) says WHICH tip to catch: the one nearest the zone at the moment of
+ * lock. The exact position and rotation come from seatPallet() solving for them rather
+ * than from numbers: the corner seats on the tip, the face gets its DRAW.
  */
 const PALLET_ANG = (26 * Math.PI) / 180;
 const EXIT_ANG = (30.65 * Math.PI) / 180;
-// Посадка падіння (чому вихідна не дзеркальна ±26°): нуль вихідного замка
-// мінус нуль вхідного має дорівнювати півзубцю — інакше одна фаза не садить
-// обидва. Виміряно: 30.65° (нулі 22.45°/10.75°, різниця 11.7° проти потрібних
-// 12° — залишок 0.3° ділиться мінімаксом порівну). Напрям руху проти
-// годинникової ламає дзеркальну симетрію пари.
+// Seating the drop (why the exit one is not a mirrored ±26°): the exit lock's zero minus
+// the entry lock's zero must equal half a tooth — otherwise one phase does not seat both.
+// Measured: 30.65° (zeros 22.45°/10.75°, a difference of 11.7° against the required 12° —
+// the remaining 0.3° is split evenly by minimax). The anticlockwise direction of travel
+// breaks the pair's mirror symmetry.
 const JEWEL_W = 0.28;
 const JEWEL_H = 0.62;
 const JEWEL_T = 0.5;
-/** Номінальний кут притягування запірної грані від радіуса. */
+/** The nominal draw angle of the locking face from the radius. */
 const LOCK_DRAW = (10 * Math.PI) / 180;
-/** Довжина запірного фаска від ріжка; далі — імпульсна площина. */
+/** The length of the locking bevel from the corner; beyond it, the impulse face. */
 const LOCK_LEN = 0.07;
-/** Довжина імпульсної площини: вістря з'їжджає нею весь зрив. */
+/** The impulse face's length: the tip slides down it for the whole unlocking. */
 const IMP_LEN = 0.35;
-/** Мікрозазор контакту: грань торкається, тіла не перетинаються. */
+/** The contact micro-clearance: the face touches, the bodies do not intersect. */
 const SEAT_EPS = 0.004;
 /**
- * Виміряні розвороти каменя в рамі вилки й кути імпульсних площин
- * (локальні, від +x контура). Метод: скан .openchamber/seat10.mjs —
- * посадка ріжком на вістря замка, мінімакс перетину за ПОВНИЙ цикл
- * (вхідна й вихідна половини окремо — оптимум тримає вхідний зачеп).
- * Вхідна −31°/128° (цикл −0.024, навпроти +0.025), вихідна −110°/122°
- * (цикл −0.040, навпроти +0.058). Лишок — постановочний дотик у момент
- * падіння/зриву, не наскрізне проходження: тіла не ховають зубців.
- * Асиметрія — від нахилу зубців за ходом: дзеркала тут нема, як не було
- * його й у зоні виходу.
+ * The measured rotations of a stone in the fork's frame and the angles of the impulse
+ * faces (local, from the outline's +x). Method: the scan .openchamber/seat10.mjs —
+ * seating the corner on the lock's tip, minimax of the intersection over a FULL cycle
+ * (the entry and exit halves separately — the optimum keeps the entry engagement).
+ * Entry −31°/128° (cycle −0.024, against +0.025), exit −110°/122° (cycle −0.040, against
+ * +0.058). What remains is a staged touch at the moment of drop/unlocking, not a pass
+ * straight through: the bodies do not hide the teeth. The asymmetry comes from the teeth
+ * leaning with the travel: there is no mirror here, just as there was none in the exit zone.
  */
 const SEAT = {
   entry: { rot: (-31 * Math.PI) / 180, imp: (128 * Math.PI) / 180 },
   exit: { rot: (-110 * Math.PI) / 180, imp: (122 * Math.PI) / 180 },
 };
-/** Геометрія каменя — тестам посадки, щоб не дублювати числа. */
+/** The stone's geometry — for the seating tests, so the numbers are not duplicated. */
 export const JEWEL_GEOM = { w: JEWEL_W, h: JEWEL_H, lean: Math.tan(LOCK_DRAW) * JEWEL_H, lockLen: LOCK_LEN };
 
-/** Тіло вилки над колесом; камінь ролика дістає в проріз знизу. */
+/** The fork's body above the wheel; the roller's pin reaches up into the slot. */
 const FORK_Z = 0.85;
 const ROLLER_Z = 0.35;
 const ROLLER_R = 0.55;
-const PIN_R = 0.42;   // орбіта імпульсного каменя навколо осі балансу
+const PIN_R = 0.42;   // the impulse pin's orbit about the balance axis
 const STONE_R = 0.09;
 
 const polar = (r, a) => [Math.cos(a) * r, Math.sin(a) * r];
 const rot2 = ([x, y], a) => [x * Math.cos(a) - y * Math.sin(a), x * Math.sin(a) + y * Math.cos(a)];
 
 /**
- * Локальний контур каменя: A (запірний ріжок) → K (кінець фаска
- * з притягуванням) → M (імпульсна площина вздовж відходу вістря —
- * напрям виміряно трасуванням відносного руху, seat8.mjs: 134°/124°) →
- * зовнішнє тіло. Власна фігура модуля: гарди в тестах компонують
- * з неї, а не дублюють контур.
+ * A stone's local outline: A (the locking corner) → K (the end of the bevel carrying the
+ * draw) → M (the impulse face, along the tip's retreat — the direction measured by
+ * tracing the relative motion, seat8.mjs: 134°/124°) → the outer body. The module's own
+ * figure: the guards in the tests compose from it rather than duplicating the outline.
  */
 export function palletOutline(imp) {
   const w = JEWEL_W / 2, h = JEWEL_H / 2;
@@ -112,7 +112,7 @@ export function palletOutline(imp) {
 }
 const norm2 = ([x, y]) => Math.hypot(x, y);
 
-/** Зубець колеса в рамі колеса (опукла четвірка виступу): фігура для гардів. */
+/** A wheel tooth in the wheel's frame (the convex quad of the addendum): a figure for the guards. */
 export function clubToothQuad(i) {
   const step = (Math.PI * 2) / TEETH;
   const { tw: TW, bw: BW, lean: LEAN } = CLUB_TOOTH;
@@ -126,14 +126,14 @@ export function clubToothQuad(i) {
 }
 
 /**
- * Посадка каменя в рамі вилки розв'язком: яке вістря — найближче до зони
- * в момент замка; ріжок A сідає на нього з мікрозазором по зовнішній
- * нормалі фаска; розворот і імпульс — виміряні (SEAT). Плечі вилки
- * тягнуться до цієї ж точки, тож збірка не розходиться з посадкою.
+ * Seating a stone in the fork's frame by solving: which tip — the one nearest the zone at
+ * the moment of lock; corner A seats on it with a micro-clearance along the bevel's outer
+ * normal; the rotation and the impulse are measured (SEAT). The fork's arms reach for that
+ * same point, so the assembly does not drift away from the seating.
  */
 function seatPallet(face) {
-  // Вихідна зона — під лінією центрів (−EXIT_ANG): мінус лишається від
-  // старого side, без нього посадка ловить зубець верхньої половини.
+  // The exit zone is below the line of centres (−EXIT_ANG): the minus is left over from
+  // the old `side`, and without it the seating catches a tooth of the upper half.
   const zone = face === 'entry' ? PALLET_ANG : -EXIT_ANG;
   const lockU = face === 'entry' ? 0.5 : 1.5;
   const { rot, imp } = SEAT[face];
@@ -141,13 +141,13 @@ function seatPallet(face) {
   const step = (Math.PI * 2) / TEETH;
   let tip = 0, best = Infinity;
   for (let i = 0; i < TEETH; i++) {
-    // Повне коло, не mod кроку: (зона − зубець_i) mod крок від i не залежить.
+    // A full circle, not mod the pitch: (zone − tooth_i) mod pitch does not depend on i.
     const raw = (zone - (wAng + i * step)) % (Math.PI * 2);
     const d = Math.abs(raw > Math.PI ? raw - Math.PI * 2 : raw < -Math.PI ? raw + Math.PI * 2 : raw);
     if (d < best) { best = d; tip = i; }
   }
   const T = polar(WHEEL_R, wAng + tip * step);
-  // Зовнішня нормаль — з самого фаска A→K, не з формули lean: одне джерело.
+  // The outer normal comes from the bevel A→K itself, not from the lean formula: one source.
   const [A, K] = palletOutline(imp);
   const ex = K[0] - A[0], ey = K[1] - A[1];
   const el = Math.hypot(ex, ey);
@@ -161,14 +161,14 @@ function seatPallet(face) {
 }
 
 /**
- * Фаза замка: сталий доворот колеса, щоб вістря сіло на запірну грань.
- * Виміряно мінімаксом по обох замках (колесо між ними йде рівно півзубця —
- * вихідний міряється на δ + півкроку): 22.58°, залишок 0.004. З нулем вістря
- * стоїть на півкроку повз камінь. Постановка першого кадру, не фізика.
+ * The lock phase: a constant extra rotation of the wheel, so a tip seats on the locking
+ * face. Measured by minimax over both locks (between them the wheel travels exactly half
+ * a tooth — the exit one is measured at δ + half a pitch): 22.58°, residual 0.004. At zero
+ * the tip stands half a pitch past the stone. Staging of the first frame, not physics.
  */
 export const WHEEL_LOCK_PHASE = 0.3941;
 
-/** Коробка між двома точками XY на заданій висоті. */
+/** A box between two XY points at a given height. */
 function bar(from, to, w, t, z, material) {
   const d = to.clone().sub(from);
   const mesh = new THREE.Mesh(new THREE.BoxGeometry(d.length(), w, t), material);
@@ -179,36 +179,36 @@ function bar(from, to, w, t, z, material) {
 }
 
 /**
- * Колесо із зубами-паличками: тонкі довгі трапеції, нахилені в бік руху
- * (хід — проти годинникової, +кут): основа товща, вістря трохи вужче,
- * основа зсунута назад на півкроку — паличка випереджає вістрям за ходом;
- * між зубцями симетрична западина з прогином.
+ * The wheel with stick teeth: thin long trapezoids leaning in the direction of travel
+ * (travel is anticlockwise, +angle): the base thicker, the tip a little narrower, the base
+ * shifted back by half a pitch — so the stick leads with its tip along the travel; between
+ * the teeth, a symmetrical valley with a dip.
  *
- * Середина вістря лишається точно на (WHEEL_R, i·крок): посадка замка
- * міряється лише по ній, тож перепрофілювання граней і западин її не чіпає.
+ * The middle of a tip stays exactly at (WHEEL_R, i·pitch): the lock seating is measured
+ * along that alone, so re-profiling the faces and valleys does not disturb it.
  */
 function makeClubWheel(material) {
   const step = (Math.PI * 2) / TEETH;
-  // Частки кроку: TW — ширина вістря, BW — ширина основи, LEAN — зсув
-  // основи назад (нахил палички за ходом). Числа — в CLUB_TOOTH: контур
-  // колеса й четвірка для гардів з одного джерела, інакше тест перевіряє
-  // здорову копію.
+  // Fractions of a pitch: TW — the tip's width, BW — the base's width, LEAN — the base's
+  // shift backwards (the stick's lean with the travel). The numbers live in CLUB_TOOTH: the
+  // wheel's outline and the quad for the guards come from one source, otherwise the test
+  // checks a healthy copy.
   const { tw: TW, bw: BW, lean: LEAN } = CLUB_TOOTH;
   const VALLEY_R = WHEEL_ROOT * 0.88;
   const shape = new THREE.Shape();
   for (let i = 0; i < TEETH; i++) {
     const a = i * step;
-    const tbc = polar(WHEEL_ROOT, a - (LEAN + BW / 2) * step); // задня основа
-    const ttc = polar(WHEEL_R, a - (TW / 2) * step); // задній кут вістря
-    const ltc = polar(WHEEL_R, a + (TW / 2) * step); // передній кут вістря
-    const lbc = polar(WHEEL_ROOT, a - (LEAN - BW / 2) * step); // передня основа
-    const dip = polar(VALLEY_R, a + (0.5 - LEAN) * step); // дно западини
+    const tbc = polar(WHEEL_ROOT, a - (LEAN + BW / 2) * step); // the trailing base
+    const ttc = polar(WHEEL_R, a - (TW / 2) * step); // the trailing corner of the tip
+    const ltc = polar(WHEEL_R, a + (TW / 2) * step); // the leading corner of the tip
+    const lbc = polar(WHEEL_ROOT, a - (LEAN - BW / 2) * step); // the leading base
+    const dip = polar(VALLEY_R, a + (0.5 - LEAN) * step); // the bottom of the valley
     if (i === 0) shape.moveTo(...tbc);
-    else shape.lineTo(...tbc); // задня грань вгору до вістря
+    else shape.lineTo(...tbc); // the trailing face up to the tip
     shape.lineTo(...ttc);
-    shape.lineTo(...ltc); // плоске вістря, середина точно на (WHEEL_R, a)
-    shape.lineTo(...lbc); // передня грань вниз
-    shape.lineTo(...dip); // западина до наступного зубця
+    shape.lineTo(...ltc); // the flat tip, its middle exactly at (WHEEL_R, a)
+    shape.lineTo(...lbc); // the leading face down
+    shape.lineTo(...dip); // the valley across to the next tooth
   }
   shape.closePath();
   const hole = new THREE.Path();
@@ -234,11 +234,10 @@ function makeClubWheel(material) {
 }
 
 /**
- * Камінь-палета зламаним контуром: запірний фасок з притягуванням,
- * імпульсна площина вздовж відходу вістря, глухе зовнішнє тіло.
- * Обидва камені однієї форми (дзеркальний клав би глуху спину —
- * посадка виходу не сходилась ні на якій фазі); орієнтацію дає
- * розворот з посадки, не форма.
+ * A pallet stone as a broken outline: the locking bevel with its draw, the impulse face
+ * along the tip's retreat, and a blind outer body. Both stones have the same shape (a
+ * mirrored one would present a blind back — the exit seating then met at no phase at all);
+ * the orientation comes from the seating's rotation, not from the shape.
  */
 function makePallet(material, imp) {
   const pts = palletOutline(imp);
@@ -268,12 +267,12 @@ export function buildShowcase() {
   const group = new THREE.Group();
   const V2 = (x, y) => new THREE.Vector2(x, y);
 
-  // ── Підставка: музейний стенд, а не платина ──
+  // ── The stand: a museum plinth, not a main plate ──
   const pedestal = new THREE.Mesh(new THREE.CylinderGeometry(5.5, 6.5, 1.0, 48), stoneMat);
   pedestal.position.y = -3.2;
   pedestal.receiveShadow = true;
   group.add(pedestal);
-  // Стрункі стійки до трьох осей — експонат тримається на виду, а не в плиті.
+  // Slim posts up to the three axes — the exhibit stands in the open, not in a slab.
   const pillar = (x, top) => {
     const h = top + 2.7;
     const m = new THREE.Mesh(new THREE.CylinderGeometry(0.09, 0.12, h, 10), darkSteel);
@@ -286,7 +285,7 @@ export function buildShowcase() {
   pillar(FORK_D, 0.7);
   pillar(FORK_D + BAL_D, -0.3);
 
-  // ── Анкерне колесо на власній осі ──
+  // ── The escape wheel on its own axis ──
   const wheelPivot = new THREE.Group();
   const wheel = makeClubWheel(brass);
   wheelPivot.add(wheel);
@@ -296,7 +295,7 @@ export function buildShowcase() {
   wheelPivot.add(wheelAxle);
   group.add(wheelPivot);
 
-  // ── Вилка: півот, плечі до каменів, хвіст із прорізом до ролика ──
+  // ── The fork: pivot, arms out to the stones, tail with the slot for the roller ──
   const forkPivot = new THREE.Group();
   forkPivot.position.set(FORK_D, 0, 0);
   const boss = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.4, 16), steel);
@@ -307,19 +306,19 @@ export function buildShowcase() {
 
   const jewels = {};
   const jewelZ = 0.1;
-  // Посадка кожного каменя — розв'язок seatPallet(): ріжок на вістрі замка.
-  // Плечі йдуть до тієї ж точки — збірка не розходиться з посадкою.
+  // Each stone's seating is a solution of seatPallet(): the corner on the lock's tip.
+  // The arms reach for that same point — the assembly does not drift from the seating.
   for (const face of ['entry', 'exit']) {
     const seat = seatPallet(face);
-    // Матеріал каменя — власний екземпляр: підсвітка активної пари гасить
-    // й засвічує камені окремо, спільний матеріал цього не вміє.
+    // The stone's material is its own instance: highlighting the active pair dims and
+    // lights the stones separately, which a shared material cannot do.
     const stone = makePallet(ruby.clone(), seat.imp);
     stone.position.set(seat.x, seat.y, jewelZ);
     stone.rotation.z = seat.rot;
     stone.userData.pallet = { face, imp: seat.imp };
     forkPivot.add(stone);
     jewels[face] = stone;
-    // Плече: горизонтальна штанга в площині вилки + стійка вниз до каменя.
+    // The arm: a horizontal bar in the fork's plane + a post down to the stone.
     const top = V2(seat.x, seat.y);
     forkPivot.add(bar(V2(0, 0), top, 0.24, 0.26, FORK_Z, steel));
     const post = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.24, FORK_Z - jewelZ), steel);
@@ -327,8 +326,8 @@ export function buildShowcase() {
     post.castShadow = true;
     forkPivot.add(post);
   }
-  // Хвіст до ролика: проріз обіймає імпульсний камінь.
-  const tailEnd = FORK_D + BAL_D - PIN_R; // світовий X каменя ролика
+  // The tail out to the roller: the slot embraces the impulse pin.
+  const tailEnd = FORK_D + BAL_D - PIN_R; // the world X of the roller's pin
   forkPivot.add(bar(V2(0.3, 0), V2(tailEnd - FORK_D - 0.15, 0), 0.26, 0.26, FORK_Z, steel));
   for (const s of [1, -1]) {
     const horn = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.13, 0.26), steel);
@@ -347,8 +346,8 @@ export function buildShowcase() {
   forkPivot.add(counter);
   group.add(forkPivot);
 
-  // ── Обмежувачі ходу вилки — нерухомі, хвіст б'є в них ──
-  // Позиція відповідає розмаху: півширина хвоста + плече·tan(FORK_MAX).
+  // ── The banking pins for the fork's travel — fixed, the tail strikes them ──
+  // The position follows the swing: half the tail's width + arm·tan(FORK_MAX).
   for (const s of [1, -1]) {
     const pin = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.5, 8), darkSteel);
     pin.rotation.x = Math.PI / 2;
@@ -356,7 +355,7 @@ export function buildShowcase() {
     group.add(pin);
   }
 
-  // ── Баланс: вісь, ролик з каменем, обід. Без спіралі — див. шапку ──
+  // ── The balance: arbor, roller with its pin, rim. No hairspring — see the header ──
   const balancePivot = new THREE.Group();
   balancePivot.position.set(FORK_D + BAL_D, 0, 0);
   const staff = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 2.6, 12), darkSteel);
@@ -377,13 +376,13 @@ export function buildShowcase() {
   rim.position.z = 1.55;
   rim.castShadow = true;
   balancePivot.add(rim);
-  // Обід — дві половини штифтів: у кожному півколі групи по 2, 3, 4 штифти
-  // з відступом між групами (пор. демонстраційну модель). Кожна половина
-  // центрується у своєму півколі, тож стик півколів лишається вільним.
+  // The rim is two halves of pins: each semicircle carries groups of 2, 3 and 4 pins with
+  // a gap between groups (cf. the demonstration model). Each half is centred in its own
+  // semicircle, so the joint between the halves stays clear.
   const pinGeo = new THREE.CylinderGeometry(0.055, 0.055, 0.14, 10);
   const groupSizes = [2, 3, 4];
-  const pitch = 0.16; // крок усередині групи
-  const gap = 0.5;    // відступ між групами
+  const pitch = 0.16; // the step inside a group
+  const gap = 0.5;    // the gap between groups
   const totalPins = groupSizes.reduce((s, n) => s + n, 0);
   const span = (totalPins - 1) * pitch + (groupSizes.length - 1) * gap;
   for (const start of [0, Math.PI]) {
@@ -392,7 +391,7 @@ export function buildShowcase() {
       for (let i = 0; i < n; i++) {
         const pin = new THREE.Mesh(pinGeo, brass);
         pin.position.set(Math.cos(a) * 1.22, Math.sin(a) * 1.22, 1.55);
-        pin.rotation.z = a - Math.PI / 2; // вісь вздовж радіуса
+        pin.rotation.z = a - Math.PI / 2; // the axis along the radius
         pin.castShadow = true;
         balancePivot.add(pin);
         a += pitch;
@@ -409,9 +408,9 @@ export function buildShowcase() {
   }
   group.add(balancePivot);
 
-  // ── Спіраль: дихає з балансом; зовнішній кінець тримає міст ──
-  // Міст — від нерухомої осі вилки (бос крутиться навколо неї): стояк вгору,
-  // рукав над спіраллю, спускна шпилька до колодки зовнішнього кінця.
+  // ── The hairspring: it breathes with the balance; a bridge holds the outer end ──
+  // The bridge starts at the fork's fixed axis (its boss turns about it): a post upwards,
+  // an arm over the hairspring, and a dropped pin down to the stud of the outer end.
   const SPRING_Z = 2.05;
   const balX = FORK_D + BAL_D;
   const studX = balX + SPRING_R1;
@@ -420,7 +419,7 @@ export function buildShowcase() {
   const collet = new THREE.Mesh(new THREE.CylinderGeometry(0.16, 0.16, 0.25, 12), darkSteel);
   collet.rotation.x = Math.PI / 2;
   collet.position.z = SPRING_Z;
-  balancePivot.add(collet); // колодка сидить на осі — їде з балансом
+  balancePivot.add(collet); // the collet sits on the arbor — it travels with the balance
   const arborUp = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 1.6, 10), darkSteel);
   arborUp.rotation.x = Math.PI / 2;
   arborUp.position.set(FORK_D, 0, 1.5);
@@ -435,8 +434,8 @@ export function buildShowcase() {
   stud.castShadow = true;
   group.add(stud);
 
-  // Посадка першого кадру — замок на вхідній (u=0.5: напівціле = замкнений
-  // стан, фаза колеса рівно WHEEL_LOCK_PHASE, підсвітка вже на ній).
+  // The first frame's seating — a lock on the entry pallet (u=0.5: a half-integer is a
+  // locked state, the wheel's phase exactly WHEEL_LOCK_PHASE, the highlight already on it).
   update(0.5);
 
   group.visible = false;
@@ -447,9 +446,9 @@ export function buildShowcase() {
   };
 
   /**
-   * Крок вітрини: поза за фазовим часом `u` (удари) — колесо, вилка, баланс
-   * і підсвітка активної пари. Чиста функція часу: пауза й покроковість панелі —
-   * це зупинка й ручне просування `u`, стан ніде не накопичується.
+   * The showcase's step: the pose at phase time `u` (beats) — wheel, fork, balance and the
+   * highlight on the active pair. A pure function of time: the panel's pause and stepping
+   * are a stop and a manual advance of `u`, and no state accumulates anywhere.
    */
   function update(u) {
     const bal = balanceAngle(u);

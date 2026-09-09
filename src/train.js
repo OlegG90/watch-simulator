@@ -3,49 +3,50 @@ import { makeGear } from './gear.js';
 import { M, WHEEL_T, PINION_T, Z_STEP, AXLE_R, pitchR, deg, meshPhase, makeAxle, tagModule } from './common.js';
 
 /**
- * Колісна передача: кожен вузол (arbor) несе тріб (ведений попереднім колесом)
- * та власне колесо (веде наступний тріб). Барабан має лише колесо (сам барабан
- * із пружиною — у `barrel.js`); останній вузол несе тріб і слугує обертовою
- * кліттю турбійона (анкерне колесо живе в кліті, див. `escapement/tourbillon.js`).
+ * The going train: every arbor carries a pinion (driven by the previous wheel)
+ * and its own wheel (driving the next pinion). The barrel arbor has only a wheel
+ * (the barrel itself with the spring lives in `barrel.js`); the last arbor carries
+ * a pinion and serves as the rotating tourbillon cage (the escape wheel lives
+ * inside the cage, see `escapement/tourbillon.js`).
  */
 export const TRAIN = [
-  { nameKey: 'part.barrel',      wheel: 48, axleTop: 2.3, crossings: 5 },    // вище — трубки диференціала запасу ходу
-  { nameKey: 'part.centre',      pinion: 12, wheel: 40, crossings: 4, axleTop: 7.4 }, // вісь до канонного триба
+  { nameKey: 'part.barrel',      wheel: 48, axleTop: 2.3, crossings: 5 },    // taller: the power-reserve differential tubes sit above
+  { nameKey: 'part.centre',      pinion: 12, wheel: 40, crossings: 4, axleTop: 7.4 }, // arbor up to the cannon pinion
   { nameKey: 'part.third',       pinion: 12, wheel: 36, crossings: 4 },
-  { nameKey: 'part.fourth',      pinion: 12, wheel: 32, crossings: 3, axleTop: 5.15 }, // вісь під секундну стрілку
-  { nameKey: 'part.escapeArbor', pinion: 12, escapeTeeth: 15 },              // = кліть турбійона
+  { nameKey: 'part.fourth',      pinion: 12, wheel: 32, crossings: 3, axleTop: 5.15 }, // arbor for the seconds hand
+  { nameKey: 'part.escapeArbor', pinion: 12, escapeTeeth: 15 },              // = the tourbillon cage
 ];
 
-// Напрям (у площині XY) від осі k до осі k+1 — передачу скручено в тісну петлю
-// (компактна компоновка): кожен крок повертає сильніше, тож хвіст майже змикається
-// з барабаном. Колеса лежать на різних Z-площинах, тож перекриття по XY безпечне.
-// Останній кут (секундне → анкерний вузол) — 170°: там просторо для обертової
-// кліті турбійона (перевірено числовим прототипом компоновки).
+// Direction (in the XY plane) from arbor k to arbor k+1 — the train is coiled into
+// a tight loop (compact layout): every step turns more sharply, so the tail almost
+// closes on the barrel. The wheels lie on different Z planes, so overlapping in XY
+// is safe. The last angle (fourth → escape arbor) is 170°: there is room there for
+// the rotating tourbillon cage (checked with a numeric layout prototype).
 export const MESH_ANGLES = [0, 78, 150, 170].map(deg);
 
-/** Радіус вузла для меж сцени; анкерний вузол міряється кліттю турбійона. */
+/** Arbor radius for the scene bounds; the escape arbor is measured by the tourbillon cage. */
 export const arborOuterR = (spec, cageR) => (spec.escapeTeeth ? cageR : pitchR(spec.wheel) + M * 1.3);
 
 /**
- * Розстановка осей передачі + кінематика кожного вузла (швидкість і фаза).
- * Меші тут не створюються — лише геометрія розкладки, потрібна для меж сцени.
+ * Layout of the train arbors plus the kinematics of each one (speed and phase).
+ * No meshes are created here — only the layout geometry the scene bounds need.
  */
 export function layoutTrain() {
   const arbors = [];
   let pos = new THREE.Vector2(0, 0);
   TRAIN.forEach((spec, k) => {
-    let omega = 1; // швидкість відносно барабана (барабан = 1)
+    let omega = 1; // speed relative to the barrel (barrel = 1)
     let phi = 0;
     if (k > 0) {
       const prev = arbors[k - 1];
       const ZA = TRAIN[k - 1].wheel;
       const ZB = spec.pinion;
       const theta = MESH_ANGLES[k - 1];
-      const d = pitchR(ZA) + pitchR(ZB); // міжосьова відстань по ділильних колах
+      const d = pitchR(ZA) + pitchR(ZB); // centre distance across the pitch circles
       pos = prev.pos
         .clone()
         .add(new THREE.Vector2(Math.cos(theta), Math.sin(theta)).multiplyScalar(d));
-      omega = -prev.omega * (ZA / ZB); // зовнішнє зчеплення міняє напрям
+      omega = -prev.omega * (ZA / ZB); // an external meshing reverses the direction
       phi = meshPhase(theta, ZA, ZB, prev.phi);
     }
     arbors.push({
@@ -54,14 +55,14 @@ export function layoutTrain() {
       pos,
       omega,
       phi,
-      pinionZ: (k - 1) * Z_STEP, // тріб у площині колеса попереднього вузла
+      pinionZ: (k - 1) * Z_STEP, // pinion in the wheel plane of the previous arbor
       wheelZ: k * Z_STEP,
     });
   });
   return arbors;
 }
 
-/** Меші передачі: тріб + колесо + вісь на кожному вузлі. Заповнює `a.group`. */
+/** Train meshes: pinion + wheel + arbor on every node. Fills `a.group`. */
 export function buildTrain({ brass, steel, axleMat }, arbors, root) {
   arbors.forEach((a, k) => {
     const g = new THREE.Group();
@@ -84,7 +85,7 @@ export function buildTrain({ brass, steel, axleMat }, arbors, root) {
       g.add(w);
     }
 
-    // Вісь: від нижньої до верхньої деталі вузла.
+    // Arbor: from the lowest to the highest part of the node.
     const zFrom = k === 0 ? -2.6 : a.pinionZ - 1.0;
     const zTo = a.spec.axleTop ?? a.wheelZ + 1.0;
     g.add(makeAxle(
@@ -93,7 +94,7 @@ export function buildTrain({ brass, steel, axleMat }, arbors, root) {
     ));
 
     tagModule(g, 'train');
-    // індекс вузла: дозволяє підсвітити один вузол передачі, а не весь ланцюг
+    // arbor index: lets one train node be highlighted instead of the whole chain
     g.traverse((o) => { if (o.userData.arbor === undefined) o.userData.arbor = k; });
     root.add(g);
     a.group = g;

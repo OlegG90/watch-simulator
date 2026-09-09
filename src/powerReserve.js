@@ -2,57 +2,57 @@ import * as THREE from 'three';
 import { makeGear, makeBevelGear } from './gear.js';
 import { deg, dir2, meshPhase, makeAxle, makeHandAssembly, tagModule, pitchR } from './common.js';
 
-// ── Коаксіальний конічний диференціал над барабаном ───────────────
-// Обидва входи вже на осі барабана: храповик (w) веде верхнє сонце прямою
-// трубкою (RA = 1), барабанне колесо (β) — нижнє через маточинне колесо (32)
-// → компаунд-проміжне (8/20) → колесо трубки нижнього сонця (20), RB = 4.
-// Міжосьова однакова для обох пар: (32+8)·m/2 = (20+20)·m/2 = 6.0.
+// ── Coaxial bevel differential above the barrel ───────────────────
+// Both inputs are already on the barrel arbor: the ratchet (w) drives the upper sun
+// through a straight tube (RA = 1), the barrel wheel (β) drives the lower one via
+// the hub wheel (32) → compound idler (8/20) → the wheel on the lower sun's tube
+// (20), RB = 4. The centre distance is the same for both pairs: (32+8)·m/2 = (20+20)·m/2 = 6.0.
 const PRT_M = 0.3;
 const PRT_HUB = 32;
 const PRT_P = 8;
 const PRT_W = 20;
 const PRT_G = 20;
-export const RA = 1;                                   // храповик → верхнє сонце
-export const RB = (PRT_HUB / PRT_P) * (PRT_W / PRT_G); // барабан → нижнє сонце = 4
-const PRT_ANGLE = deg(160);                            // напрям компаунд-проміжного від барабана
+export const RA = 1;                                   // ratchet → upper sun
+export const RB = (PRT_HUB / PRT_P) * (PRT_W / PRT_G); // barrel → lower sun = 4
+const PRT_ANGLE = deg(160);                            // direction of the compound idler from the barrel
 
 /**
- * Міжосьові вузла. Обидві пари мають ОДНАКОВУ — саме тому проміжне колесо
- * одне, а не два. Виводяться тут один раз: доти цей самий вираз стояв ще й у
- * `readouts.js`, і ще й у `section.js`.
+ * The node's centre distances. Both pairs have the SAME one — which is exactly why
+ * there is one idler rather than two. Derived here once: until then this same
+ * expression also sat in `readouts.js`, and in `section.js` as well.
  */
-const CENTRE_HUB = ((PRT_HUB + PRT_P) / 2) * PRT_M;   // маточинне ↔ проміжне
-const CENTRE_SUN = ((PRT_W + PRT_G) / 2) * PRT_M;     // проміжне ↔ колесо сонця
+const CENTRE_HUB = ((PRT_HUB + PRT_P) / 2) * PRT_M;   // hub ↔ idler
+const CENTRE_SUN = ((PRT_W + PRT_G) / 2) * PRT_M;     // idler ↔ sun's wheel
 
-export const PR_EMPTY = deg(150);            // «порожньо»
-export const PR_FULL = deg(30);              // повний завод
+export const PR_EMPTY = deg(150);            // «empty»
+export const PR_FULL = deg(30);              // fully wound
 export const SWEEP = PR_EMPTY - PR_FULL;     // 120°
-const C0 = 0.75;                             // початковий заряд
+const C0 = 0.75;                             // initial charge
 
-const DIFF_M = 0.28;              // модуль конічних коліс диференціала
-const SUN_T = 16;          // δ_сонця = atan(16/10) ≈ 58°
-const PLANET_T = 10;              // δ_планети ≈ 32°
-/** Радіуси шкали й стрілки — розріз збоку бере їх звідси, а не вписує. */
+const DIFF_M = 0.28;              // module of the differential's bevel gears
+const SUN_T = 16;          // δ_sun = atan(16/10) ≈ 58°
+const PLANET_T = 10;              // δ_planet ≈ 32°
+/** Radii of the dial and the hand — the developed section takes them from here instead of typing them. */
 const DIAL_R = 3.05, PR_HAND_L = 2.5;
 const DELTA_SUN = Math.atan(SUN_T / PLANET_T);
 const DELTA_PL = Math.atan(PLANET_T / SUN_T);
-const Z_DIFF = 5.8;               // спільний апекс сонць/планет
-/** Z-рівні модуля — спільні з розрізом збоку. */
+const Z_DIFF = 5.8;               // the shared apex of suns and planets
+/** The module's Z levels — shared with the developed section. */
 const LAYERS = { hubWheel: 1.85, idlerWheel: 3.3, suns: Z_DIFF, arm: Z_DIFF + 2.15, dial: Z_DIFF + 2.75, hand: Z_DIFF + 3.05 };
 
-/** Товщини тіл. Одні й ті самі для мешів і для розрізу — інакше розійдуться. */
+/** Body thicknesses. The same ones for the meshes and for the section — otherwise they drift apart. */
 const T = { wheel: 0.5, sun: 0.4, planet: 0.38, dial: 0.1, hand: 0.14 };
 
-/** Заряд — ПОХІДНИЙ від двох входів диференціала, а не окрема змінна стану. */
+/** The charge is DERIVED from the differential's two inputs, not a state variable of its own. */
 export const chargeOf = (w, beta) => C0 + (RA * w - RB * beta) / (2 * SWEEP);
 
-/** Скільки ще можна докрутити храповик до упору повного заводу (c = 1). */
+/** How much further the ratchet can be turned before the full-wind stop (c = 1). */
 export const windRoomAt = (w, beta) => Math.max(0, ((1 - chargeOf(w, beta)) * 2 * SWEEP) / RA);
 
-/** Автопідзавід: докрут храповика, за якого водило (стрілка) стоїть: dθ_C = 0. */
+/** Auto-wind: the ratchet advance at which the carrier (the hand) stands still: dθ_C = 0. */
 export const autoWindDelta = (dBeta) => (RB / RA) * dBeta;
 
-/** Розкладка вузла (позиції + внесок у межі сцени). */
+/** Layout of the node (positions + contribution to the scene bounds). */
 export function layoutPowerReserve(barrelPos) {
   const idlerPos = barrelPos.clone().add(dir2(PRT_ANGLE).multiplyScalar(CENTRE_HUB));
   return {
@@ -62,15 +62,16 @@ export function layoutPowerReserve(barrelPos) {
 }
 
 /**
- * Що вузол може сказати про себе ДО того, як з'явиться хоч один меш.
+ * What the node can say about itself BEFORE a single mesh exists.
  *
- * Третя фаза поряд із `layout…()` і `build…()`: розкладка відповідає на «де
- * стоїть», збірка — «з чого зроблено», а це — «які в нього числа». Доти на ці
- * питання відповідали `readouts.js` і `section.js`, кожен своїм списком
- * констант і своєю копією формул.
+ * The third phase beside `layout…()` and `build…()`: the layout answers «where it
+ * stands», the build «what it is made of», and this «what its numbers are». Until
+ * now `readouts.js` and `section.js` answered those questions, each with its own
+ * list of constants and its own copy of the formulas.
  *
- * Деталі кажуть, ВІД ЧОГО вони висять (`anchor`) і на скільки зміщені (`u`) —
- * де насправді стоїть цей вузол, знає композитор розрізу, а не модуль.
+ * Parts say WHAT they hang from (`anchor`) and how far along they are shifted
+ * (`u`) — where this node actually stands is known to the section's composer, not
+ * to the module.
  */
 export function profile() {
   const L = LAYERS;
@@ -92,11 +93,12 @@ export function profile() {
 }
 
 /**
- * Меші індикатора запасу ходу. Класика диференціала: S_up + S_low = 2·водило,
- * тож водило-стрілка показує різницю між заведенням і витратою.
+ * The power-reserve indicator's meshes. The classic differential relation:
+ * S_up + S_low = 2·carrier, so the carrier-hand shows the difference between
+ * winding and consumption.
  *
- * Маточинне колесо (вхід ходу) кріпиться до вузла барабана; решта — на власній
- * групі, коаксіальній з барабаном.
+ * The hub wheel (the going input) is attached to the barrel arbor; everything else
+ * lives on its own group, coaxial with the barrel.
  */
 export function buildPowerReserve({ brass, steel, axleMat, ruby, plateMat, bluedMat }, L,
   { barrelPos, barrelGroup, barrelPhi }) {
@@ -104,7 +106,7 @@ export function buildPowerReserve({ brass, steel, axleMat, ruby, plateMat, blued
   const group = new THREE.Group();
   group.position.set(barrelPos.x, barrelPos.y, 0);
 
-  // ── Маточинне колесо (вхід ходу, β) — на трубці барабанного колеса ──
+  // ── Hub wheel (the going input, β) — on the barrel wheel's tube ──
   const hubParts = [];
   {
     const hubWheel = makeGear({ teeth: PRT_HUB, module: PRT_M, thickness: T.wheel, bore: 0.62, crossings: 4 }, brass);
@@ -115,7 +117,7 @@ export function buildPowerReserve({ brass, steel, axleMat, ruby, plateMat, blued
     hubParts.push(hubWheel, hubPipe);
   }
 
-  // ── Компаунд-проміжне: тріб (8, площина маточинного) + колесо (20) ──
+  // ── Compound idler: pinion (8, in the hub wheel's plane) + wheel (20) ──
   const idlerG = new THREE.Group();
   idlerG.position.set(idlerPos.x - barrelPos.x, idlerPos.y - barrelPos.y, 0);
   {
@@ -129,7 +131,7 @@ export function buildPowerReserve({ brass, steel, axleMat, ruby, plateMat, blued
   }
   group.add(idlerG);
 
-  // ── Нижнє сонце + колесо його трубки (вхід ходу ×4) ──
+  // ── Lower sun + the wheel on its tube (the going input ×4) ──
   const sunLow = new THREE.Group();
   {
     const sun = makeBevelGear(
@@ -137,7 +139,7 @@ export function buildPowerReserve({ brass, steel, axleMat, ruby, plateMat, blued
       steel
     );
     sun.position.z = Z_DIFF;
-    sun.rotation.x = Math.PI; // перевернуте: вінець знизу, зубці до планет
+    sun.rotation.x = Math.PI; // inverted: rim below, teeth facing the planets
     sunLow.add(sun);
     const g = makeGear({ teeth: PRT_G, module: PRT_M, thickness: T.wheel, bore: 0.72, crossings: 3 }, steel);
     g.position.z = 3.3;
@@ -146,21 +148,21 @@ export function buildPowerReserve({ brass, steel, axleMat, ruby, plateMat, blued
   }
   group.add(sunLow);
 
-  // ── Верхнє сонце — на трубці від храповика (вхід заведення, RA = 1) ──
+  // ── Upper sun — on the tube from the ratchet (the winding input, RA = 1) ──
   const sunUp = new THREE.Group();
   {
     const sun = makeBevelGear(
       { teeth: SUN_T, module: DIFF_M, thickness: T.sun, bore: 0.5, pitchAngleDeg: (DELTA_SUN * 180) / Math.PI },
       steel
     );
-    sun.position.z = Z_DIFF; // апекс у центрі, вінець зверху
+    sun.position.z = Z_DIFF; // apex at the centre, rim on top
     sunUp.add(sun);
-    sunUp.add(makeAxle({ r: 0.45, len: 3.3, z: 4.55 }, steel)); // від храповика до сонця
+    sunUp.add(makeAxle({ r: 0.45, len: 3.3, z: 4.55 }, steel)); // from the ratchet up to the sun
   }
   group.add(sunUp);
 
-  // ── Водило-«клітка»: кільце навколо сонць, планети на внутрішніх цапфах,
-  //    місток над верхнім сонцем і стрілка ──
+  // ── The carrier «cage»: a ring around the suns, planets on inner pivots,
+  //    a bridge over the upper sun, and the hand ──
   const carrier = new THREE.Group();
   const planets = [];
   {
@@ -186,7 +188,7 @@ export function buildPowerReserve({ brass, steel, axleMat, ruby, plateMat, blued
       carrier.add(makeAxle({ r: 0.12, len: 2.15, x: s * 3.35, z: Z_DIFF + 1.08, segments: 10 }, axleMat));
     }
     const arm = new THREE.Mesh(new THREE.BoxGeometry(7.0, 0.24, 0.12), axleMat);
-    arm.position.z = Z_DIFF + 2.15; // місток над верхнім сонцем
+    arm.position.z = Z_DIFF + 2.15; // the bridge over the upper sun
     carrier.add(arm);
     carrier.add(makeAxle({ r: 0.25, len: 0.9, z: Z_DIFF + 2.6 }, axleMat));
     carrier.add(makeHandAssembly(
@@ -196,9 +198,9 @@ export function buildPowerReserve({ brass, steel, axleMat, ruby, plateMat, blued
   }
   group.add(carrier);
 
-  // ── Шкала-сектор над барабаном (не повне кільце — диференціал під нею видно) ──
+  // ── The dial sector above the barrel (not a full ring — the differential shows through) ──
   {
-    const pad = deg(8); // поля сектора за межами ходу стрілки
+    const pad = deg(8); // the sector's margins beyond the hand's travel
     const fan = new THREE.Mesh(
       new THREE.RingGeometry(0.7, DIAL_R, 48, 1, PR_FULL - pad, SWEEP + 2 * pad), plateMat
     );
@@ -219,24 +221,24 @@ export function buildPowerReserve({ brass, steel, axleMat, ruby, plateMat, blued
     }
   }
 
-  // ── Фазування пар входу ходу ──
+  // ── Phasing of the going-input pairs ──
   const thHI = Math.atan2(idlerPos.y - barrelPos.y, idlerPos.x - barrelPos.x);
-  const phiP8 = meshPhase(thHI, PRT_HUB, PRT_P, barrelPhi);        // маточинне (β) → тріб компаунда
-  const phiG20 = meshPhase(thHI + Math.PI, PRT_W, PRT_G, phiP8);   // колесо компаунда → трубка сонця
-  // Стала водила обрана так, щоб початковий заряд дорівнював C0 (стрілка на 60°).
+  const phiP8 = meshPhase(thHI, PRT_HUB, PRT_P, barrelPhi);        // hub (β) → the compound's pinion
+  const phiG20 = meshPhase(thHI + Math.PI, PRT_W, PRT_G, phiP8);   // the compound's wheel → the sun's tube
+  // The carrier's constant is chosen so the initial charge equals C0 (the hand at 60°).
   const KC = (PR_EMPTY - C0 * SWEEP) - phiG20 / 2;
 
   /**
-   * Поза диференціала від двох входів; повертає заряд, обрізаний до [0,1].
-   * @param w    кут храповика (заведення)
-   * @param beta кут барабанного колеса (хід)
+   * The differential's pose from its two inputs; returns the charge clamped to [0,1].
+   * @param w    the ratchet's angle (winding)
+   * @param beta the barrel wheel's angle (going)
    */
   function update(w, beta) {
-    // Знак «−»: вісь заведення контр-обертається відносно ходу барабанного колеса.
+    // The «−»: the winding axis counter-rotates relative to the barrel wheel's travel.
     sunUp.rotation.z = -w;
     idlerG.rotation.z = phiP8 - (PRT_HUB / PRT_P) * beta;
     sunLow.rotation.z = phiG20 + RB * beta;
-    carrier.rotation.z = (sunUp.rotation.z + sunLow.rotation.z) / 2 + KC; // умова диференціала
+    carrier.rotation.z = (sunUp.rotation.z + sunLow.rotation.z) / 2 + KC; // the differential condition
     const spin = ((sunUp.rotation.z - sunLow.rotation.z) / 2) * (SUN_T / PLANET_T);
     for (const p of planets) p.rotation.z = spin * p.userData.dir;
     return Math.min(1, Math.max(0, chargeOf(w, beta)));

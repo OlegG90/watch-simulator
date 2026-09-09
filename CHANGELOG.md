@@ -25,8 +25,8 @@ cannot move. That is the strongest statement of the station's own claim.
   a tourbillon the balance is central and the escape wheel orbits; in a lever
   the escape wheel is central — the train drives it directly — and the balance
   moves out to that same 2.6.
-- **The Варіанти modal** on station 4: three modules with silhouettes, the cost
-  table, one honesty line, and Лишити як є / Змінити. The mechanism keeps
+- **The Variants modal** on station 4: three modules with silhouettes, the cost
+  table, one honesty line, and a keep-as-is / change pair of buttons. The mechanism keeps
   running while it is open — pausing would break the very thing being shown —
   and the camera flies to the escapement after a change.
 - **The cost of complexity, measured.** parts · of them moving · nested
@@ -239,16 +239,16 @@ movement, and the old app is one click away.
   creates meshes and returns its own `update()`. Behaviour is unchanged — a
   scene-graph diff against the previous build (660 meshes across six states) shows
   zero differences.
-- The escape arbor is labelled **"Анкерний вузол"** rather than "Анкерне колесо":
+- The escape arbor is labelled **"escape arbor"** rather than "escape wheel":
   it carries no escape wheel any more, it *is* the tourbillon cage.
 
 ### Fixed
 
 - Removed a duplicate label: the escape arbor and the tourbillon cage share one
   axis, so their two 3D labels overlapped. The axis is now labelled only
-  "Турбійон".
+  "tourbillon".
 - Merged the duplicate entry in the node-visibility list for the same reason —
-  one "Турбійон" toggle instead of "Анкерне колесо" + "Турбійон (кліть)".
+  one "tourbillon" toggle instead of "escape wheel" + "tourbillon (cage)".
 
 ### Docs
 

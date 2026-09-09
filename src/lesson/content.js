@@ -1,9 +1,9 @@
 /**
- * Копірайт карток станцій. Винесено з `i18n.js`, щоб той лишався хромом
- * інтерфейсу: тут — те, що урок каже про механізм.
+ * The copy for the station cards. Lifted out of `i18n.js` so that file stays the
+ * interface chrome: here is what the lesson says about the mechanism.
  *
- * `%1`, `%2` — місця для живих чисел із `readouts.js`. Жодне число не вписане
- * текстом: усі приходять із тих самих констант, що будують геометрію.
+ * `%1`, `%2` are the slots for live numbers from `readouts.js`. Not one number is
+ * written out as text: they all come from the same constants that build the geometry.
  */
 export const CONTENT = {
   ua: {
@@ -61,7 +61,7 @@ export const CONTENT = {
     'st.powerReserve.s1': 'заряд зараз',
     'st.powerReserve.s2': 'міжосьова пар',
 
-    // ── зібране речення станції: те саме в рейці й на підсумку ──
+    // ── the sentence a stop leaves behind: same text in rail and summary ──
     'st.winding.line': 'Собачка не пускає храповик назад — тому в енергії лишається єдиний вихід: у передачу.',
     'st.energy.line': 'Пружина зберігає роботу руки: тугіша дає довший хід, а не швидший.',
     'st.train.line': 'Чотири зачеплення розмінюють повільний сильний оберт на швидкий слабкий — у 107 разів.',
@@ -69,7 +69,7 @@ export const CONTENT = {
     'st.timeDisplay.line': 'Моторний механізм ділить оберт на 12, а окремий місток множить на 60 — і все на одній осі.',
     'st.powerReserve.line': 'Диференціал віднімає накручене від відходженого: стрілка показує різницю, а не залишок.',
 
-    // ── підсумок ──
+    // ── summary ──
     'finish.eyebrow': 'ЛАНЦЮГ ПРОЙДЕНО',
     'finish.title': 'Як працює цей механізм',
     'finish.lead': 'Шість речень, які ви зібрали — по одному на кожній зупинці. Разом вони й описують хід.',

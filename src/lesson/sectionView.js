@@ -3,13 +3,14 @@ import { sectionParts, zTicks, V_SCALE } from './section.js';
 import { svgEl as n, linear } from './draw.js';
 
 /**
- * Малює розгортку у SVG. Одна діаграма на всі станції — підсвітка змінюється
- * так само, як у вигляді згори: та сама сцена, різний фокус.
+ * Draws the developed section as SVG. One diagram for every station — the
+ * highlight changes just as it does in the top view: the same scene, a different
+ * focus.
  */
 
 const W = 740, H = 716, PAD = 30, TOP_PAD = 96, BOTTOM_PAD = 64;
 
-/** Кольори — ті самі матеріали, що й у сцені. */
+/** Colours — the same materials as in the scene. */
 const STYLE = {
   wheel: { fill: '#8a7440', stroke: '#caa84a' },
   pinion: { fill: '#3b4048', stroke: '#b8bec8' },
@@ -26,8 +27,8 @@ export function renderSection(host, focusMods, variant) {
   const zMin = Math.min(...parts.map((p) => p.z0));
   const zMax = Math.max(...parts.map((p) => p.z1));
   const sx = (W - 2 * PAD) / (bounds.uMax - bounds.uMin);
-  // Вертикаль розтягується, щоб шари в 1.1 не злилися, — але не «на око»:
-  // масштаб рахується під в'юпорт, а справжній коефіцієнт іде в підпис.
+  // The vertical axis is stretched so layers 1.1 apart do not merge — but not «by
+  // eye»: the scale is computed for the viewport and the real factor goes in the caption.
   const sy = Math.min(sx * 4, (H - TOP_PAD - BOTTOM_PAD) / (zMax - zMin));
   const exaggeration = Math.round((sy / sx) * 10) / 10;
   const X = linear({ from: bounds.uMin, at: PAD, k: sx });
@@ -38,7 +39,7 @@ export function renderSection(host, focusMods, variant) {
   const svg = n('svg', { viewBox: `0 0 ${W} ${H}`, width: '100%', height: '100%' });
   svg.append(n('rect', { width: W, height: H, fill: '#16181c' }));
 
-  // ── Шкала висот ──
+  // ── Height scale ──
   const axis = n('g', { 'font-family': 'IBM Plex Mono, monospace', 'font-size': 10, fill: '#6f757e' });
   for (const z of zTicks()) {
     const y = Y(z);
@@ -52,7 +53,7 @@ export function renderSection(host, focusMods, variant) {
   axis.append(zMark);
   svg.append(axis);
 
-  // ── Деталі ──
+  // ── Parts ──
   const body = n('g');
   for (const p of parts) {
     const st = STYLE[p.kind] ?? STYLE.wheel;
@@ -67,7 +68,7 @@ export function renderSection(host, focusMods, variant) {
   }
   svg.append(body);
 
-  // ── Точки зачеплення: тріб торкається колеса сусіда по ділильних колах ──
+  // ── Meshing points: a pinion touches the neighbour's wheel at the pitch circles ──
   const trainLit = lit('train');
   const mg = n('g', { opacity: trainLit ? 1 : 0.2 });
   for (const m of meshes) {
@@ -81,7 +82,7 @@ export function renderSection(host, focusMods, variant) {
   }
   svg.append(mg);
 
-  // ── Підписи вузлів: у два яруси, щоб не налазили ──
+  // ── Node labels: on two tiers, so they do not overlap ──
   const labels = n('g', { 'font-family': 'IBM Plex Mono, monospace', 'font-size': 11 });
   parts.filter((p) => p.labelKey && lit(p.mod)).forEach((p, i) => {
     const y = Y(p.z1) - (i % 2 ? 24 : 9);

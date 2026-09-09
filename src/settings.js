@@ -1,21 +1,22 @@
 /**
- * Налаштування ходу — одна таблиця на весь застосунок.
+ * The running parameters — one table for the whole app.
  *
- * Доти «які взагалі є ручки, у яких межах і під яким підписом» не мало
- * власного місця: три повзунки були оголошені двічі — у `main.js` для lil-gui
- * і в `lesson/stations.js` для карток, — з межами, зведеними вручну. Ніщо не
- * перевіряло, що вони збігаються, а картка могла назвати параметр, якого
- * немає: `params[c.param] = …` мовчки створював новий ключ, повзунок їздив, і
- * не відбувалося нічого.
+ * Until it existed, «which knobs there are, within which bounds and under which
+ * label» had no home of its own: three sliders were declared twice — in `main.js`
+ * for lil-gui and in `lesson/stations.js` for the cards — with the bounds kept in
+ * step by hand. Nothing checked that they agreed, and a card could name a
+ * parameter that did not exist: `params[c.param] = …` silently created a new key,
+ * the slider moved, and nothing happened.
  *
- * Таблиця тут одна, а над нею два адаптери — панель вільного режиму й ручка на
- * картці станції. Два адаптери, тому шов справжній, а не про запас.
+ * There is one table here, with two adapters over it — the free-mode panel and the
+ * knob on a station card. Two adapters, so the seam is real rather than
+ * speculative.
  *
- * `values` — звичайний обʼєкт: його читає цикл рендеру (`params.beatHz`), і
- * геттери там коштували б дорожче за саме значення.
+ * `values` is a plain object: the render loop reads it (`params.beatHz`), and
+ * getters there would cost more than the value itself.
  */
 
-/** `labelKey` — ключ словника; підписи ніде не вписуються текстом. */
+/** `labelKey` is a dictionary key; labels are never typed in as text. */
 const SPEC = {
   running: { kind: 'flag', value: true, labelKey: 'gui.running' },
   timeMode: {
@@ -43,16 +44,16 @@ export function createSettings() {
   const values = {};
   for (const [name, s] of Object.entries(SPEC)) values[name] = s.value;
 
-  /** Опис параметра. Невідоме імʼя — помилка тут, а не тиша на екрані. */
+  /** A parameter's spec. An unknown name is an error here, not silence on screen. */
   function spec(name) {
     const s = SPEC[name];
-    if (!s) throw new Error(`невідоме налаштування: ${name}`);
+    if (!s) throw new Error(`unknown setting: ${name}`);
     return s;
   }
 
   /**
-   * Записати значення. Діапазон затискається за тією ж таблицею, з якої
-   * побудовано ручку, тож «поза межами» не залежить від того, хто пише.
+   * Write a value. The range is clamped by the same table the knob was built from,
+   * so «out of bounds» does not depend on who is writing.
    */
   function set(name, v) {
     const s = spec(name);

@@ -22,8 +22,8 @@ const byPallet = (m, face) => {
   return found;
 };
 
-describe('вітрина анкерного спуску (геометрія)', () => {
-  it('колесо: 15 клубових зубців, вістря на заданому радіусі', () => {
+describe('lever escapement showcase (geometry)', () => {
+  it('wheel: 15 club teeth, tips at the given radius', () => {
     const m = buildShowcase();
     let wheel = null;
     m.group.traverse((o) => { if (o.userData.club) wheel = o; });
@@ -36,7 +36,7 @@ describe('вітрина анкерного спуску (геометрія)', 
     expect(noNaN(m.group)).toBe(true);
   });
 
-  it('осі на лінії центрів: вилка на FORK_D, баланс далі на BAL_D', () => {
+  it('axes on the line of centres: the fork at FORK_D, the balance a further BAL_D away', () => {
     const m = buildShowcase();
     expect(m.forkPivot.position.x).toBeCloseTo(FORK_D, 12);
     expect(m.forkPivot.position.y).toBeCloseTo(0, 12);
@@ -44,12 +44,12 @@ describe('вітрина анкерного спуску (геометрія)', 
     expect(m.balancePivot.position.y).toBeCloseTo(0, 12);
   });
 
-  it('у замках вістря стоїть на фасці активної палети — вхідному й вихідному', () => {
-    // Той самий мінімакс, що дав WHEEL_LOCK_PHASE і посадку вихідної, —
-    // як гард: вихідний замок міряється на δ + півзубця, бо колесо між
-    // замками просувається. Контакт — короткий фасок A→K, не вся грань:
-    // вістря сідає ріжком. Саботаж: нульова фаза або фасок повз вістря —
-    // і цей тест червоніє.
+  it('at both locks a tip stands on the active pallet\'s bevel — entry and exit', () => {
+    // The same minimax that produced WHEEL_LOCK_PHASE and the exit seating, now as a
+    // guard: the exit lock is measured at δ + half a tooth, because the wheel advances
+    // between the locks. The contact is the short bevel A→K, not the whole face: the tip
+    // seats on the corner. Sabotage: a zero phase, or a bevel that misses the tip — and
+    // this test goes red.
     const m = buildShowcase();
     const l2w = (stone, x, y) => {
       const v = new THREE.Vector3(x, y, 0).applyMatrix4(stone.matrixWorld);
@@ -74,15 +74,15 @@ describe('вітрина анкерного спуску (геометрія)', 
         const t = Math.max(0, Math.min(1, p.clone().sub(A).dot(ab) / len2));
         best = Math.min(best, p.clone().sub(A.clone().addScaledVector(ab, t)).length());
       }
-      expect(best, `замок ${face}@${u}`).toBeLessThan(0.01);
+      expect(best, `lock ${face}@${u}`).toBeLessThan(0.01);
     }
     expect(WHEEL_LOCK_PHASE).not.toBe(0);
   });
 
-  it('замкове вістря — ЗОВНІ тіла каменя: без поховання', () => {
-    // Близькість до лінії грані burial не бачить: вістря всередині тіла
-    // теж дає малу відстань до грані. Цей гард ловить саме поховання.
-    // Саботаж: стара посадка центром у смузі — вістря всередині, червоний.
+  it('the locking tip is OUTSIDE the stone\'s body: no burial', () => {
+    // Closeness to the face's line does not see burial: a tip inside the body is also a
+    // short distance from the face. This guard catches burial specifically.
+    // Sabotage: the old seating with the centre in the band — the tip is inside, red.
     const m = buildShowcase();
     const inside = ([x, y], poly) => {
       let c = false;
@@ -101,15 +101,15 @@ describe('вітрина анкерного спуску (геометрія)', 
       const wA = m.wheelPivot.rotation.z;
       const STEP = (Math.PI * 2) / TEETH;
       const t = [WHEEL_R * Math.cos(wA + tip * STEP), WHEEL_R * Math.sin(wA + tip * STEP)];
-      expect(inside(t, poly.map((v) => [v.x, v.y])), `вістря в тілі ${face}@${u}`).toBe(false);
+      expect(inside(t, poly.map((v) => [v.x, v.y])), `tip inside the body ${face}@${u}`).toBe(false);
     }
   });
 
-  it('камені стоять запірною гранню назустріч зубцям, а не спиною', () => {
-    // Верхній кут запірної грані — на мінус-x локально (звідти йдуть зубці).
-    // Віддзеркалений камінь кладе туди глуху спину, а замок-гард цього не бачить:
-    // він міряє лінію в просторі, не фізичне ребро. Саботаж: віддзеркалити
-    // контур по x — і цей тест червоніє, а замок — ні.
+  it('the stones face the teeth with their locking face, not their back', () => {
+    // The top corner of the locking face is at minus-x locally (that is where the teeth
+    // come from). A mirrored stone puts its blind back there, and the lock guard does not
+    // see it: that one measures a line in space, not a physical edge. Sabotage: mirror the
+    // outline in x — and this test goes red while the lock one does not.
     const m = buildShowcase();
     for (const face of ['entry', 'exit']) {
       const stone = byPallet(m, face)[0];
@@ -118,18 +118,18 @@ describe('вітрина анкерного спуску (геометрія)', 
       for (let i = 0; i < pos.count; i++) {
         if (pos.getY(i) > topY) { topY = pos.getY(i); topX = pos.getX(i); }
       }
-      expect(topY, `верх каменя ${face}`).toBeCloseTo(JEWEL_GEOM.h / 2, 6);
-      expect(topX, `клин каменя ${face}`).toBeLessThan(0);
+      expect(topY, `top of the stone ${face}`).toBeCloseTo(JEWEL_GEOM.h / 2, 6);
+      expect(topX, `wedge of the stone ${face}`).toBeLessThan(0);
     }
   });
 
-  it('за цикл — без наскрізного проходження, навпроти — колесо під ріжком', () => {
-    // Поріг −0.05 відділяє burial (стара посадка: −0.46 у замку, −0.6
-    // у транзиті; зламаний розворот: червоніє одразу) від постановочного
-    // дотику в момент падіння/зриву (виміряно −0.040/−0.024, див. SEAT —
-    // зубець торкається там, де має торкатись). Навпроти (+0.01) зубець
-    // проходить ПІД місцем зачепа з видимим зазором (виміряно +0.025/+0.058).
-    // Фігури — з самого модуля (palletOutline, clubToothQuad), не дубль.
+  it('over a cycle — no passing straight through; on the opposite side the wheel runs under the corner', () => {
+    // The −0.05 threshold separates burial (the old seating: −0.46 at lock, −0.6 in
+    // transit; a broken rotation goes red at once) from the staged touch at the moment of
+    // drop/unlocking (measured −0.040/−0.024, see SEAT — a tooth touches where it is meant
+    // to). On the opposite side (+0.01) a tooth passes UNDER the place of engagement with a
+    // visible clearance (measured +0.025/+0.058).
+    // The figures come from the module itself (palletOutline, clubToothQuad), not a copy.
     const segDist = (p1, p2, p3, p4) => {
       const s = (a, b) => [a[0] - b[0], a[1] - b[1]];
       const d = (a, b) => a[0] * b[0] + a[1] * b[1];
@@ -198,61 +198,61 @@ describe('вітрина анкерного спуску (геометрія)', 
         let g = Infinity;
         for (const t of teeth) g = Math.min(g, clearance(t, poly));
         if (g < worst) worst = g;
-        // Відпущений камінь у момент чужого замка: колесо йде під ріжком.
+        // The released stone at the moment of the other lock: the wheel runs under the corner.
         if ((Math.abs(u - 1.5) < 0.005 && face === 'entry') ||
             (Math.abs(u - 0.5) < 0.005 && face === 'exit') ||
             (Math.abs(u - 2.5) < 0.005 && face === 'exit')) opp[`${face}@${u.toFixed(1)}`] = g;
       }
     }
-    expect(worst, 'транзитний мінімум').toBeGreaterThan(-0.05);
-    for (const [k, v] of Object.entries(opp)) expect(v, `зазор ${k}`).toBeGreaterThan(0.01);
+    expect(worst, 'the transit minimum').toBeGreaterThan(-0.05);
+    for (const [k, v] of Object.entries(opp)) expect(v, `clearance ${k}`).toBeGreaterThan(0.01);
   });
 
-  it('вітрина не імпортує рух: ізоляція за рішенням', () => {
-    // Самодостатність — не домовленість, а структура: жодного імпорту з
-    // механізму, гнізда чи шару уроку в усій теці showcase/.
+  it('the showcase does not import the movement: isolation by decision', () => {
+    // Self-containment is not an agreement but a structure: not one import from the
+    // movement, the socket or the lesson layer anywhere in the showcase/ folder.
     const dir = new URL('../src/showcase/', import.meta.url);
     for (const f of readdirSync(dir)) {
       const src = readFileSync(new URL(f, dir), 'utf8');
       for (const mod of ['movement', 'escapement', 'lesson', 'settings', 'motionWorks']) {
-        expect(src, `${f} тягне ${mod}`).not.toMatch(new RegExp(`from\\s+['"][^'"]*${mod}`));
+        expect(src, `${f} pulls in ${mod}`).not.toMatch(new RegExp(`from\\s+['"][^'"]*${mod}`));
       }
     }
   });
 });
 
-describe('рух вітрини (фазова кінематика)', () => {
-  it('колесо йде півзубця за удар', () => {
+describe('showcase motion (phase kinematics)', () => {
+  it('the wheel advances half a tooth per beat', () => {
     expect(wheelAngle(1.5) - wheelAngle(0.5)).toBeCloseTo(Math.PI / TEETH, 12);
     expect(wheelAngle(2.5) - wheelAngle(1.5)).toBeCloseTo(Math.PI / TEETH, 12);
   });
 
-  it('вилка стоїть в упорах у замках і міняє сторону кожного удару', () => {
+  it('the fork rests on the banking pins at the locks and changes side every beat', () => {
     expect(Math.abs(forkAngle(0.5))).toBeCloseTo(FORK_MAX, 12);
     expect(Math.abs(forkAngle(1.5))).toBeCloseTo(FORK_MAX, 12);
     expect(Math.sign(forkAngle(0.5))).toBe(-Math.sign(forkAngle(1.5)));
   });
 
-  it('баланс у нулі на перекиданнях і в розмаху між ними', () => {
+  it('the balance is at zero on the unlockings and at full swing between them', () => {
     expect(balanceAngle(0)).toBeCloseTo(0, 12);
     expect(balanceAngle(1)).toBeCloseTo(0, 12);
     expect(Math.abs(balanceAngle(0.5))).toBeCloseTo((AMPLITUDE * Math.PI) / 180, 12);
   });
 
-  it('підпис фази: замок поза вікном, зрив → імпульс → падіння всередині', () => {
+  it('phase caption: lock outside the window, unlocking → impulse → drop inside it', () => {
     expect(phaseName(2.5)).toBe('lock');
     expect(phaseName(3 - 0.1)).toBe('unlock');
     expect(phaseName(3)).toBe('impulse');
     expect(phaseName(3 + 0.1)).toBe('drop');
   });
 
-  it('замок тримають по черзі: вхідна, вихідна, вхідна', () => {
+  it('the lock is held in turn: entry, exit, entry', () => {
     expect(activePallet(0.5)).toBe('entry');
     expect(activePallet(1.5)).toBe('exit');
     expect(activePallet(2.5)).toBe('entry');
   });
 
-  it('update ставить пози без NaN на замках і посеред перекидання', () => {
+  it('update sets poses free of NaN at the locks and mid-unlocking', () => {
     const m = buildShowcase();
     for (const u of [0.5, 0.9, 1.0, 1.1, 1.5, 3.25]) {
       m.update(u);
@@ -263,10 +263,10 @@ describe('рух вітрини (фазова кінематика)', () => {
   });
 });
 
-describe('пружина вітрини (дихання)', () => {
+describe('showcase hairspring (breathing)', () => {
   const springMat = () => new THREE.MeshStandardMaterial({ side: THREE.DoubleSide });
 
-  it('зовнішній кінець стоїть у колодці, внутрішній їде з балансом', () => {
+  it('the outer end stays in the stud, the inner one travels with the balance', () => {
     const s = buildSpring({ cx: 0, cy: 0, z: 0, material: springMat() });
     const railMid = (i) => {
       const p = s.mesh.geometry.attributes.position.array;
@@ -284,7 +284,7 @@ describe('пружина вітрини (дихання)', () => {
     expect(a1 - a0).toBeCloseTo(1.0, 6);
   });
 
-  it('той самий буфер між кадрами: алокацій нема, NaN нема', () => {
+  it('the same buffer between frames: no allocations, no NaN', () => {
     const s = buildSpring({ cx: 0, cy: 0, z: 0, material: springMat() });
     const pos = s.mesh.geometry.attributes.position;
     const buf = pos.array;
