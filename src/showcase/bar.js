@@ -23,6 +23,18 @@ export function mountShowcaseBar(root, state) {
   speed.value = String(state.speed);
   const phase = document.createElement('span');
   phase.className = 'phase';
+  // Two fixed cells, not one caption: the phase and the pallet have different
+  // lengths («Drop» against «Impulse», entry against exit), and in a single
+  // centered span each change moved both names. Left-aligned cells of fixed
+  // width keep the first word of each name at the same x.
+  const phaseNameEl = document.createElement('span');
+  phaseNameEl.className = 'ph-name';
+  const phaseSep = document.createElement('span');
+  phaseSep.className = 'ph-sep';
+  phaseSep.textContent = '·';
+  const palletEl = document.createElement('span');
+  palletEl.className = 'ph-pal';
+  phase.append(phaseNameEl, phaseSep, palletEl);
 
   speedLabel.append(document.createTextNode(''), speed);
 
@@ -46,7 +58,8 @@ export function mountShowcaseBar(root, state) {
     if (key === lastPhase) return;
     lastPhase = key;
     const [ph, pal] = key.split('.');
-    phase.textContent = `${t(`show.phase.${ph}`)} · ${t(`show.pallet.${pal}`)}`;
+    phaseNameEl.textContent = t(`show.phase.${ph}`);
+    palletEl.textContent = t(`show.pallet.${pal}`);
   }
 
   root.append(play, step, speedLabel, phase);
