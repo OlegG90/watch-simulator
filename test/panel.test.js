@@ -150,15 +150,20 @@ describe('lesson panel (jsdom)', () => {
     const s = (x) => `${x} ${t('unit.s')}`;
 
     // 2.5 beats/s → a turn of the escape arbor in 12 s. In the tourbillon the wheel also rolls.
+    // The dash in the third column is not «not built yet» any more: the double-axis module
+    // exists, and the question has no answer for it — the wheel's motion against the plate
+    // is a composition of rotations about axes at a right angle.
     expect(row('variants.metric.escapeTurn')).toEqual([s(12), s(6), '—']);
-    expect(row('variants.metric.cageTurn')).toEqual(['—', s(12), '—']);
+    expect(row('variants.metric.cageTurn')).toEqual(['—', s(12), s(12)]);
+    expect(row('variants.metric.innerTurn')).toEqual(['—', '—', s(6)]);
 
     // The numbers are derived from the rate, not typed in: twice the rate, half the periods.
     settings.set('beatHz', 5);
     btn('#variants', t('variants.keep')).click();
     btn('#card', t('variants.open')).click();
     expect(row('variants.metric.escapeTurn')).toEqual([s(6), s(3), '—']);
-    expect(row('variants.metric.cageTurn')).toEqual(['—', s(6), '—']);
+    expect(row('variants.metric.cageTurn')).toEqual(['—', s(6), s(6)]);
+    expect(row('variants.metric.innerTurn')).toEqual(['—', '—', s(3)]);
   });
 
   it('the modules\' silhouettes are drawn at one scale', () => {

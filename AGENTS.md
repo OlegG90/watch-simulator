@@ -46,7 +46,9 @@ thicknesses that had already diverged. So:
 - Guard tests fail when a centre-distance expression appears outside its owning module, or
   when a card figure stops matching the built meshes. They exist because both happened.
 - Where the model cannot honestly produce a number, it shows `—` rather than inventing one.
-  The planned double-axis module has an empty column for exactly this reason.
+  A module that cannot answer honestly says so: the double-axis one hands back
+  `escapeTurns: null`, because «turns of the escape wheel per turn of the arbor» has an
+  answer only while everything turns about one axis, and the modal prints a dash.
 
 The same rule applies to prose: the app says what it does and does not model, and the amber
 markers name the simplifications rather than hiding them.
@@ -128,6 +130,28 @@ the node toggle all read the `part.escapement` label whatever is installed, beca
 names seats in the mechanism — barrel, centre wheel, hands, winding. The installed module is
 named where it is the subject: the variants modal, the developed section, the cost table. Decided in issue #21;
 the free-mode gap this leaves (nothing there names the installed module) is a known cost.
+
+### The double-axis module, and what it proved
+
+It is the module the socket was built for, and it went in without `index.js` gaining a
+single line about it — which was the socket's whole claim.
+
+Three things are worth carrying forward:
+
+- **The train's ratios are not free.** The escape wheel must turn by exactly β relative to
+  its fork, and both ride in the inner cage, so the product of the three ratios along the
+  drive — rolling on the plate, through the bevel, rolling again inside — must be 1. That
+  is a constraint on the tooth counts, not a number anyone chose. Within it there is still
+  a choice, and here the inner cage turns twice for every turn of the outer.
+- **The cage's height is a consequence, not a preference.** The balance is the same size in
+  every variant (a decided rule, so a swap shows a different construction rather than a
+  different picture), an inner cage turning about a horizontal axis has to carry it through
+  a full circle, and that circle has to fit between the outer plates. Change the balance and
+  the cage's height follows; a test holds the chain.
+- **A measurement that stopped being an angle.** `worldZ()` in the tests summed `rotation.z`
+  up the parent chain, which is an angle only while every link turns about Z. It now checks
+  that precondition and throws instead of adding angles measured about different axes. The
+  debt was recorded when the socket landed and came due with the first module that broke it.
 
 ## The Explore layer
 

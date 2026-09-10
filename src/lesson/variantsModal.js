@@ -161,9 +161,15 @@ export function mountVariantsModal({ escapement, planned = [], beatHz, onApply }
     // and whether there is a cage with anything to rotate at all.
     const arborT = arborPeriod(beatHz());
     const secs = (x) => `${Math.round(x * 10) / 10} ${t('unit.s')}`;
+    // A dash where the module cannot honestly answer, not only where it does not exist.
+    // «How many turns does the escape wheel make per turn of the arbor» has an answer while
+    // everything turns about one axis; with a cage inside a cage at a right angle the
+    // wheel's motion is a composition of rotations and there is no scalar to print. The
+    // module says so by handing back `escapeTurns: null`.
     body.append(table('variants.behaviour', [
-      ['variants.metric.escapeTurn', (m) => secs(arborT / m.escapeTurns)],
+      ['variants.metric.escapeTurn', (m) => (m.escapeTurns ? secs(arborT / m.escapeTurns) : '—')],
       ['variants.metric.cageTurn', (m) => (m.hasCage ? secs(arborT) : '—')],
+      ['variants.metric.innerTurn', (m) => (m.innerTurns ? secs(arborT / m.innerTurns) : '—')],
     ], (id) => escapement.variant(id).motion));
 
     body.append(table('variants.metric', [

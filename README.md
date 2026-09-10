@@ -13,7 +13,7 @@ Built with **Three.js** + **Vite**. All geometry is generated procedurally in co
 ## Features
 
 - **Going train** — barrel → centre → third → fourth → escape arbor, with correct gear ratios.
-- **Escapement socket** — the movement always holds exactly one escapement, and it can be swapped: a **Swiss lever escapement** (escape wheel, pallet fork with ruby pallets, balance with hairspring) or a **tourbillon**, where the whole escapement rides in a rotating cage around a fixed wheel. A double-axis tourbillon is planned. The rate is identical in all of them — what differs is the cost, and that is measured rather than claimed.
+- **Escapement socket** — the movement always holds exactly one escapement, and it can be swapped: a **Swiss lever escapement** (escape wheel, pallet fork with ruby pallets, balance with hairspring) a **tourbillon**, where the whole escapement rides in a rotating cage around a fixed wheel, or a **double-axis tourbillon**, where that cage carries a second one turning about an axis at a right angle to it. The rate is identical in all of them — what differs is the cost, and that is measured rather than claimed.
 - **Motion works & hands** — hour, minute and central seconds hands (12:1), raised to the top of the central staff.
 - **Winding** — ratchet, crown wheel and winding crown; "wind the mainspring" animation.
 - **Open barrel** — the drum is open so the coiled mainspring is visible inside.
@@ -149,9 +149,9 @@ A module hands the socket `{ rotating, fixed, update() → β, nodes }` and noth
 |---|---|---|---|---|
 | Lever escapement | 18 | 16 | 1 | 4.73 × 2.95 |
 | Tourbillon | 50 | 48 | 2 | 4.32 × 5.20 |
-| Double-axis tourbillon | — | — | — | — |
+| Double-axis tourbillon | 47 | 45 | 3 | 4.45 × 6.82 |
 
-Every figure is measured by walking the module's own scene graph (`escapement/metrics.js`), never typed; the planned module has none because there is nothing to walk yet. Note that the **lever's footprint is wider** — its balance is carried out to one side, while the cage keeps everything inside its rim. The cost of complexity shows in part count, in how much of it moves, in nesting and in height, not in width.
+Every figure is measured by walking the module's own scene graph (`escapement/metrics.js`), never typed. Read the part counts for what they are — a count of the meshes each module is drawn with, so they compare the models rather than the mechanisms; the figures that carry the comparison are the nesting and the height, and both rise with every step. Note that the **lever's footprint is wider** — its balance is carried out to one side, while the cage keeps everything inside its rim. The cost of complexity shows in part count, in how much of it moves, in nesting and in height, not in width.
 
 What the model does **not** show is what a tourbillon is *for*: a scripted kinematic has no positional error to average away (see assumption 12).
 

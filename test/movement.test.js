@@ -3,6 +3,7 @@ import * as THREE from 'three';
 import { buildMovement, CAGE_R } from '../src/movement.js';
 import { buildEscapementSocket } from '../src/escapement/index.js';
 import { buildTourbillon } from '../src/escapement/tourbillon.js';
+import { LAYERS as DA_LAYERS } from '../src/escapement/doubleAxis.js';
 import { BALANCE_OFF, BALANCE_R, buildLever } from '../src/escapement/lever.js';
 import { dictKeys } from '../src/i18n.js';
 
@@ -37,8 +38,26 @@ function meshInvariant(posA, posB, ZA, ZB, RA, RB) {
  */
 const tb = (m) => m.escapement.variant('tourbillon').internals;
 
-/** The world angle about Z: the sum of rotation.z up the chain to root (every rotation here is about Z). */
-const worldZ = (obj, root) => { let z = 0, o = obj; while (o && o !== root) { z += o.rotation.z; o = o.parent; } return z; };
+/**
+ * The world angle about Z: the sum of `rotation.z` up the chain to the root.
+ *
+ * That sum is only an angle while every link in the chain turns about Z, and since the
+ * double-axis module arrived that is no longer true of the whole scene. So the helper
+ * checks its own precondition and throws rather than adding up angles measured about
+ * different axes — a number that would look perfectly reasonable and mean nothing. This
+ * was recorded as debt when the socket landed; the module that made it real has arrived.
+ */
+const worldZ = (obj, root) => {
+  let z = 0, o = obj;
+  while (o && o !== root) {
+    const q = o.quaternion;
+    if (Math.abs(q.x) > 1e-9 || Math.abs(q.y) > 1e-9)
+      throw new Error('worldZ: this part does not turn about Z, so its angle about Z is not a number');
+    z += o.rotation.z;
+    o = o.parent;
+  }
+  return z;
+};
 const findHand = (grp) => grp.children.find((c) => c.type === 'Group');
 const clockAngle = (u) => Math.PI / 2 - u * TWO;
 
@@ -291,6 +310,60 @@ describe('escapement socket', () => {
     expect(absPeriod(f.escapement.variant('lever').internals.escWheel)).toBeCloseTo(12, 4);
     f.escapement.install('tourbillon');
     expect(absPeriod(f.escapement.variant('tourbillon').internals.escSub)).toBeCloseTo(6, 4);
+  });
+
+  it('the double-axis module: the three ratios multiply to one, or the beat would drift', () => {
+    // The escape wheel must turn by exactly β relative to its fork, and the fork rides in
+    // the inner cage. Follow the drive — rolling on the plate, through the bevel, rolling
+    // again inside the inner cage — and the product of the three ratios has to be 1. It is
+    // a constraint on the tooth counts, not a number anyone picked, and everything else in
+    // the module is free within it.
+    const d = buildFresh().escapement.variant('doubleAxis').internals;
+    expect(d.escPerBeta * (d.innerPerBeta / d.escPerBeta) * d.escPerInner).toBeCloseTo(1, 12);
+    expect(d.escPerFork).toBeCloseTo(1, 12);
+    // And within the constraint there is still a choice: the inner cage turns twice for
+    // every turn of the outer, which is what a second axis is for.
+    expect(d.innerPerBeta).toBeCloseTo(2, 12);
+  });
+
+  it('the double-axis module: the escape wheel steps half a tooth per beat, as everywhere else', () => {
+    // Measured where the question has an answer: the wheel and its fork share a parent, so
+    // the angle between them is an ordinary rotation about one axis.
+    const f = buildFresh();
+    f.escapement.install('doubleAxis');
+    const d = f.escapement.variant('doubleAxis').internals;
+    const beat = 1 / params.beatHz;                  // seconds in one beat
+    f.setTime(0, params); const a0 = d.escSub.rotation.z;
+    f.setTime(beat * 8, params); const a1 = d.escSub.rotation.z;
+    expect((a1 - a0) / 8).toBeCloseTo(Math.PI / 15, 9);
+  });
+
+  it('the double-axis module: the inner axis stands at a right angle to the outer', () => {
+    const d = buildFresh().escapement.variant('doubleAxis').internals;
+    const axis = new THREE.Vector3(0, 0, 1).applyQuaternion(d.innerCarrier.quaternion);
+    expect(Math.abs(axis.dot(new THREE.Vector3(0, 0, 1))), 'not a right angle').toBeLessThan(1e-9);
+  });
+
+  it('the double-axis module: the inner cage swings inside the outer one\'s plates', () => {
+    // The reason this cage is taller than the single-axis one. The inner cage sweeps a
+    // circle of its own radius about a horizontal axis, and that circle has to fit between
+    // the plates — so the height is a consequence of the balance's size, not a choice.
+    const d = buildFresh().escapement.variant('doubleAxis').internals;
+    expect(DA_LAYERS.axis - d.innerR).toBeGreaterThan(DA_LAYERS.bottom);
+    expect(DA_LAYERS.axis + d.innerR).toBeLessThan(DA_LAYERS.top);
+    expect(d.balR, 'the balance is the one every module shares').toBe(1.95);
+  });
+
+  it('worldZ refuses to answer where the answer would not be an angle', () => {
+    // The helper used to sum rotation.z up the chain. With a cage turning about a tilted
+    // axis that sum still computes — and means nothing. Sabotage-proofing the measurement
+    // itself: it throws rather than returning a plausible number.
+    const f = buildFresh();
+    f.escapement.install('doubleAxis');
+    const d = f.escapement.variant('doubleAxis').internals;
+    expect(() => worldZ(d.escSub, f.root)).toThrow(/not a number/);
+    // And it still answers for the parts that do turn about Z.
+    expect(() => worldZ(d.cage, f.root)).not.toThrow();
   });
 
   it('the escape wheel\'s turn is derived from the meshing, not typed in', () => {

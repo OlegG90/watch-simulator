@@ -42,6 +42,21 @@ A third mode, one language, one snapshot fewer.
 
   Two figures are magnified four times, because a real lock and a real drop
   would be invisible at this size, and the panel tells the viewer so.
+- **The double-axis tourbillon** — the third escapement module, and the one the
+  socket was built for. A cage inside a cage, the inner turning about an axis at a
+  right angle to the outer and twice as fast, driven through a bevel pair because
+  the axis is turned. `index.js` needed no line about it.
+
+  The ratios along the drive are not free: the escape wheel has to turn by exactly
+  β relative to its fork, so the product of the three — rolling on the plate,
+  through the bevel, rolling again inside the inner cage — is 1. The cage's height
+  is not free either: the balance is the same in every variant, the inner cage has
+  to carry it round a full circle, and that circle has to fit between the outer
+  plates.
+
+  The modal gains a row for the inner cage's turn, and a dash where the old
+  question stops having an answer — «turns of the escape wheel per turn of the
+  arbor» means something only while everything turns about one axis.
 - **The safety action.** The guard pin catches the lever if it is knocked off
   its banking, and the crescent in the safety roller is the one place it may
   pass. Solved rather than placed: the pin's position gives a catch after 7.5%

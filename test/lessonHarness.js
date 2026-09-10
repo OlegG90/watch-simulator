@@ -11,6 +11,7 @@ import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import * as THREE from 'three';
 import { buildMovement } from '../src/movement.js';
+import { PLANNED_IDS } from '../src/escapement/index.js';
 import { createHighlighter } from '../src/lesson/highlight.js';
 import { mountLesson } from '../src/lesson/panel.js';
 import { setLang } from '../src/i18n.js';
@@ -73,7 +74,7 @@ export function mountTestLesson({ lang = 'ua' } = {}) {
     settings,
     run: (action) => cam.calls.push(`run:${action}`),
     escapement: movement.escapement,
-    planned: ['doubleAxis'],
+    planned: PLANNED_IDS,   // from the socket: a second list here is a second opinion
   });
 
   return { lesson, cam, settings, params, statusOut, movement, highlighter, ui: document.getElementById('ui') };

@@ -18,11 +18,12 @@
  * they turn about is its own business.
  */
 import { buildTourbillon, profile as tourbillonProfile, VARIANT_ID as TOURBILLON } from './tourbillon.js';
+import { buildDoubleAxis, profile as doubleAxisProfile, VARIANT_ID as DOUBLE_AXIS } from './doubleAxis.js';
 import { buildLever, profile as leverProfile, VARIANT_ID as LEVER } from './lever.js';
 import { measureVariant } from './metrics.js';
 
 /** The order = increasing complexity. It is the order the comparison shows them in. */
-export const VARIANT_IDS = [LEVER, TOURBILLON];
+export const VARIANT_IDS = [LEVER, TOURBILLON, DOUBLE_AXIS];
 
 /**
  * Which variant is installed at startup — the simplest one: the narrative leads from
@@ -34,15 +35,17 @@ export const VARIANT_IDS = [LEVER, TOURBILLON];
 export const DEFAULT_VARIANT = LEVER;
 
 /**
- * Variants that do not exist yet. The comparison shows them as a third step of
- * complexity, but does not let them be chosen and invents no numbers for them —
- * there is nothing to measure.
+ * Variants that do not exist yet. Empty since the double-axis module was built: the
+ * comparison used to show it as a third step with a dash in every column, because there
+ * was nothing to measure. Kept as a list rather than deleted — the mechanism for showing
+ * an honest «not yet» is worth having, and the next planned module will want it.
  */
-export const PLANNED_IDS = ['doubleAxis'];
+export const PLANNED_IDS = [];
 
 const PROFILES = {
   [LEVER]: leverProfile,
   [TOURBILLON]: tourbillonProfile,
+  [DOUBLE_AXIS]: doubleAxisProfile,
 };
 
 /**
@@ -74,6 +77,10 @@ const BUILDERS = {
       { escTeeth, fixedTeeth: 10, pinionTeeth: 10, moduleT: 0.26, cageR, escDirLocal: 0 }
     );
     return { rotating: t.cage, fixed: t.fixed, update: t.update, nodes: t.nodes, motion: t.motion, internals: t };
+  },
+  [DOUBLE_AXIS]: (mats, { escTeeth, cageMat, cageR }) => {
+    const d = buildDoubleAxis({ ...mats, plateMat: cageMat }, { escTeeth, cageR });
+    return { rotating: d.cage, fixed: d.fixed, update: d.update, nodes: d.nodes, motion: d.motion, internals: d };
   },
 };
 
