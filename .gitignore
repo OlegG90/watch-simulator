@@ -1,26 +1,26 @@
-# Залежності
+# Dependencies
 node_modules/
 
-# Збірка
+# Build output
 dist/
 
-# Логи
+# Logs
 npm-debug.log*
 yarn-debug.log*
 yarn-error.log*
 pnpm-debug.log*
 
-# Кеш редакторів / ОС
+# Editor / OS caches
 .DS_Store
 Thumbs.db
 .vscode/
 .idea/
 
-# Локальні env
+# Local env
 .env
 .env.local
 .env.*.local
 
-# Еталон src для дифу графа сцени (локальний)
+# Scene-graph diff baseline (local)
 .baseline/
 .diffscene.mjs

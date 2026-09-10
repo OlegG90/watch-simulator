@@ -61,8 +61,12 @@ body { font-family: var(--ui); color: var(--body); }
 #ui.mode-showcase #stage-chrome { display: none; }
 
 /* Showcase bar: motion controls over the scene, only in showcase mode.
-   The width is fixed: phase captions of different lengths («Lock» against «Impulse»)
-   and the «Play/Pause» toggle must not move the bar — the text shifts inside it. */
+   The width is fixed: the «Play/Pause» toggle must not move the bar, and neither
+   must the phase caption — so the phase and the pallet sit in two fixed-width
+   left-aligned cells («Impulse» against «Drop», entry against exit pallet, in
+   both languages). The first word of each name therefore starts at the same x
+   whatever the mechanism is doing; a longer future string clips with an
+   ellipsis instead of moving its neighbour. */
 #showcase-bar {
   position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%);
   display: flex; align-items: center; gap: 12px;
@@ -81,9 +85,20 @@ body { font-family: var(--ui); color: var(--body); }
 #showcase-bar button:hover { background: #353b46; }
 #showcase-bar input[type="range"] { width: 110px; accent-color: #caa84a; }
 #showcase-bar .phase {
-  flex: 1; text-align: center; color: #caa84a;
-  overflow: hidden; text-overflow: ellipsis;
+  flex: 1; display: flex; align-items: baseline; justify-content: center;
+  color: #caa84a; overflow: hidden; white-space: nowrap;
 }
+/* Fixed cells: the widest phase name runs 7 characters and the widest pallet
+   name 14 (`show.phase.impulse` and `show.pallet.exit`, in the longer of the two
+   languages) - both widths keep headroom, and the clipping below is a backstop,
+   not a size anyone should reach. */
+#showcase-bar .ph-name,
+#showcase-bar .ph-pal {
+  flex: none; text-align: left; overflow: hidden; text-overflow: ellipsis;
+}
+#showcase-bar .ph-name { width: 8ch; }
+#showcase-bar .ph-pal { width: 15ch; }
+#showcase-bar .ph-sep { flex: none; margin: 0 0.5em; opacity: 0.6; }
 
 #stage { position: relative; min-width: 0; min-height: 0; }
 #app { display: block; width: 100%; height: 100%; }

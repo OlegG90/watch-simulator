@@ -21,7 +21,7 @@ Built with **Three.js** + **Vite**. All geometry is generated procedurally in co
 - **Time modes** — demo time (runs from the escapement) and real time (hands follow the system clock while the escapement stays visually coupled).
 - **Compact layered layout** — the train is coiled into a tight loop; balance, motion works and central seconds sit on higher Z-layers above it.
 
-## Two modes
+## Three modes
 
 **Explore** is what opens: six stops in the order energy flows through the movement —
 winding, barrel, going train, escapement, time display, power reserve. A stop dims
@@ -45,6 +45,15 @@ distances, which is why every pinion touches its neighbour exactly at the pitch 
 **Free mode** is the movement with every control at once — run/pause, time mode, speed,
 beat rate, amplitude, per-node visibility, camera presets, winding. It is reachable from
 the header and from the end of the route, and has its own way back.
+
+**The escapement model** is a separate exhibit rather than a third view of the same
+movement. Inside the movement the escapement runs at movement scale and at movement
+speed, where lock, unlock, impulse and drop blur into one flip; here one lever
+escapement stands alone, large, with its own play/pause, its own step of ⅛ of a beat,
+and a readout naming the current phase and the pallet doing the work. The pallet stones
+are not drawn by eye: each stone's seat is solved so its locking corner sits on the tip
+of the tooth that locks it, and the first frame is posed on a measured lock angle. It
+shares no code with the movement's escapement — see *Source layout*.
 
 The interface is Ukrainian and English, including the 3D labels; wheel names follow
 horological usage rather than literal translation.
@@ -216,6 +225,8 @@ Polyline of 200 points: $\alpha(f) = \theta_b(1-f) + f\Phi - \Phi + \lambda$, $r
 - **Free mode**: the `lil-gui` panel — run/pause, time mode, speed, beat rate,
   amplitude, wireframe, per-node visibility, cage opacity and top plate, camera
   presets, and "wind the mainspring".
+- **Escapement model**: a bar over the scene — play/pause, one step of ⅛ of a beat,
+  a speed slider, and the current phase with the working pallet.
 
 ## Run locally
 
@@ -278,6 +289,7 @@ src/
   i18n.js          interface strings, Ukrainian and English
   settings.js      the one table of running parameters: range, step, format, label
   lesson/          the guided layer (see below)
+  showcase/        the escapement exhibit (see below)
 ```
 
 The lesson layer is separate from the mechanism and never reaches into it:
@@ -297,6 +309,23 @@ src/lesson/
   draw.js          el, svgEl and one linear projector, shared by all three diagrams
   lesson.css       the interface; fonts.css + fonts/ ship the faces (OFL 1.1)
 ```
+
+The escapement exhibit is not a module of the movement and imports nothing from it:
+
+```text
+src/showcase/
+  leverModel.js    the exhibit's geometry: wheel, fork with solved pallet seats,
+                   balance with roller and impulse pin, banking bridge, stand
+  motion.js        its phase machine: lock → unlock → impulse → drop
+  spring.js        its hairspring
+  bar.js           the controls, inside the scene (showcase CSS hides all else)
+```
+
+The isolation is structural, not an agreement: a text test in `test/showcase.test.js`
+fails if any file there imports from `movement`, `escapement`, `lesson`, `settings` or
+`motionWorks`. The cost is that a couple of numbers exist twice — deliberately, because
+the alternative was contact kinematics inside the socket, which every variant would then
+have to satisfy.
 
 There is no `escapement.js` — the escapement is a **socket**, `escapement/`, holding one
 interchangeable module at a time (§*The escapement socket*). Nothing outside it names a
@@ -338,6 +367,8 @@ npm test
 ```
 
 Headless [Vitest](https://vitest.dev/) suite (no browser needed — three.js builds geometry in Node). It locks in every formula from *Mechanism elements*: mesh invariants on all pairs, train/motion-works/central-seconds ratios, escapement stepping and balance phase, real-time hand angles, the winding charge model, bevel-pair tangency (analytic point-to-circle), spiral/gear/hand geometry, and a layout collision scan.
+
+The exhibit has its own suite: the tooth profile and the stones' solved seats, the arbors on the line of centres, the measured lock pose, the phase machine's stepping, and the import isolation above. Three more guards read source text rather than objects — no GUI label may bypass `t()`, and `src/` may hold no Cyrillic outside the two dictionaries that are the Ukrainian interface copy.
 
 The Explore layer is covered too. `test/panel.test.js` runs under **jsdom** (declared per file, so the geometry suites keep the faster Node environment): it mounts the real panel — over the real movement, in the real `index.html` grid — and asserts that the rail, the card, the chain and the developed section always agree with each other. `test/lessonHarness.js` is the rig; it is not a suite, so the runner does not collect it.
 

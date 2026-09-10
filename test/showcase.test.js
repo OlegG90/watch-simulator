@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
 import { readFileSync, readdirSync } from 'node:fs';
-import { buildShowcase, TEETH, WHEEL_R, FORK_D, BAL_D, WHEEL_LOCK_PHASE, JEWEL_GEOM, palletOutline, clubToothQuad } from '../src/showcase/leverModel.js';
+import { buildShowcase, TEETH, WHEEL_R, FORK_D, BAL_D, WHEEL_LOCK_PHASE, JEWEL_GEOM, palletOutline, clubToothPoly } from '../src/showcase/leverModel.js';
 import { wheelAngle, forkAngle, balanceAngle, phaseName, activePallet, FORK_MAX, AMPLITUDE } from '../src/showcase/motion.js';
 import { buildSpring, SPRING_N, SPRING_R0, SPRING_R1 } from '../src/showcase/spring.js';
 
@@ -129,7 +129,7 @@ describe('lever escapement showcase (geometry)', () => {
     // drop/unlocking (measured −0.040/−0.024, see SEAT — a tooth touches where it is meant
     // to). On the opposite side (+0.01) a tooth passes UNDER the place of engagement with a
     // visible clearance (measured +0.025/+0.058).
-    // The figures come from the module itself (palletOutline, clubToothQuad), not a copy.
+    // The figures come from the module itself (palletOutline, clubToothPoly), not a copy.
     const segDist = (p1, p2, p3, p4) => {
       const s = (a, b) => [a[0] - b[0], a[1] - b[1]];
       const d = (a, b) => a[0] * b[0] + a[1] * b[1];
@@ -191,7 +191,7 @@ describe('lever escapement showcase (geometry)', () => {
       m.group.updateMatrixWorld(true);
       const wA = m.wheelPivot.rotation.z;
       const teeth = [];
-      for (let i = 0; i < TEETH; i++) teeth.push(rotQ(clubToothQuad(i), wA));
+      for (let i = 0; i < TEETH; i++) teeth.push(rotQ(clubToothPoly(i), wA));
       for (const face of ['entry', 'exit']) {
         const stone = byPallet(m, face)[0];
         const poly = toWorld(stone, palletOutline(stone.userData.pallet.imp));

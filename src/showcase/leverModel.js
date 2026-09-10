@@ -14,12 +14,13 @@ import { buildSpring, SPRING_R1 } from './spring.js';
  * Layout (seen from above, the X axis is the line of centres):
  *   W=(0,0)     escape wheel, 15 club teeth, travel anticlockwise;
  *   P=(2.35,0)  the fork's pivot: pallets on both sides of the line of centres;
- *   B=(4.35,0)  the balance's axis: a roller with the impulse pin in the fork's slot.
+ *   B=(4.35,0)  the balance's axis: the wheel with its roller table, the impulse pin
+ *               hanging from the table down into the fork's slot.
  *
  * The Z stack (the true order of a Swiss escapement, not an invention):
  *   the wheel at z≈0 → the pallet stones in its plane → the fork's body higher
- *   (z≈0.85) → the roller below the fork, its pin reaching up into the slot → the
- *   balance above everything → the hairspring above the balance (z≈2.05), its outer
+ *   (z≈0.85) → the balance wheel above it, its roller table carrying the impulse
+ *   pin down into the slot → the hairspring above the balance (z≈2.05), its outer
  *   end in a fixed stud.
  * The hairspring illustrates breathing, it does not model the regulator (see `spring.js`).
  *
@@ -33,8 +34,8 @@ export const TEETH = 15;
 export const WHEEL_R = 1.5;
 const WHEEL_ROOT = 0.95;
 const WHEEL_T = 0.35;
-/** A stick tooth: the width of tip/base and the lean with the travel, as fractions of a pitch. */
-const CLUB_TOOTH = { tw: 0.18, bw: 0.3, lean: 0.5 };
+/** A stick tooth: the width of tip/base and the lean with the travel, as fractions of a pitch; tip — the outer fraction of the tooth's height standing radial. */
+const CLUB_TOOTH = { tw: 0.18, bw: 0.3, lean: 0.5, tip: 0.2 };
 
 /** W→P: the fork's pivot. P→B: the balance's axis (the fork's travel fits between them). */
 export const FORK_D = 2.35;
@@ -85,10 +86,19 @@ const SEAT = {
 /** The stone's geometry — for the seating tests, so the numbers are not duplicated. */
 export const JEWEL_GEOM = { w: JEWEL_W, h: JEWEL_H, lean: Math.tan(LOCK_DRAW) * JEWEL_H, lockLen: LOCK_LEN };
 
-/** The fork's body above the wheel; the roller's pin reaches up into the slot. */
+/** The fork's body above the wheel; the roller's pin hangs down into the slot. */
 const FORK_Z = 0.85;
-const ROLLER_Z = 0.35;
+/** The balance wheel's plane: the rim, the roller table as its centre, and the spokes. */
+const RIM_Z = 1.55;
+/** The balance wheel's radius — wider than the classic proportion, on the same axis. */
+const BAL_RIM_R = 1.75;
+/** The rim's rectangular section: half the radial width and half the height. */
+const RIM_HALF = 0.06;
+const RIM_H_HALF = 0.11;
 const ROLLER_R = 0.55;
+/** The impulse pin hangs from the table into the slot, spanning the horns at FORK_Z. */
+const PIN_TOP = RIM_Z - 0.09;
+const PIN_BOTTOM = 0.4;
 const PIN_R = 0.42;   // the impulse pin's orbit about the balance axis
 const STONE_R = 0.09;
 
@@ -112,16 +122,24 @@ export function palletOutline(imp) {
 }
 const norm2 = ([x, y]) => Math.hypot(x, y);
 
-/** A wheel tooth in the wheel's frame (the convex quad of the addendum): a figure for the guards. */
-export function clubToothQuad(i) {
+/** A wheel tooth in the wheel's frame: the stick leans with the travel, but its outer
+ * TIP fraction stands radial — the end straightens while the tip itself does not move, so
+ * the middle stays exactly at (WHEEL_R, i·pitch) and the lock seating (measured along that
+ * alone) is untouched. One source for the wheel's outline and the guards: the test builds
+ * its polygons from this, not from a copy. */
+export function clubToothPoly(i) {
   const step = (Math.PI * 2) / TEETH;
-  const { tw: TW, bw: BW, lean: LEAN } = CLUB_TOOTH;
+  const { tw: TW, bw: BW, lean: LEAN, tip: TIP } = CLUB_TOOTH;
   const a = i * step;
+  const rS = WHEEL_R - TIP * (WHEEL_R - WHEEL_ROOT); // where the lean ends
+  const d = (TW / 2) * step; // the radial tip's half-width: the tip chord is unchanged
   return [
-    polar(WHEEL_ROOT, a - (LEAN + BW / 2) * step),
-    polar(WHEEL_R, a - (TW / 2) * step),
-    polar(WHEEL_R, a + (TW / 2) * step),
-    polar(WHEEL_ROOT, a - (LEAN - BW / 2) * step),
+    polar(WHEEL_ROOT, a - (LEAN + BW / 2) * step), // the trailing base
+    polar(rS, a - d), // the bend: radial from here to the tip
+    polar(WHEEL_R, a - d), // the trailing corner of the tip
+    polar(WHEEL_R, a + d), // the leading corner of the tip
+    polar(rS, a + d), // the bend on the leading face
+    polar(WHEEL_ROOT, a - (LEAN - BW / 2) * step), // the leading base
   ];
 }
 
@@ -182,7 +200,8 @@ function bar(from, to, w, t, z, material) {
  * The wheel with stick teeth: thin long trapezoids leaning in the direction of travel
  * (travel is anticlockwise, +angle): the base thicker, the tip a little narrower, the base
  * shifted back by half a pitch — so the stick leads with its tip along the travel; between
- * the teeth, a symmetrical valley with a dip.
+ * the teeth, a symmetrical valley with a dip. The outer TIP of the height stands radial:
+ * the end of each tooth straightens instead of leaning.
  *
  * The middle of a tip stays exactly at (WHEEL_R, i·pitch): the lock seating is measured
  * along that alone, so re-profiling the faces and valleys does not disturb it.
@@ -190,23 +209,23 @@ function bar(from, to, w, t, z, material) {
 function makeClubWheel(material) {
   const step = (Math.PI * 2) / TEETH;
   // Fractions of a pitch: TW — the tip's width, BW — the base's width, LEAN — the base's
-  // shift backwards (the stick's lean with the travel). The numbers live in CLUB_TOOTH: the
-  // wheel's outline and the quad for the guards come from one source, otherwise the test
+  // shift backwards (the stick's lean with the travel), TIP — the outer fraction standing
+  // radial. The numbers live in CLUB_TOOTH and the outline in clubToothPoly(): the wheel's
+  // shape and the polygon for the guards come from one source, otherwise the test
   // checks a healthy copy.
-  const { tw: TW, bw: BW, lean: LEAN } = CLUB_TOOTH;
+  const { lean: LEAN } = CLUB_TOOTH;
   const VALLEY_R = WHEEL_ROOT * 0.88;
   const shape = new THREE.Shape();
   for (let i = 0; i < TEETH; i++) {
     const a = i * step;
-    const tbc = polar(WHEEL_ROOT, a - (LEAN + BW / 2) * step); // the trailing base
-    const ttc = polar(WHEEL_R, a - (TW / 2) * step); // the trailing corner of the tip
-    const ltc = polar(WHEEL_R, a + (TW / 2) * step); // the leading corner of the tip
-    const lbc = polar(WHEEL_ROOT, a - (LEAN - BW / 2) * step); // the leading base
+    const [tbc, tkn, ttc, ltc, lkn, lbc] = clubToothPoly(i);
     const dip = polar(VALLEY_R, a + (0.5 - LEAN) * step); // the bottom of the valley
     if (i === 0) shape.moveTo(...tbc);
-    else shape.lineTo(...tbc); // the trailing face up to the tip
-    shape.lineTo(...ttc);
+    else shape.lineTo(...tbc); // the trailing face up to the bend
+    shape.lineTo(...tkn);
+    shape.lineTo(...ttc); // the radial end up to the tip
     shape.lineTo(...ltc); // the flat tip, its middle exactly at (WHEEL_R, a)
+    shape.lineTo(...lkn); // the radial end down
     shape.lineTo(...lbc); // the leading face down
     shape.lineTo(...dip); // the valley across to the next tooth
   }
@@ -295,7 +314,11 @@ export function buildShowcase() {
   wheelPivot.add(wheelAxle);
   group.add(wheelPivot);
 
-  // ── The fork: pivot, arms out to the stones, tail with the slot for the roller ──
+  // ── The fork: one lever stamping — pivot boss, tapered pallet arms, a tapering
+  // shank with the fork slot, the counterweight lobe. Same steel at the same height
+  // throughout, so the overlapping plates read as one forging (their thicknesses
+  // differ by a hundredth — shared faces are never coplanar). The stones keep their
+  // solved seats; the arms only reach for them.
   const forkPivot = new THREE.Group();
   forkPivot.position.set(FORK_D, 0, 0);
   const boss = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.4, 16), steel);
@@ -303,6 +326,22 @@ export function buildShowcase() {
   boss.position.z = FORK_Z;
   boss.castShadow = true;
   forkPivot.add(boss);
+
+  // A flat plate from a corner list, at the fork's height.
+  const plate = (pts, t) => {
+    const s = new THREE.Shape();
+    s.moveTo(...pts[0]);
+    for (const p of pts.slice(1)) s.lineTo(...p);
+    s.closePath();
+    const g = new THREE.ExtrudeGeometry(s, { depth: t, bevelEnabled: false });
+    g.translate(0, 0, -t / 2);
+    const m = new THREE.Mesh(g, steel);
+    m.position.z = FORK_Z;
+    m.castShadow = true;
+    return m;
+  };
+  // The shank: the counterweight lobe behind the pivot, tapering out to the slot.
+  forkPivot.add(plate([[-0.95, 0.3], [1.5, 0.12], [1.5, -0.12], [-0.95, -0.3]], 0.24));
 
   const jewels = {};
   const jewelZ = 0.1;
@@ -318,22 +357,27 @@ export function buildShowcase() {
     stone.userData.pallet = { face, imp: seat.imp };
     forkPivot.add(stone);
     jewels[face] = stone;
-    // The arm: a horizontal bar in the fork's plane + a post down to the stone.
-    const top = V2(seat.x, seat.y);
-    forkPivot.add(bar(V2(0, 0), top, 0.24, 0.26, FORK_Z, steel));
+    // The pallet arm: a tapered plate from inside the shank out to the stone's seat,
+    // and a post down to the stone.
+    const l = Math.hypot(seat.x, seat.y);
+    const nx = -seat.y / l, ny = seat.x / l; // across the arm
+    const bx = (-seat.x / l) * 0.1, by = (-seat.y / l) * 0.1; // rooted behind the pivot
+    forkPivot.add(plate(
+      [[bx + nx * 0.19, by + ny * 0.19],
+       [seat.x + nx * 0.13, seat.y + ny * 0.13],
+       [seat.x - nx * 0.13, seat.y - ny * 0.13],
+       [bx - nx * 0.19, by - ny * 0.19]], 0.26));
     const post = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.24, FORK_Z - jewelZ), steel);
-    post.position.set(top.x, top.y, (FORK_Z + jewelZ) / 2);
+    post.position.set(seat.x, seat.y, (FORK_Z + jewelZ) / 2);
     post.castShadow = true;
     forkPivot.add(post);
   }
-  // The tail out to the roller: the slot embraces the impulse pin.
+  // The fork slot: two flared prongs embracing the impulse pin (it rides at fork-local
+  // x≈1.58). The throat (±0.10) matches the old horns; the mouth flares to ±0.15, as on
+  // a real fork — and the pin passes it with room to spare.
   const tailEnd = FORK_D + BAL_D - PIN_R; // the world X of the roller's pin
-  forkPivot.add(bar(V2(0.3, 0), V2(tailEnd - FORK_D - 0.15, 0), 0.26, 0.26, FORK_Z, steel));
   for (const s of [1, -1]) {
-    const horn = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.13, 0.26), steel);
-    horn.position.set(tailEnd - FORK_D + 0.1, s * 0.165, FORK_Z);
-    horn.castShadow = true;
-    forkPivot.add(horn);
+    forkPivot.add(plate([[1.35, s * 0.24], [2.0, s * 0.24], [2.0, s * 0.15], [1.42, s * 0.1]], 0.26));
   }
   const guard = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.34, 8), darkSteel);
   guard.rotation.x = Math.PI / 2;
@@ -346,16 +390,31 @@ export function buildShowcase() {
   forkPivot.add(counter);
   group.add(forkPivot);
 
-  // ── The banking pins for the fork's travel — fixed, the tail strikes them ──
-  // The position follows the swing: half the tail's width + arm·tan(FORK_MAX).
+  // ── The banking bridge: the limiting pins stand on it, not in the air. Two slim
+  // bars under the pins, joined at the fork's post into a U. The fork's side carries
+  // it: the balance side is swept by the impulse pin's orbit (from x≈3.93), so there
+  // is nothing to stand on there. Tops at 0.60 — clear of the rocking fork above (the
+  // boss from 0.65) and ending short of the pin's orbit ahead.
+  // The pins' position follows the swing: half the tail's width + arm·tan(FORK_MAX).
+  const bridgeBar = (w, d, x, y) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, d, 0.12), steel);
+    m.position.set(x, y, 0.54);
+    m.castShadow = true;
+    group.add(m);
+  };
+  bridgeBar(1.45, 0.12, 3.025, 0.2);
+  bridgeBar(1.45, 0.12, 3.025, -0.2);
+  bridgeBar(0.18, 0.64, FORK_D, 0); // the cross-piece embracing the fork's post
   for (const s of [1, -1]) {
     const pin = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.5, 8), darkSteel);
     pin.rotation.x = Math.PI / 2;
-    pin.position.set(FORK_D + 1.0, s * 0.2, FORK_Z);
+    pin.position.set(FORK_D + 1.0, s * 0.2, FORK_Z); // the foot on the bridge (0.60)
     group.add(pin);
   }
 
-  // ── The balance: arbor, roller with its pin, rim. No hairspring — see the header ──
+  // ── The balance: one assembly on the staff — the rim, the roller table as its
+  // centre, and the impulse pin hanging from the table down into the fork's slot.
+  // The pin's orbit is unchanged, so the fork needs nothing new.
   const balancePivot = new THREE.Group();
   balancePivot.position.set(FORK_D + BAL_D, 0, 0);
   const staff = new THREE.Mesh(new THREE.CylinderGeometry(0.12, 0.12, 2.6, 12), darkSteel);
@@ -364,22 +423,33 @@ export function buildShowcase() {
   balancePivot.add(staff);
   const roller = new THREE.Mesh(new THREE.CylinderGeometry(ROLLER_R, ROLLER_R, 0.18, 32), steel);
   roller.rotation.x = Math.PI / 2;
-  roller.position.z = ROLLER_Z;
+  roller.position.z = RIM_Z;
   roller.castShadow = true;
   balancePivot.add(roller);
-  const jewel = new THREE.Mesh(new THREE.CylinderGeometry(STONE_R, STONE_R, 0.7, 10), ruby);
+  const jewel = new THREE.Mesh(new THREE.CylinderGeometry(STONE_R, STONE_R, PIN_TOP - PIN_BOTTOM, 10), ruby);
   jewel.rotation.x = Math.PI / 2;
-  jewel.position.set(-PIN_R, 0, 0.7);
+  jewel.position.set(-PIN_R, 0, (PIN_TOP + PIN_BOTTOM) / 2);
   jewel.castShadow = true;
   balancePivot.add(jewel);
-  const rim = new THREE.Mesh(new THREE.TorusGeometry(1.05, 0.11, 14, 56), brass);
-  rim.position.z = 1.55;
+  // The rim is a rectangular band, not a round wire: an extruded annulus, so the
+  // section reads as a machined rim. Outer and inner radii match the old tube's
+  // envelope (BAL_RIM_R ± RIM_HALF), hence the spokes and the timing pins need nothing new.
+  const rimShape = new THREE.Shape();
+  rimShape.absarc(0, 0, BAL_RIM_R + RIM_HALF, 0, Math.PI * 2, false);
+  const rimHole = new THREE.Path();
+  rimHole.absarc(0, 0, BAL_RIM_R - RIM_HALF, 0, Math.PI * 2, true);
+  rimShape.holes.push(rimHole);
+  const rimGeo = new THREE.ExtrudeGeometry(rimShape, { depth: 2 * RIM_H_HALF, bevelEnabled: false, curveSegments: 112 });
+  rimGeo.translate(0, 0, -RIM_H_HALF);
+  rimGeo.computeVertexNormals();
+  const rim = new THREE.Mesh(rimGeo, brass);
+  rim.position.z = RIM_Z;
   rim.castShadow = true;
   balancePivot.add(rim);
   // The rim is two halves of pins: each semicircle carries groups of 2, 3 and 4 pins with
   // a gap between groups (cf. the demonstration model). Each half is centred in its own
   // semicircle, so the joint between the halves stays clear.
-  const pinGeo = new THREE.CylinderGeometry(0.055, 0.055, 0.14, 10);
+  const pinGeo = new THREE.CylinderGeometry(0.1, 0.1, 0.24, 12);
   const groupSizes = [2, 3, 4];
   const pitch = 0.16; // the step inside a group
   const gap = 0.5;    // the gap between groups
@@ -390,7 +460,7 @@ export function buildShowcase() {
     for (const n of groupSizes) {
       for (let i = 0; i < n; i++) {
         const pin = new THREE.Mesh(pinGeo, brass);
-        pin.position.set(Math.cos(a) * 1.22, Math.sin(a) * 1.22, 1.55);
+        pin.position.set(Math.cos(a) * (BAL_RIM_R + 0.17), Math.sin(a) * (BAL_RIM_R + 0.17), RIM_Z);
         pin.rotation.z = a - Math.PI / 2; // the axis along the radius
         pin.castShadow = true;
         balancePivot.add(pin);
@@ -400,9 +470,9 @@ export function buildShowcase() {
     }
   }
   for (const a of [0, Math.PI / 2]) {
-    const spoke = new THREE.Mesh(new THREE.BoxGeometry(2.05, 0.15, 0.15), brass);
+    const spoke = new THREE.Mesh(new THREE.BoxGeometry(2 * BAL_RIM_R - 0.05, 0.15, 0.15), brass);
     spoke.rotation.z = a;
-    spoke.position.z = 1.55;
+    spoke.position.z = RIM_Z;
     spoke.castShadow = true;
     balancePivot.add(spoke);
   }
