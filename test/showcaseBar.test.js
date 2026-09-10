@@ -97,6 +97,17 @@ describe('showcase bar caption (jsdom)', () => {
     expect(state.nudge).toBe(0);
   });
 
+  it('the safety view is offered as a place to stand, and reports its press', () => {
+    let asked = 0;
+    const { root } = mount({ t: 2.5, playing: true, speed: 1, nudge: 0 }, { onSafety: () => { asked += 1; } });
+    const b = [...root.querySelectorAll('button')].find((x) => x.textContent === t('show.safety'));
+    expect(b, 'no button offers the safety view').toBeTruthy();
+    b.click();
+    expect(asked).toBe(1);
+    setLang('ua');
+    expect(b.textContent).toBe(t('show.safety'));
+  });
+
   it('the bar mounts without an onHome and the press is harmless', () => {
     const { root } = mount({ t: 2.5, playing: true, speed: 1 });
     expect(() => button(root, 'show.home').click()).not.toThrow();

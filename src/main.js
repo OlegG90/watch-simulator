@@ -126,6 +126,10 @@ const fly = createCameraFly(camera, controls);
 // with no way back but reloading the page (issue #39).
 const showBar = mountShowcaseBar(document.getElementById('showcase-bar'), show, {
   onHome: () => fly.flyTo(showcase.home.pos, showcase.home.target),
+  // A place to stand, offered — not a flight taken on the viewer's behalf. The push would
+  // have been the obvious moment to move the camera, and moving it under someone who is
+  // watching an engagement takes their bearings away for the sake of a demonstration.
+  onSafety: () => fly.flyTo(showcase.safety.pos, showcase.safety.target),
 });
 let userOrbited = false;
 controls.addEventListener('start', () => {

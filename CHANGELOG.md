@@ -50,6 +50,13 @@ A third mode, one language, one snapshot fewer.
   Through a correct beat the guard never touches. A push in the panel
   demonstrates it, live only between beats, and the pin and roller light when
   they are what holds the lever.
+- **A second place to stand in the exhibit.** The safety action happens under
+  the lever's own body, so from the home view a viewer pressing the push saw
+  nothing at all. The panel now offers the safety view — behind the lever's
+  plane, where both the catch and the crescent's passage are in plain sight.
+  Offered, not taken: the push does not move the camera, because moving it under
+  someone watching an engagement costs them their bearings for the sake of a
+  demonstration.
 - **The lever is cut as one piece** — boss, both pallet arms, the shank with the
   notch, the counterpoise — instead of a boss with plates added to it. The arms
   reach the corners the design traced and the notch is the one the contact is

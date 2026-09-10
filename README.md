@@ -248,8 +248,9 @@ Polyline of 200 points: $\alpha(f) = \theta_b(1-f) + f\Phi - \Phi + \lambda$, $r
   presets, and "wind the mainspring".
 - **Escapement model**: a bar over the scene — play/pause, a step to the middle of the
   next stage (lock → unlock → impulse → drop, four presses to the beat), a push that tests
-  the safety catch (live only between beats), the home view, a speed slider, and the
-  current phase with the working pallet.
+  the safety catch (live only between beats), two places to stand — the home view and the
+  safety, which is under the lever where the catch can actually be seen — a speed slider,
+  and the current phase with the working pallet.
 
 ## Run locally
 

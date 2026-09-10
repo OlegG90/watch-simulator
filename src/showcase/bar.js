@@ -12,14 +12,16 @@ import { EXAGGERATION } from './design.js';
  * advances it. A step asks the phase machine for the middle of the next stage
  * (`stepFrom`), so the four stages of a beat are visited one press at a time.
  *
- * `onHome` flies the camera back to the exhibit's home point. The panel does not
- * know what a camera is; it only reports the press.
+ * `onHome` flies the camera back to the exhibit's home point and `onSafety` to the one
+ * place the safety action can be seen from. The panel does not know what a camera is; it
+ * only reports the press.
  */
-export function mountShowcaseBar(root, state, { onHome } = {}) {
+export function mountShowcaseBar(root, state, { onHome, onSafety } = {}) {
   const play = document.createElement('button');
   const step = document.createElement('button');
   const home = document.createElement('button');
   const nudge = document.createElement('button');
+  const safety = document.createElement('button');
   const speedLabel = document.createElement('label');
   const speed = document.createElement('input');
   speed.type = 'range';
@@ -55,6 +57,7 @@ export function mountShowcaseBar(root, state, { onHome } = {}) {
   });
   step.addEventListener('click', () => { state.t = stepFrom(state.t); paint(); });
   home.addEventListener('click', () => onHome?.());
+  safety.addEventListener('click', () => onSafety?.());
   // Held, not toggled: the lever is pushed for as long as the button is down, and lets go
   // when it is released. `state.nudge` sits beside the time rather than inside the model,
   // so the pose stays a pure function — of the pair now, instead of of the time alone.
@@ -67,6 +70,7 @@ export function mountShowcaseBar(root, state, { onHome } = {}) {
     play.textContent = t(state.playing ? 'show.pause' : 'show.play');
     step.textContent = t('show.step');
     home.textContent = t('show.home');
+    safety.textContent = t('show.safety');
     speedLabel.firstChild.nodeValue = `${t('show.speed')} `;
     note.textContent = `${t('show.exag')} ×${EXAGGERATION}`;
     nudge.textContent = t('show.nudge');
@@ -91,7 +95,7 @@ export function mountShowcaseBar(root, state, { onHome } = {}) {
     if (!idle) state.nudge = 0;
   }
 
-  root.append(play, step, nudge, home, speedLabel, phase, note);
+  root.append(play, step, nudge, home, safety, speedLabel, phase, note);
   paint();
   update();
   onLangChange(() => { paint(); lastPhase = ''; update(); });

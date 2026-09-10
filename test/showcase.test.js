@@ -9,7 +9,7 @@ import {
 import {
   PITCH, LEVER_HALF, LEVER_UNLOCK, DRAW, LIFT, LIFT_MEASURED, action, poseAt, report,
   stonePoly, toothPoly, toe, toWorld,
-  GUARD_RUN, GUARD_R, SAFETY_R, CRESCENT_HALF, guardGap, guardLimit, guardOnRoller,
+  GUARD_RUN, GUARD_R, GUARD_D, SAFETY_R, CRESCENT_HALF, guardGap, guardLimit, guardOnRoller,
 } from '../src/showcase/design.js';
 import { buildSpring, SPRING_N, SPRING_R0, SPRING_R1 } from '../src/showcase/spring.js';
 
@@ -156,6 +156,24 @@ describe('lever escapement showcase (geometry)', () => {
       }
       expect(-worst, `${face}: the mesh does not follow the traced outline`).toBeLessThan(1e-6);
     }
+  });
+
+  it('the safety view stands where the safety action can actually be seen', () => {
+    // The catch is real and invisible from the home view: the guard pin and the safety
+    // roller sit under the lever's own body. So the exhibit offers a second place to stand,
+    // and this pins what that means rather than trusting a pair of coordinates: the view
+    // looks at the guard-and-roller region, from BEHIND the lever's plane, where nothing of
+    // the lever is between the eye and the contact.
+    const m = buildShowcase();
+    const contact = (FORK_D + GUARD_D + FORK_D + BAL_D) / 2;
+    expect(Math.abs(m.safety.target.x - contact), 'aimed away from the contact').toBeLessThan(0.3);
+    expect(Math.abs(m.safety.target.z - 0.45), 'aimed at the wrong plane').toBeLessThan(0.2);
+    expect(m.safety.pos.z, 'the lever would be in the way').toBeLessThan(0.45);
+    expect(m.safety.pos.distanceTo(m.safety.target), 'too close to read, or too far to see')
+      .toBeGreaterThan(3);
+    expect(m.safety.pos.distanceTo(m.safety.target)).toBeLessThan(9);
+    // And it is a different place from the home view, or it would not be worth a button.
+    expect(m.safety.pos.distanceTo(m.home.pos)).toBeGreaterThan(3);
   });
 
   it('the showcase does not import the movement: isolation by decision', () => {

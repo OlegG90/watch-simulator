@@ -473,6 +473,25 @@ export function buildShowcase() {
   };
 
   /**
+   * The second place worth standing: the safety action.
+   *
+   * From the home view the guard pin and the safety roller are under the lever's own body
+   * and the viewer sees nothing of either — press the push and the exhibit appears to
+   * shrug. They are not moved to fix that; the view is. From below the lever's plane and
+   * off to the side, both the catch (the pin butts the roller) and the passage (the
+   * crescent comes round to it at the unlocking) are in plain sight.
+   *
+   * Derived from where those parts are, so it follows them if they move.
+   */
+  const safetyTarget = new THREE.Vector3((FORK_D + GUARD_D + FORK_D + BAL_D) / 2, 0, SAFETY_Z);
+  // `safetyView`, not `safety`: the roller mesh above already owns that name, and the two
+  // would have been the same word for a part and for a place to look at it from.
+  const safetyView = {
+    pos: safetyTarget.clone().add(new THREE.Vector3(1.5, 3.4, -4.6)),
+    target: safetyTarget,
+  };
+
+  /**
    * The showcase's step: the pose at phase time `u` (beats) — wheel, fork, balance and the
    * highlight on the active pair. A pure function of time: the panel's pause and stepping
    * are a stop and a manual advance of `u`, and no state accumulates anywhere.
@@ -493,5 +512,5 @@ export function buildShowcase() {
     return p;
   }
 
-  return { group, home, update, wheelPivot, forkPivot, balancePivot, jewels };
+  return { group, home, safety: safetyView, update, wheelPivot, forkPivot, balancePivot, jewels };
 }
