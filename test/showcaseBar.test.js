@@ -12,12 +12,15 @@ import { describe, it, expect, beforeEach } from 'vitest';
 import { mountShowcaseBar } from '../src/showcase/bar.js';
 import { t, setLang } from '../src/i18n.js';
 
-function mount(state) {
+function mount(state, opts) {
   const root = document.createElement('div');
   document.body.append(root);
-  const bar = mountShowcaseBar(root, state);
-  return { bar, name: root.querySelector('.ph-name'), pal: root.querySelector('.ph-pal') };
+  const bar = mountShowcaseBar(root, state, opts);
+  return { bar, root, name: root.querySelector('.ph-name'), pal: root.querySelector('.ph-pal') };
 }
+
+const button = (root, key) => [...root.querySelectorAll('button')]
+  .find((b) => b.textContent === t(key));
 
 describe('showcase bar caption (jsdom)', () => {
   beforeEach(() => { document.body.innerHTML = ''; setLang('en'); });
@@ -46,12 +49,40 @@ describe('showcase bar caption (jsdom)', () => {
     expect(pal.textContent).toBe(t('show.pallet.exit'));
   });
 
+  it('the home button reports the press, and is named in both languages', () => {
+    // Showcase mode has no camera presets: without this button one orbit leaves the
+    // exhibit off-screen with no way back (issue #39). The bar knows nothing of cameras.
+    let pressed = 0;
+    const { root } = mount({ t: 2.5, playing: true, speed: 1 }, { onHome: () => { pressed += 1; } });
+    const home = button(root, 'show.home');
+    expect(home, 'no button carries the home label').toBeTruthy();
+    home.click();
+    expect(pressed).toBe(1);
+    setLang('ua');
+    expect(home.textContent).toBe(t('show.home'));
+  });
+
+  it('a press of Step advances the state to the next stage', () => {
+    const state = { t: 2.5, playing: false, speed: 1 };
+    const { bar, root } = mount(state);
+    button(root, 'show.step').click();
+    bar.update();
+    expect(root.querySelector('.ph-name').textContent).toBe(t('show.phase.unlock'));
+  });
+
+  it('the bar mounts without an onHome and the press is harmless', () => {
+    const { root } = mount({ t: 2.5, playing: true, speed: 1 });
+    expect(() => button(root, 'show.home').click()).not.toThrow();
+  });
+
   it('both cells render in Ukrainian too', () => {
     setLang('ua');
     const state = { t: 3, playing: false, speed: 1 };
     const { bar, name, pal } = mount(state);
     bar.update();
     expect(name.textContent).toBe(t('show.phase.impulse'));
-    expect(pal.textContent).toBe(t('show.pallet.exit'));
+    // The entry pallet, not the exit one: u = 3 is mid-impulse on the stone unlocked at
+    // the 2.5 lock, and the pallets change hands at the drop that follows.
+    expect(pal.textContent).toBe(t('show.pallet.entry'));
   });
 });

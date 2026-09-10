@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
 import { readFileSync, readdirSync } from 'node:fs';
 import { buildShowcase, TEETH, WHEEL_R, FORK_D, BAL_D, WHEEL_LOCK_PHASE, JEWEL_GEOM, palletOutline, clubToothPoly } from '../src/showcase/leverModel.js';
-import { wheelAngle, forkAngle, balanceAngle, phaseName, activePallet, FORK_MAX, AMPLITUDE } from '../src/showcase/motion.js';
+import { wheelAngle, forkAngle, balanceAngle, phaseName, activePallet, stepFrom, FORK_MAX, AMPLITUDE } from '../src/showcase/motion.js';
 import { buildSpring, SPRING_N, SPRING_R0, SPRING_R1 } from '../src/showcase/spring.js';
 
 const noNaN = (root) => {
@@ -292,5 +292,56 @@ describe('showcase hairspring (breathing)', () => {
     s.update(1.61);
     expect(pos.array).toBe(buf);
     for (let i = 0; i < buf.length; i++) expect(Number.isFinite(buf[i])).toBe(true);
+  });
+  it('a press of Step lands in the middle of a stage, and four presses visit all four', () => {
+    // The old step was a constant ⅛ of a beat while the impulse is ~0.054 beat wide, so
+    // stepping jumped over the stage the exhibit exists to show. The step is now derived
+    // from the phase machine itself: there is no step constant left to drift.
+    for (let s = 0; s < 40; s++) {
+      const start = 2 + s / 40;
+      let u = start;
+      const seen = [];
+      for (let i = 0; i < 4; i++) { u = stepFrom(u); seen.push(phaseName(u)); }
+      expect(new Set(seen), `from u = ${start}: ${seen.join(' → ')}`)
+        .toEqual(new Set(['lock', 'unlock', 'impulse', 'drop']));
+    }
+  });
+
+  it('every landing sits clear of its stage boundaries', () => {
+    // The middle is the point of the design: a landing that only just clears a boundary
+    // would show the caption of one stage over the pose of the next.
+    //
+    // The pallet is checked with the phase, and that is not belt and braces: the pallets
+    // change hands at the drop, and the impulse's landing is at the beat itself, which is
+    // exactly where the old rounding handed over. A step that lands on a discontinuity
+    // shows a caption that disagrees with the frame before and the frame after it.
+    let u = 2.13;
+    for (let i = 0; i < 12; i++) {
+      u = stepFrom(u);
+      const here = `${phaseName(u)} · ${activePallet(u)}`;
+      const at = (d) => `${phaseName(u + d)} · ${activePallet(u + d)}`;
+      expect(at(-0.012), `before ${here}`).toBe(here);
+      expect(at(+0.012), `after ${here}`).toBe(here);
+    }
+  });
+
+  it('one pallet is unlocked and impulsed, and the other receives the drop', () => {
+    // Not two stones per beat: the same one carries the tooth from unlocking through
+    // impulse, and the handover is the drop.
+    let u = 2.5;
+    const seen = [];
+    for (let i = 0; i < 4; i++) { u = stepFrom(u); seen.push(`${phaseName(u)}:${activePallet(u)}`); }
+    expect(seen).toEqual(['unlock:entry', 'impulse:entry', 'drop:exit', 'lock:exit']);
+  });
+
+  it('stepping always moves forward, and a beat takes exactly four presses', () => {
+    let u = 2.5;
+    const start = u;
+    for (let i = 0; i < 4; i++) {
+      const next = stepFrom(u);
+      expect(next, `press ${i + 1}`).toBeGreaterThan(u);
+      u = next;
+    }
+    expect(u - start).toBeCloseTo(1, 12); // back to the lock, one beat on
   });
 });

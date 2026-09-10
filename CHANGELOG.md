@@ -10,7 +10,7 @@ A third mode, one language, one snapshot fewer.
   view of the movement. Inside the movement the escapement runs at movement
   scale and movement speed, where lock, unlock, impulse and drop blur into a
   single flip. Here one lever escapement stands alone and large, with its own
-  play/pause, a manual step of an eighth of a beat, and a readout naming the
+  play/pause, a step to the middle of the next stage, and a readout naming the
   phase and the pallet holding the lock.
 - **The stones are seated, not drawn.** Each pallet's locking corner is solved
   onto the tip of the tooth that locks it, and the impulse face follows the
@@ -24,6 +24,26 @@ A third mode, one language, one snapshot fewer.
 - **A guard for the repository's one language.** `src/` may hold no Cyrillic
   outside the two dictionaries that are the Ukrainian interface copy, plus the
   language switch's own label. Sabotage-verified.
+
+### Fixed
+
+- **A step was wider than the stage it existed to show.** The step advanced a
+  fixed ⅛ of a beat while the impulse is about 0.054 beat wide, so stepping from
+  a lock went unlock → drop and the impulse was never seen. There is no step
+  constant any more: a press asks the phase machine for the middle of the next
+  stage, so the four stages take four presses and each landing sits as far from
+  its boundaries as the stage allows.
+- **The pallets changed hands half a window early.** The caption named the
+  receiving pallet from the beat onwards, though one stone is unlocked and
+  impulsed and only the drop hands over to the other. Nothing showed it while
+  the step jumped over that point; the moment a press landed on the beat exactly,
+  the name flipped mid-impulse. The handover is now at the drop.
+- **No way back to the home view.** Showcase mode has no camera presets, so one
+  orbit could leave the exhibit off-screen with nothing but a page reload to
+  recover it. The bar now carries the flight home. The bar itself grew with it:
+  the fourth control overflowed the fixed width, and the overflow was silent —
+  the phase cells are the only flexible thing there, so they collapsed to an
+  ellipsis while everything else looked right.
 
 ### Changed
 

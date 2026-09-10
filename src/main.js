@@ -116,12 +116,17 @@ scene.add(showcase.group);
 // The showcase's phase time (in beats) lives here, not in the model: the panel's pause
 // and step are a stop and a manual advance, and the model stays a pure function of time.
 const show = { t: 0.5, playing: true, speed: 0.5 };
-const showBar = mountShowcaseBar(document.getElementById('showcase-bar'), show);
 
 // ── Camera: fit the movement into the frame (allowing for the aspect) ─
 const fitR = Math.hypot(movement.size.w, movement.size.h) / 2;
 const viewDir = new THREE.Vector3(0.12, 0.22, 1).normalize();
 const fly = createCameraFly(camera, controls);
+// Mounted after the camera exists, because the bar is handed the flight home: showcase
+// mode has no camera presets, and without this one orbit leaves the exhibit off-screen
+// with no way back but reloading the page (issue #39).
+const showBar = mountShowcaseBar(document.getElementById('showcase-bar'), show, {
+  onHome: () => fly.flyTo(showcase.home.pos, showcase.home.target),
+});
 let userOrbited = false;
 controls.addEventListener('start', () => {
   userOrbited = true;
