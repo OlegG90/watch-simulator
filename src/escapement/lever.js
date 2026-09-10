@@ -4,6 +4,7 @@ import { tagModule, tagVariant } from '../common.js';
 import { beatPhase } from './beat.js';
 import { buildHairspring } from './hairspring.js';
 import { buildBalanceWheel } from './balance.js';
+import { buildPalletFork } from './fork.js';
 
 /**
  * The Swiss lever escapement — the simplest module in the socket.
@@ -47,7 +48,6 @@ export const ESC_R = 1.5;
  */
 export const ESC_LOCK_PHASE = Math.PI / 10;
 
-const PALLET_HALF = (30 * Math.PI) / 180; // pallets at ±30° from the line of centres
 const ROLLER_R = 0.55;                    // radius of the roller carrying the impulse pin
 
 /** The fork's pivot — between the escape wheel and the balance. */
@@ -79,16 +79,6 @@ export function profile(zBase = 0) {
       { anchor: 'escape', u: BALANCE_OFF, ...band(LAYERS.balance, T.balRim), r: BALANCE_R, kind: 'flat' },
     ],
   };
-}
-
-/** A box between two points in the XY plane (the fork's arms and stem). */
-function bar(from, to, w, t, material) {
-  const d = to.clone().sub(from);
-  const mesh = new THREE.Mesh(new THREE.BoxGeometry(d.length(), w, t), material);
-  mesh.position.set((from.x + to.x) / 2, (from.y + to.y) / 2, 0);
-  mesh.rotation.z = Math.atan2(d.y, d.x);
-  mesh.castShadow = true;
-  return mesh;
 }
 
 export function buildLever(
@@ -125,47 +115,15 @@ export function buildLever(
   const impulseRubyMat = palletMat.clone();
   impulseRubyMat.emissiveIntensity = 0.18;
 
-  const fork = new THREE.Group();
+  // The fork itself comes from the one builder every module shares: what is this
+  // module's own is where the arbor stands, how far the stem reaches, and that this is
+  // the only variant with horns — the sections and the stones are nobody's decision.
   const forkPivot = dir2(escDirLocal).multiplyScalar(FORK_PIVOT);
+  const fork = buildPalletFork({
+    wheelCentre: new THREE.Vector2(0, 0), pivot: forkPivot, toBalance: escDirLocal,
+    escR, reach: FORK_REACH, horns: true, steel, axleMat, palletMat,
+  });
   fork.position.set(forkPivot.x, forkPivot.y, LAYERS.fork);
-  {
-    for (const s of [+1, -1]) {
-      // A point on the escape wheel's rim (its centre is the origin).
-      const rimPt = dir2(escDirLocal + s * PALLET_HALF).multiplyScalar(escR - 0.12);
-      const local = rimPt.clone().sub(forkPivot);
-      fork.add(bar(new THREE.Vector2(0, 0), local, 0.3, 0.28, steel));
-      const pShape = new THREE.Shape();
-      const pw = 0.3, ph = 0.6;
-      pShape.moveTo(-pw / 2, -ph / 2);
-      pShape.lineTo(pw / 2, -ph / 2);
-      pShape.lineTo(pw / 2, ph / 2);
-      pShape.lineTo(-pw / 2, ph / 2);
-      pShape.closePath();
-      const pGeo = new THREE.ExtrudeGeometry(pShape, {
-        depth: 0.4, bevelEnabled: true, bevelThickness: 0.04, bevelSize: 0.035, bevelSegments: 2,
-      });
-      pGeo.translate(0, 0, -0.2);
-      const stone = new THREE.Mesh(pGeo, palletMat);
-      stone.position.set(local.x, local.y, 0);
-      stone.rotation.z = escDirLocal + s * PALLET_HALF;
-      stone.castShadow = true;
-      fork.add(stone);
-    }
-    // The stem out to the balance roller, plus the horns.
-    const stemEnd = dir2(escDirLocal).multiplyScalar(FORK_REACH);
-    fork.add(bar(new THREE.Vector2(0, 0), stemEnd, 0.26, 0.28, steel));
-    for (const s of [+1, -1]) {
-      const horn = new THREE.Mesh(new THREE.BoxGeometry(0.4, 0.14, 0.28), steel);
-      const perp = dir2(escDirLocal + Math.PI / 2).multiplyScalar(s * 0.22);
-      horn.position.set(stemEnd.x + perp.x, stemEnd.y + perp.y, 0);
-      horn.rotation.z = escDirLocal;
-      horn.castShadow = true;
-      fork.add(horn);
-    }
-    const forkAxle = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 1.3, 12), axleMat);
-    forkAxle.rotation.x = Math.PI / 2;
-    fork.add(forkAxle);
-  }
   fixed.add(fork);
 
   // ── The balance: offset by BALANCE_OFF, the same size as in the tourbillon ──

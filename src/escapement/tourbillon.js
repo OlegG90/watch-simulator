@@ -4,6 +4,7 @@ import { tagModule, tagVariant } from '../common.js';
 import { beatPhase } from './beat.js';
 import { buildHairspring } from './hairspring.js';
 import { buildBalanceWheel } from './balance.js';
+import { buildPalletFork } from './fork.js';
 
 // ── Escapement constants (the same as in escapement.js) ───────────
 /** Local Z levels of the cage (from its base) — shared with the developed section. */
@@ -34,15 +35,6 @@ export function profile(zBase = 0, { cageR } = {}) {
 }
 
 const dir2 = (a) => new THREE.Vector2(Math.cos(a), Math.sin(a));
-
-function bar(from, to, w, t, material) {
-  const d = to.clone().sub(from);
-  const mesh = new THREE.Mesh(new THREE.BoxGeometry(d.length(), w, t), material);
-  mesh.position.set((from.x + to.x) / 2, (from.y + to.y) / 2, 0);
-  mesh.rotation.z = Math.atan2(d.y, d.x);
-  mesh.castShadow = true;
-  return mesh;
-}
 
 /**
  * Tourbillon: the whole escapement (escape wheel + fork + balance with its
@@ -124,41 +116,14 @@ export function buildTourbillon(
   // The balance's impulse stone is physical too — it lets light through.
   const impulseRubyMat = palletMat.clone();
   impulseRubyMat.emissiveIntensity = 0.18;
-  const fork = new THREE.Group();
+  // The shared builder: the balance is at the cage's centre, so the fork faces inward,
+  // and there are no horns — nothing rides in a notch here.
   const forkPivot = dir2(escDirLocal).multiplyScalar(escOff * 0.52); // closer to the centre
+  const fork = buildPalletFork({
+    wheelCentre: escCenter, pivot: forkPivot, toBalance: escDirLocal + Math.PI,
+    escR, reach: forkPivot.length() - 0.55, steel, axleMat, palletMat,
+  });
   fork.position.set(forkPivot.x, forkPivot.y, zFork);
-  {
-    // Pallets on the escape wheel's rim, ±30° from the line to the balance.
-    const inward = escDirLocal + Math.PI; // from the escape wheel towards the centre
-    for (const s of [+1, -1]) {
-      const rimPt = escCenter.clone().add(dir2(inward + s * (30 * Math.PI) / 180).multiplyScalar(escR - 0.12));
-      const local = rimPt.clone().sub(forkPivot);
-      fork.add(bar(new THREE.Vector2(0, 0), local, 0.3, 0.28, steel));
-      // A faceted prism instead of a Box — the chamfer comes from a bevelled Extrude.
-      const pShape = new THREE.Shape();
-      const pw = 0.3, ph = 0.6;
-      pShape.moveTo(-pw / 2, -ph / 2);
-      pShape.lineTo(pw / 2, -ph / 2);
-      pShape.lineTo(pw / 2, ph / 2);
-      pShape.lineTo(-pw / 2, ph / 2);
-      pShape.closePath();
-      const pGeo = new THREE.ExtrudeGeometry(pShape, {
-        depth: 0.4, bevelEnabled: true, bevelThickness: 0.04, bevelSize: 0.035, bevelSegments: 2,
-      });
-      pGeo.translate(0, 0, -0.2);
-      const stone = new THREE.Mesh(pGeo, palletMat);
-      stone.position.set(local.x, local.y, 0);
-      stone.rotation.z = inward + s * (30 * Math.PI) / 180;
-      stone.castShadow = true;
-      fork.add(stone);
-    }
-    // The stem towards the centre (the balance), plus the horns.
-    const stemEnd = dir2(inward).multiplyScalar(forkPivot.length() - 0.55);
-    fork.add(bar(new THREE.Vector2(0, 0), stemEnd, 0.26, 0.28, steel));
-    const forkAxle = new THREE.Mesh(new THREE.CylinderGeometry(0.15, 0.15, 1.3, 12), axleMat);
-    forkAxle.rotation.x = Math.PI / 2;
-    fork.add(forkAxle);
-  }
   cage.add(fork);
 
   // ── The balance — at the CENTRE of the cage (coaxial with the fixed wheel) — enlarged for visibility ──

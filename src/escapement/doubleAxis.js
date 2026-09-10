@@ -4,6 +4,7 @@ import { tagModule, tagVariant } from '../common.js';
 import { beatPhase } from './beat.js';
 import { buildHairspring } from './hairspring.js';
 import { buildBalanceWheel } from './balance.js';
+import { buildPalletFork } from './fork.js';
 
 /**
  * The double-axis tourbillon: a cage inside a cage, the inner one turning about an axis
@@ -78,16 +79,6 @@ export function profile(zBase = 0, { cageR } = {}) {
 }
 
 const dir2 = (a) => new THREE.Vector2(Math.cos(a), Math.sin(a));
-
-/** A round bar between two points of a plane, at a given local height. */
-function bar(from, to, w, t, material, z = 0) {
-  const d = to.clone().sub(from);
-  const mesh = new THREE.Mesh(new THREE.BoxGeometry(d.length(), w, t), material);
-  mesh.position.set((from.x + to.x) / 2, (from.y + to.y) / 2, z);
-  mesh.rotation.z = Math.atan2(d.y, d.x);
-  mesh.castShadow = true;
-  return mesh;
-}
 
 export function buildDoubleAxis(
   { steel, brass, ruby, springSteel, axleMat, plateMat },
@@ -220,30 +211,18 @@ export function buildDoubleAxis(
   escSub.add(escAxle);
   innerCage.add(escSub);
 
-  // The fork, between the wheel's rim and the balance at the centre.
+  // The fork, between the wheel's rim and the balance at the centre. Its sections used
+  // to be scaled down by hand — which is how this module ended up with plain boxes for
+  // stones while the other two had bevelled prisms. The shared builder scales them from
+  // the escape wheel's radius instead, so a small wheel gets a fork in the same
+  // proportions rather than one somebody sized by eye.
   const palletMat = ruby.clone();
-  const fork = new THREE.Group();
   const forkPivot = new THREE.Vector2(innerOff * 0.5, 0);
+  const fork = buildPalletFork({
+    wheelCentre: new THREE.Vector2(innerOff, 0), pivot: forkPivot, toBalance: Math.PI,
+    escR, reach: forkPivot.length() - 0.18, steel, axleMat, palletMat,
+  });
   fork.position.set(forkPivot.x, forkPivot.y, 0.42);
-  {
-    const inward = Math.PI;
-    for (const s of [+1, -1]) {
-      const rimPt = new THREE.Vector2(innerOff, 0)
-        .add(dir2(inward + s * (30 * Math.PI) / 180).multiplyScalar(escR - 0.06));
-      const local = rimPt.clone().sub(forkPivot);
-      fork.add(bar(new THREE.Vector2(0, 0), local, 0.12, 0.1, steel));
-      const stone = new THREE.Mesh(new THREE.BoxGeometry(0.11, 0.2, 0.14), palletMat);
-      stone.position.set(local.x, local.y, 0);
-      stone.rotation.z = inward + s * (30 * Math.PI) / 180;
-      stone.castShadow = true;
-      fork.add(stone);
-    }
-    const stemEnd = dir2(inward).multiplyScalar(forkPivot.length() - 0.18);
-    fork.add(bar(new THREE.Vector2(0, 0), stemEnd, 0.1, 0.1, steel));
-    const forkAxle = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.5, 8), axleMat);
-    forkAxle.rotation.x = Math.PI / 2;
-    fork.add(forkAxle);
-  }
   innerCage.add(fork);
 
   // The balance, at the inner cage's centre — coaxial with its axis, as the single-axis

@@ -42,6 +42,18 @@ A third mode, one language, one snapshot fewer.
 
   Two figures are magnified four times, because a real lock and a real drop
   would be invisible at this size, and the panel tells the viewer so.
+- **One fork for every module, in three sizes.** The pallet fork was drawn
+  three times, and the three drifted: two modules gave the stones a bevelled
+  prism and the third a plain box, and the double-axis fork's bars had been
+  scaled down by hand. `escapement/fork.js` builds it now. The sections are
+  quoted at a reference wheel (r=1.5) and scale with the module's own escape
+  wheel, so the double-axis fork — whose wheel really is smaller — comes out
+  in the same proportions instead of ones somebody sized by eye: its stones
+  are ruby prisms at last, and its bars and arbor grow by a few hundredths.
+  Verified by a scene-graph diff over three variants and five times: six
+  meshes changed, all of them the double-axis fork, and the lever's and
+  tourbillon's forks are identical to the last decimal — both wheels are
+  already r=1.5.
 - **One balance for every module.** It was the same balance by decision and
   built three times, and the three drifted — the lever's had no timing screws
   and the double-axis's rim was a different thickness. The guard compared radii,

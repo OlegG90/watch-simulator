@@ -347,6 +347,62 @@ describe('escapement socket', () => {
     for (const id of f.escapement.ids.slice(1)) expect(wheelOf(id), id).toEqual(first);
   });
 
+  it('and one FORK, in three sizes — the sections follow the wheel, nobody eyeballs them', () => {
+    // The fork was drawn three times, and the three drifted in ways nobody decided: two
+    // modules gave the stones a bevelled prism and the third a plain box, and the
+    // double-axis fork's bars were scaled down by hand. No test had an opinion about a
+    // stone's shape, so nothing went red.
+    //
+    // The fork is not the same part in three places — the pivot, the reach and the
+    // direction to the balance genuinely differ — so this compares what does not: the
+    // SECTIONS, normalised by the scale each fork declares. Lengths stay out of it; they
+    // are the module's own geometry. The reference numbers are written out here rather
+    // than taken from the first module, so all three can be wrong together and still fail.
+    const SECTIONS = [
+      'box 0.3000x0.2800',                      // the two arms out to the stones
+      'box 0.3000x0.2800',
+      'box 0.2600x0.2800',                      // the stem towards the balance
+      'ExtrudeGeometry 0.3700x0.6700x0.4800',   // the stones — a bevelled prism, not a box
+      'ExtrudeGeometry 0.3700x0.6700x0.4800',
+      'cyl r=0.1500 h=1.3000 seg=12',           // the arbor
+    ].sort();
+    const HORNS = ['box 0.1400x0.2800', 'box 0.1400x0.2800'];  // only where a pin rides a notch
+
+    const f = buildFresh();
+    const sectionsOf = (id) => {
+      const fork = f.escapement.variant(id).internals.fork;
+      const k = fork.userData.forkScale;
+      expect(k, `${id}: the fork declares no scale — it was not built by the shared builder`)
+        .toBeGreaterThan(0);
+      return fork.children.map((o) => {
+        const g = o.geometry, prm = g.parameters || {};
+        if (g.type === 'BoxGeometry')          // width is the bar's LENGTH: the module's own
+          return `box ${(prm.height / k).toFixed(4)}x${(prm.depth / k).toFixed(4)}`;
+        if (g.type === 'CylinderGeometry')
+          return `cyl r=${(prm.radiusTop / k).toFixed(4)} h=${(prm.height / k).toFixed(4)}` +
+                 ` seg=${prm.radialSegments}`;
+        g.computeBoundingBox();
+        const b = g.boundingBox.getSize(new THREE.Vector3());
+        return `${g.type} ${(b.x / k).toFixed(4)}x${(b.y / k).toFixed(4)}x${(b.z / k).toFixed(4)}`;
+      }).sort();
+    };
+
+    for (const id of f.escapement.ids) {
+      const got = sectionsOf(id);
+      const want = (got.length === SECTIONS.length + 2 ? [...SECTIONS, ...HORNS] : SECTIONS).sort();
+      expect(got, `${id}: this fork's sections are its own, not the shared ones`).toEqual(want);
+    }
+    // Only the lever has horns — the other two have nothing riding in a notch.
+    expect(sectionsOf('lever').length).toBe(SECTIONS.length + 2);
+    expect(sectionsOf('tourbillon').length).toBe(SECTIONS.length);
+    // And the scale is the wheel's, not a number picked to make the test pass: the
+    // double-axis wheel really is smaller, so its fork really is smaller by the same ratio.
+    const scaleOf = (id) => f.escapement.variant(id).internals.fork.userData.forkScale;
+    expect(scaleOf('lever')).toBeCloseTo(1, 12);
+    expect(scaleOf('tourbillon')).toBeCloseTo(1, 12);
+    expect(scaleOf('doubleAxis')).toBeLessThan(0.5);
+  });
+
   it('escape wheel: 12 s in the lever, 6 s in the tourbillon (it rides the cage)', () => {
     // The difference is real and visible — which is why it belongs to the comparison,
     // not to a station card, where only unchanging numbers belong.

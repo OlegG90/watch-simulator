@@ -155,6 +155,15 @@ Three things are worth carrying forward:
   radii agreed, and nothing went red. `escapement/balance.js` builds it now, and the guard
   compares construction — every mesh, its parameters and its place. What stays with each
   module is what is genuinely its own: the staff and the roller, which are mounting.
+  The **fork** went the same way (`escapement/fork.js`), and it is the harder case:
+  it is not the same part in three places but the same PARTS in three arrangements,
+  so the builder takes what genuinely varies — the wheel's centre, the pivot, the
+  direction to the balance, the reach, whether there are horns — and owns what does
+  not: the stones, the sections, the arbor. Those are quoted at a reference wheel of
+  r=1.5 and scaled by the module's own `escR`, because a fork belongs to its escape
+  wheel; the guard normalises by the scale each fork declares and compares the
+  sections that are left against numbers written out in the test, so all three can
+  be wrong together and still fail.
 - **A measurement that stopped being an angle.** `worldZ()` in the tests summed `rotation.z`
   up the parent chain, which is an angle only while every link turns about Z. It now checks
   that precondition and throws instead of adding angles measured about different axes. The
