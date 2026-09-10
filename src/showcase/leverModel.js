@@ -59,6 +59,68 @@ const PIN_BOTTOM = 0.4;
 
 const rot2 = ([x, y], a) => [x * Math.cos(a) - y * Math.sin(a), x * Math.sin(a) + y * Math.cos(a)];
 
+/**
+ * The lever, as ONE outline.
+ *
+ * It used to be a boss with plates bolted to it — a shank, two arms, two prongs — and it
+ * read as exactly that: an assembly of primitives standing in for a part. A real lever is
+ * a single stamping, and the way to make that legible is not to shade it better but to cut
+ * it as one closed curve: the boss, the two pallet arms embracing the wheel, the shank out
+ * to the horns with the notch between them, and the counterpoise behind the pivot.
+ *
+ * Each limb is a tapered blade from the boss to a tip, and between the limbs the boundary
+ * follows the boss itself, so the arms grow out of the body instead of meeting it. The
+ * shank's tip is the exception: it opens into the notch, whose half-width and depth are the
+ * ones the contact is solved with, so what the pin touches on the screen is what the pin
+ * touches in the model.
+ */
+function leverOutline(limbs, boss) {
+  const pts = [];
+  const unit = (a) => [Math.cos(a), Math.sin(a)];
+  const arc = (from, to) => {
+    let d = to - from;
+    while (d < 0) d += Math.PI * 2;
+    const n = Math.max(2, Math.ceil((d / (Math.PI * 2)) * 40));
+    for (let i = 0; i <= n; i++) {
+      const [x, y] = unit(from + (d * i) / n);
+      pts.push([x * boss, y * boss]);
+    }
+  };
+  const sorted = [...limbs].sort((a, b) => a.at - b.at);
+  sorted.forEach((limb, i) => {
+    const d = unit(limb.at);
+    const n = [-d[1], d[0]];                       // to the limb's left
+    const at = (along, across) => [d[0] * along + n[0] * across, d[1] * along + n[1] * across];
+    pts.push(at(boss * 0.98, -limb.root));         // the right root, on the boss
+    if (limb.notch) {
+      const { half, depth, tip } = limb.notch;     // the horns and the slot between them
+      pts.push(at(limb.len - depth - 0.05, -limb.tip));
+      pts.push(at(limb.len + tip, -limb.tip));
+      pts.push(at(limb.len + tip, -half));
+      pts.push(at(limb.len - depth, -half));
+      pts.push(at(limb.len - depth, half));
+      pts.push(at(limb.len + tip, half));
+      pts.push(at(limb.len + tip, limb.tip));
+      pts.push(at(limb.len - depth - 0.05, limb.tip));
+    } else {
+      pts.push(at(limb.len - limb.tip * 0.5, -limb.tip));
+      pts.push(at(limb.len, -limb.tip * 0.55));    // a blunt, rounded end
+      pts.push(at(limb.len, limb.tip * 0.55));
+      pts.push(at(limb.len - limb.tip * 0.5, limb.tip));
+    }
+    pts.push(at(boss * 0.98, limb.root));          // the left root, back on the boss
+    // The boss shows between limbs, and only between them: the sweep is half the gap at
+    // most. Taken as a fixed quarter turn it ran the wrong way round the circle whenever
+    // two limbs stood closer than that, and the outline crossed itself.
+    const next = sorted[(i + 1) % sorted.length];
+    let gap = next.at - limb.at;
+    while (gap <= 0) gap += Math.PI * 2;
+    const spread = Math.min(Math.PI / 2 - 0.35, gap / 2 - 0.05);
+    if (spread > 0) arc(limb.at + spread, next.at - spread);
+  });
+  return pts;
+}
+
 /** A box between two XY points at a given height. */
 function bar(from, to, w, t, z, material) {
   const d = to.clone().sub(from);
@@ -190,13 +252,7 @@ export function buildShowcase() {
   // solved seats; the arms only reach for them.
   const forkPivot = new THREE.Group();
   forkPivot.position.set(FORK_D, 0, 0);
-  const boss = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.4, 16), steel);
-  boss.rotation.x = Math.PI / 2;
-  boss.position.z = FORK_Z;
-  boss.castShadow = true;
-  forkPivot.add(boss);
-
-  // A flat plate from a corner list, at the fork's height.
+  const BOSS_R = 0.3;
   const plate = (pts, t) => {
     const s = new THREE.Shape();
     s.moveTo(...pts[0]);
@@ -209,9 +265,26 @@ export function buildShowcase() {
     m.castShadow = true;
     return m;
   };
-  // The shank: the counterweight lobe behind the pivot, tapering out to the notch.
-  const notchMouth = NOTCH_D - NOTCH_DEPTH;
-  forkPivot.add(plate([[-0.95, 0.3], [notchMouth, 0.12], [notchMouth, -0.12], [-0.95, -0.3]], 0.24));
+  // The lever is cut as ONE piece: the arms reach the corners design.js traced, the shank
+  // carries the notch the contact is solved with, and the counterpoise balances the arms.
+  const corners = { entry: faceLocus('entry').corner, exit: faceLocus('exit').corner };
+  const limbs = [
+    {
+      at: 0, len: NOTCH_D, root: 0.2, tip: NOTCH_HALF + 0.12,
+      notch: { half: NOTCH_HALF, depth: NOTCH_DEPTH, tip: 0.13 },
+    },
+    { at: Math.PI, len: 0.52, root: 0.24, tip: 0.3 },   // the counterpoise
+    ...['entry', 'exit'].map((face) => ({
+      at: Math.atan2(corners[face][1], corners[face][0]),
+      len: Math.hypot(corners[face][0], corners[face][1]),
+      root: 0.2, tip: 0.15,
+    })),
+  ];
+  forkPivot.add(plate(leverOutline(limbs, BOSS_R), 0.26));
+  const bossHole = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 1.4, 12), darkSteel);
+  bossHole.rotation.x = Math.PI / 2;
+  bossHole.position.z = FORK_Z - 0.35;
+  forkPivot.add(bossHole);
 
   const jewels = {};
   // The stones stand where design.js traced them; the arms are built to reach that same
@@ -224,42 +297,20 @@ export function buildShowcase() {
     stone.userData.pallet = { face };
     forkPivot.add(stone);
     jewels[face] = stone;
+    // The arm is part of the forging; what is left here is the post that carries the stone
+    // down from the lever's plane into the wheel's.
     const corner = faceLocus(face).corner;
-    const l = Math.hypot(corner[0], corner[1]);
-    const nx = -corner[1] / l, ny = corner[0] / l;                 // across the arm
-    const bx = (-corner[0] / l) * 0.1, by = (-corner[1] / l) * 0.1; // rooted behind the pivot
-    forkPivot.add(plate(
-      [[bx + nx * 0.19, by + ny * 0.19],
-       [corner[0] + nx * 0.13, corner[1] + ny * 0.13],
-       [corner[0] - nx * 0.13, corner[1] - ny * 0.13],
-       [bx - nx * 0.19, by - ny * 0.19]], 0.26));
-    const post = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.24, FORK_Z - STONE_Z), steel);
+    const post = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, FORK_Z - STONE_Z), steel);
     post.position.set(corner[0], corner[1], (FORK_Z + STONE_Z) / 2);
     post.castShadow = true;
     forkPivot.add(post);
-  }
-  // The notch: two prongs with the slot between them. Its half-width and its depth are the
-  // ones the contact is solved with — the pin drives the lever by touching these flanks,
-  // so a prong drawn anywhere else would be a picture of a different escapement.
-  for (const s of [1, -1]) {
-    forkPivot.add(plate([
-      [notchMouth, s * (NOTCH_HALF + 0.13)],
-      [NOTCH_D + 0.12, s * (NOTCH_HALF + 0.13)],
-      [NOTCH_D + 0.12, s * NOTCH_HALF],
-      [notchMouth + 0.04, s * NOTCH_HALF],
-    ], 0.26));
   }
   // The guard pin, with its true clearance to the safety roller. It does not act yet — the
   // safety action is its own piece of work — but it stands where it would.
   const guard = new THREE.Mesh(new THREE.CylinderGeometry(GUARD_R, GUARD_R, 0.34, 10), darkSteel);
   guard.rotation.x = Math.PI / 2;
-  guard.position.set(GUARD_D, 0, FORK_Z);
+  guard.position.set(GUARD_D, 0, FORK_Z - 0.2);
   forkPivot.add(guard);
-  const counter = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.2, 16), steel);
-  counter.rotation.x = Math.PI / 2;
-  counter.position.set(-0.55, 0, FORK_Z);
-  counter.castShadow = true;
-  forkPivot.add(counter);
   group.add(forkPivot);
 
   // ── The banking bridge: the limiting pins stand on it, not in the air. Two slim
