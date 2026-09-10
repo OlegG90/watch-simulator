@@ -80,7 +80,7 @@ finish it.
 | `src/ui.js` | 3D node labels and the camera fly |
 | `src/i18n.js` | every interface string, Ukrainian and English (with `lesson/content.js`, the only Ukrainian in the repo) |
 | `src/lesson/` | the Explore layer: panel, stations, live figures, developed section, modal |
-| `src/showcase/` | the escapement exhibit — a mode of its own, deliberately joined to nothing |
+| `src/showcase/` | the escapement exhibit: `design.js` the geometry, `motion.js` the running, `leverModel.js` the meshes, `bar.js` its panel |
 | `test/` | six suites; `lessonHarness.js` is the rig, not a suite |
 | `dist/` | build output. Never edit; `.github/workflows/pages.yml` regenerates it |
 
@@ -196,14 +196,45 @@ contact must be real geometry — it is the only place in this repository that p
 It is joined to nothing on purpose — no import from `movement/`, `escapement/`, `lesson/` or
 `settings.js`, and a text test in `showcase.test.js` enforces that. The alternative was
 contact kinematics inside the socket, which would have meant re-deriving the β-identity every
-variant shares and rewriting the tourbillon around it; the price of the exhibit is that some
-numbers exist twice (`FLIP_W = 0.12` is in `escapement/beat.js` and in `showcase/motion.js`).
-**That is a bought duplication, not an oversight** — the rule about two lists still holds
-everywhere the two lists describe one mechanism, and here they describe two. Do not "fix" it
-with an import: the isolation test will go red, and it is right.
+variant shares and rewriting the tourbillon around it. Do not "fix" the separation with an
+import: the isolation test will go red, and it is right.
 
 The exhibit owns its own time (`{ t, playing, speed }` in `main.js`, counted in beats) and its
 own panel inside the scene, because showcase CSS hides everything but the stage.
+
+### How the exhibit's escapement is built
+
+`src/showcase/design.js` holds the geometry and nothing else — no meshes, no time.
+`leverModel.js` builds the shapes it describes, `motion.js` reads the poses it solves. One
+solution read twice, so the picture and the movement cannot drift apart.
+
+**The pallets are the conjugate profiles of the action, not shapes with angles chosen.**
+Three earlier attempts picked face angles and measured what the contact did; every one of
+them recoiled through the whole impulse. Scanning the angle from −50° to +80° showed why:
+for a pallet whose corner creeps backwards as it lifts, *no* straight face at any angle lets
+the wheel advance. So the action is stated first — the lever's travel, the recoil the draw
+gives back, the wheel's advance, the drop — and each face is then traced by putting the
+acting tooth's toe where that phase says the wheel stands and writing its place down in the
+lever's frame. Contact through the phase is then true by construction, and a test checks it
+by a polygon intersection that knows nothing of the construction.
+
+What that buys, and what to protect:
+
+- **Half a pitch per beat is a RESULT**, not a setting. It appears nowhere as a number; it
+  falls out of the pallets spanning two and a half teeth. The test measures it.
+- **Real figures are inputs, derived ones are outputs.** The draw is given (12°, what a
+  watchmaker specifies) and the recoil is solved from it, per stone. The lift is given (50°)
+  and the pin's orbit is solved until the measured engagement lands there. The impulse is
+  not a choice at all: a beat moves the wheel half a pitch, so the impulse is what the
+  recoil and the drop leave.
+- **Two figures are magnified and the viewer is told.** A real lock is worth about a
+  sixteenth of the lever's travel and a real drop about a degree; at this size both would be
+  nothing. `EXAGGERATION` multiplies exactly those two, the panel prints the factor read
+  from the same constant, and everything else — face angles, travel, lift, the proportions
+  of time — is the real thing.
+- **The exit stone's draw comes out at 19° rather than the 12° asked for**: at zero recoil
+  its geometry already draws that much. Recorded rather than forced, and the test holds it
+  to «steeper than the entry's» instead of pretending otherwise.
 
 ## Commands
 

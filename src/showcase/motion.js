@@ -1,124 +1,162 @@
-import { TEETH, WHEEL_LOCK_PHASE } from './leverModel.js';
+import { AMPLITUDE, LEVER_HALF, PITCH, action, leverFromPin, poseAt } from './design.js';
 
 /**
- * The showcase's motion — its own phase kinematics.
+ * The showcase's motion — the escapement running, not a schedule of it.
  *
- * The shape of the curves repeats `escapement/beat.js` (half a tooth per beat, the fork
- * unlocking inside a ±0.12 window), but the code does NOT import it: the showcase is
- * isolated by decision, and its timing synchronises with nothing, so there is no
- * commonality here — only an incidental agreement of shape. The duplication is small
- * (smoothstep and the phase decomposition), and documented here rather than smeared
- * over the code in silence.
+ * The balance is the input and everything else follows from contact. Its swing is a sine,
+ * as a free oscillator's very nearly is; the pin on its roller reaches into the lever's
+ * notch and pushes; and the lever's travel is what `design.js` traced its pallets from, so
+ * the wheel's angle is read off the action rather than eased through a window.
  *
- * Everything is a pure function of time in beats `u`: pause and stepping are just a
- * stop and a manual advance of `u`, with no memory in any integrator.
+ * **Who pushes whom changes at the release, and so does the flank in contact.** While the
+ * lock is being pushed off, the balance drives the lever and the pin lies against the
+ * trailing flank of the notch. Once the tooth is on the impulse face the wheel drives the
+ * lever, which now runs ahead of the balance and is held back by the other flank — which
+ * is how the impulse reaches the balance at all. The swap is not a special case in the
+ * code: it is the two roots of one contact changing places.
+ *
+ * Everything is a pure function of time in beats: pause and stepping are a stop and a
+ * manual advance, with no memory in any integrator.
  */
 
 /** The showcase's tempo: slow, so the lock is visible; speed is the panel's multiplier. */
 export const BEAT_HZ = 1.0;
-/** The balance's amplitude, degrees. */
-export const AMPLITUDE = 270;
-/** The fork's swing, rad: the tail travels between the banking pins. */
-export const FORK_MAX = 0.07;
-/** Half-width of the unlocking window, as a fraction of a beat. */
-export const FLIP_W = 0.12;
+export { AMPLITUDE };
+/** The lever's half travel — what the exhibit's parts ask for when they need its swing. */
+export const FORK_MAX = LEVER_HALF;
 
-const smooth = (x) => (x <= 0 ? 0 : x >= 1 ? 1 : x * x * (3 - 2 * x));
+const TRAVEL = 2 * LEVER_HALF;
+const clamp = (x, lo, hi) => (x < lo ? lo : x > hi ? hi : x);
 
-/** The phase decomposition: beat number, unlocking progress, alternating side. */
-export function phaseAt(u) {
-  const n = Math.round(u);
-  const ss = smooth((u - n) / (2 * FLIP_W) + 0.5);
-  const sigma = ((n % 2) + 2) % 2 === 0 ? 1 : -1;
-  return { n, ss, sigma };
-}
-
-/** The wheel: half a tooth per beat, on top of the measured lock phase. */
-export function wheelAngle(u) {
-  const { n, ss } = phaseAt(u);
-  return WHEEL_LOCK_PHASE + (Math.PI / TEETH) * (n - 1 + ss);
-}
-
-/** The fork: flipping between the banking pins, the side alternating on every beat. */
-export function forkAngle(u) {
-  const { ss, sigma } = phaseAt(u);
-  return -FORK_MAX * sigma * (2 * ss - 1);
-}
-
-/** The balance: a sine, zero twice per beat — unlocking happens at the zero. */
-export function balanceAngle(u, ampDeg = AMPLITUDE) {
-  return ((ampDeg * Math.PI) / 180) * Math.sin(Math.PI * u);
-}
+/** Which stone escapes on a beat. The first frame is a lock on the entry pallet. */
+export const faceOfBeat = (n) => (((n % 2) + 2) % 2 === 0 ? 'entry' : 'exit');
 
 /**
- * The phase's name for the caption: outside the window it is the lock; inside, the
- * window divides into unlocking → impulse → drop. This is staging of the sequence, not
- * measured contact: the real boundaries will be settled by seating the drop.
- */
-export function phaseName(u) {
-  if (Math.abs(u - Math.round(u)) > FLIP_W) return 'lock';
-  const { ss } = phaseAt(u);
-  if (ss < 1 / 3) return 'unlock';
-  if (ss < 2 / 3) return 'impulse';
-  return 'drop';
-}
-
-/**
- * The inverse of `smooth()`: the x at which the eased progress reaches `p`.
- * (The closed form of x²(3−2x) = p on [0, 1].)
- */
-const smoothInv = (p) => 0.5 - Math.sin(Math.asin(1 - 2 * p) / 3);
-
-/**
- * One solved number places every boundary in this file: the x at which the eased
- * progress reaches ⅔, where the drop begins. Its mirror (1 − X_DROP) is where the
- * unlocking ends.
+ * The turn the wheel is on, so that a beat advances it half a pitch.
  *
- * The stages are cut at thirds of the EASED progress `ss`, not of time, so their widths
- * in time are unequal — the impulse, easing fastest, is the narrowest of the four at
- * about 0.054 beat. Hence these offsets are solved rather than chosen.
+ * Each stone's action is written about its own lock, and the two locks stand two and a
+ * half pitches apart. Adding the right whole number of pitches turns those two local
+ * accounts into one running angle — and that the step comes out at half a pitch exactly is
+ * the escapement's own doing, not an adjustment made here.
  */
-const X_DROP = smoothInv(2 / 3);
+const turnOf = (n) => (((n % 2) + 2) % 2 === 0 ? n / 2 : (n - 1) / 2 - 2);
+
 /**
- * The middle of a stage, as an offset from the beat: the unlocking's is at −MID_OFF, the
- * impulse's at the beat itself, the drop's at +MID_OFF, and the lock's at the
- * half-integer where the fork rests on its banking pin.
+ * The balance: a sine, zero twice per beat — the escaping happens at the zero.
+ *
+ * It swings the way it does because the wheel does not get a choice. The teeth travel
+ * anticlockwise and the pallets were traced from that, so the lever has to cross from the
+ * entry pallet's banking on the even beats; the pin can only carry it that way round if
+ * the balance turns this way. Flip the sign and the exhibit runs its stages backwards.
  */
-const MID_OFF = FLIP_W * X_DROP;
-/** Where the drop begins, as an offset from the beat — the pallets change hands here. */
-const DROP_START = FLIP_W * (2 * X_DROP - 1);
+export function balanceAngle(u, ampDeg) {
+  const amp = ampDeg === undefined ? AMPLITUDE : (ampDeg * Math.PI) / 180;
+  return -amp * Math.sin(Math.PI * u);
+}
+
+/**
+ * Everything at time `u`, in beats: the balance, the lever, the wheel, the stage and the
+ * stone doing the work.
+ *
+ * The lever's progress across its travel is decided by the pin. The notch's two flanks
+ * give two contacts; the lever lies on the trailing one while it is being pushed and on
+ * the leading one once it is running ahead. With the pin out of the notch there is nothing
+ * to push it, so it stands on a banking and the wheel is locked.
+ */
+export function pose(u) {
+  const n = Math.round(u);
+  const beatFace = faceOfBeat(n);
+  const a = action(beatFace);
+  const theta = balanceAngle(u);
+  const roots = [1, -1]
+    .map((side) => leverFromPin(theta, side))
+    .filter((x) => x !== null)
+    .map((psi) => clamp(a.dir * (psi - a.bank), 0, TRAVEL)); // progress, held by the bankings
+  const engaged = roots.length > 0;
+  let p;
+  if (!engaged) p = u < n ? 0 : TRAVEL;            // before the crossing, or home after it
+  else {
+    const lo = Math.min(...roots), hi = Math.max(...roots);
+    p = lo <= a.uUnlock * TRAVEL ? lo : hi;
+  }
+  const t = p / TRAVEL;
+  const d = poseAt(beatFace, t);
+  // Out of the notch and past the crossing, the tooth is already sitting on the NEXT
+  // stone's lock: the stone being named is the one holding, not the one that just let go.
+  const holding = !engaged && u > n ? faceOfBeat(n + 1) : beatFace;
+  return {
+    u: t,
+    theta,
+    face: holding,
+    lever: d.lever,
+    wheel: d.wheel + turnOf(n) * PITCH,
+    phase: !engaged || t <= 0 ? 'lock' : d.phase,
+  };
+}
+
+/** The wheel's angle at time `u`. */
+export const wheelAngle = (u) => pose(u).wheel;
+/** The lever's angle at time `u`. */
+export const forkAngle = (u) => pose(u).lever;
+/** What is happening at time `u`: lock → unlock → impulse → drop. */
+export const phaseName = (u) => pose(u).phase;
+/** Which stone is doing the work — or holding the lock, between beats. */
+export const activePallet = (u) => pose(u).face;
+
+let MARKS = null;
+/**
+ * The middle of each stage of a beat, as offsets from the beat's start.
+ *
+ * There is no schedule left to read the boundaries off, so they are found the only honest
+ * way there is: walk a beat finely, watch where the stage changes, and take the middle of
+ * each run. Solved once — the beats are alike.
+ */
+function beatMarks() {
+  if (MARKS) return MARKS;
+  const N = 4000;
+  const runs = [];
+  for (let i = 0; i <= N; i++) {
+    const u = -0.5 + i / N;
+    const ph = phaseName(u);
+    const last = runs[runs.length - 1];
+    if (!last || last.phase !== ph) runs.push({ phase: ph, from: u, to: u });
+    else last.to = u;
+  }
+  // The window opens and closes inside the lock, so the lock arrives as two runs that are
+  // one stage: join them round the edge, or «Step» would stop twice in the same state.
+  const spans = runs.map((r) => ({ phase: r.phase, from: r.from + 0.5, to: r.to + 0.5 }));
+  if (spans.length > 1 && spans[0].phase === spans[spans.length - 1].phase) {
+    const first = spans.shift();
+    const last = spans[spans.length - 1];
+    last.to = first.to + 1;
+  }
+  MARKS = spans
+    .map((r) => ({ phase: r.phase, at: (((r.from + r.to) / 2) % 1 + 1) % 1 }))
+    .sort((x, y) => x.at - y.at);
+  return MARKS;
+}
+
+/** The stages of a beat and where their middles fall — for the panel and the tests. */
+export const stages = () => beatMarks().map((m) => ({ ...m }));
 
 /**
  * The next stage's middle, in beats — what one press of «Step» advances to.
  *
- * A uniform step cannot do this job. It was ⅛ of a beat, wider than the impulse it was
- * meant to reveal, so stepping jumped straight from unlocking to drop and the exhibit
- * could not show the stage it exists for. Widening the window or shrinking the step
- * would only move the collision: the fix is that there is no step constant any more.
- * Each press lands in the MIDDLE of the next stage, so every stage is visited exactly
- * once per beat, as far from its own boundaries as the stage allows.
+ * A uniform step cannot do this job: the stages are of very different lengths, and the
+ * shortest of them is a small fraction of a beat, so any fixed step wide enough to be
+ * useful would jump straight over it (issue #39). Each press lands in the MIDDLE of the
+ * next stage instead, as far from its own boundaries as the stage allows.
  */
 export function stepFrom(u) {
-  const n = Math.round(u);
-  const mids = [];
-  for (const k of [n - 1, n, n + 1]) mids.push(k - MID_OFF, k, k + MID_OFF, k + 0.5);
-  return mids.find((m) => m > u + 1e-9) ?? u + 0.5;
-}
-
-/**
- * The pallet doing the work. Locks sit on half-integers and each is held by a pallet in
- * turn; an even index is the entry pallet — a convention taken from the first frame,
- * where the seating was measured on it.
- *
- * The handover is at the DROP, not at the beat. One pallet is unlocked and then
- * impulsed — the same stone through both stages — and only when the tooth falls does the
- * other receive it. The rounding used to hand over half a window early, at the beat
- * itself; nothing showed it while a step of ⅛ beat skipped over that point, and the
- * moment stepping landed on the beat exactly, the caption sat on a discontinuity: the
- * name flipped between two frames of the same impulse.
- */
-export function activePallet(u) {
-  const n = Math.round(u);
-  const held = u < n + DROP_START ? n - 1 : n; // the lock that is working
-  return ((held % 2) + 2) % 2 === 0 ? 'entry' : 'exit';
+  const marks = beatMarks();
+  // The marks are offsets into a beat's window, and a beat's window runs from one lock to
+  // the next — from half a beat before the crossing to half a beat after it.
+  const start = Math.floor(u) - 1;
+  for (let k = start; k < start + 4; k++) {
+    for (const m of marks) {
+      const w = k - 0.5 + m.at;
+      if (w > u + 1e-9) return w;
+    }
+  }
+  return u + 0.5;
 }

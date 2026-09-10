@@ -51,10 +51,23 @@ movement. Inside the movement the escapement runs at movement scale and at movem
 speed, where lock, unlock, impulse and drop blur into one flip; here one lever
 escapement stands alone, large, with its own play/pause, a step that advances to the
 middle of the next stage, a way back to the home view, and a readout naming the current
-phase and the pallet doing the work. The pallet stones
-are not drawn by eye: each stone's seat is solved so its locking corner sits on the tip
-of the tooth that locks it, and the first frame is posed on a measured lock angle. It
-shares no code with the movement's escapement — see *Source layout*.
+phase and the pallet doing the work.
+
+**It runs on contact, not on a schedule.** The balance is the input; its pin drives the
+lever through the notch; the lever's travel is what the pallets were traced from, so the
+wheel's angle follows from the faces rather than from an eased window. Who pushes whom
+changes at the release, and so does the flank of the notch in contact — the balance
+drives the lever off the lock, then the wheel drives the lever, which runs ahead and is
+held back by the other flank, and that is how the impulse reaches the balance.
+
+The pallets are the **conjugate profiles** of that action: for every lever angle in a
+phase, the acting tooth's toe is put where the phase says the wheel stands, and the run
+of those places is the face. So a beat advances the wheel by exactly half a pitch — a
+result of the pallets spanning two and a half teeth, written down nowhere — the draw
+comes out at the 12° it was asked for, and the lift at the 50° the pin's orbit was solved
+for. Two figures are magnified four times, because a real lock and a real drop would be
+invisible at this size: the panel says so. It shares no code with the movement's
+escapement — see *Source layout*.
 
 The interface is Ukrainian and English, including the 3D labels; wheel names follow
 horological usage rather than literal translation.
@@ -316,9 +329,12 @@ The escapement exhibit is not a module of the movement and imports nothing from 
 
 ```text
 src/showcase/
-  leverModel.js    the exhibit's geometry: wheel, fork with solved pallet seats,
-                   balance with roller and impulse pin, banking bridge, stand
-  motion.js        its phase machine: lock → unlock → impulse → drop
+  design.js        the escapement itself: the geometry and the contact. The pallets
+                   are traced from the action, so the shapes and the poses are one
+                   solution; no meshes here and no time
+  leverModel.js    the meshes: the wheel, the lever cut as one piece, the balance
+                   with its roller and impulse pin, the banking bridge, the stand
+  motion.js        the running: the balance drives the lever, the lever the wheel
   spring.js        its hairspring
   bar.js           the controls, inside the scene (showcase CSS hides all else)
 ```

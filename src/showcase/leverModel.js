@@ -1,5 +1,10 @@
 import * as THREE from 'three';
-import { wheelAngle, forkAngle, balanceAngle, activePallet } from './motion.js';
+import { pose } from './motion.js';
+import {
+  TEETH, WHEEL_R, WHEEL_ROOT, PITCH, FORK_D, BAL_D, LEVER_HALF,
+  NOTCH_D, NOTCH_HALF, NOTCH_DEPTH, PIN_ORBIT, PIN_R, SAFETY_R, GUARD_R, GUARD_D,
+  toothPoly, stonePoly, faceLocus, polar,
+} from './design.js';
 import { buildSpring, SPRING_R1 } from './spring.js';
 
 /**
@@ -24,167 +29,97 @@ import { buildSpring, SPRING_R1 } from './spring.js';
  *   end in a fixed stud.
  * The hairspring illustrates breathing, it does not model the regulator (see `spring.js`).
  *
- * The exact face angles are solved, not nominal: the stone stands as a column above the
- * wheel, the locking corner seats on the lock's tip (seatPallet), and the impulse face
- * then follows the tip's retreat. The geometry hands the phase machine the pivot groups
- * and the stones — it needs nothing else.
+ * **Nothing about the escapement's geometry is decided in this file.** The teeth, the
+ * pallet stones, the notch, the pin and their clearances all come from `design.js`, which
+ * traces the pallets from the action they have to perform. This file gives those outlines
+ * a thickness, hangs them off the right pivots and lights the stone that is working.
+ * Where a number appears below it is a number about the MODEL — how tall the plinth is,
+ * how thick the rim reads — never about the escapement.
  */
 
-export const TEETH = 15;
-export const WHEEL_R = 1.5;
-const WHEEL_ROOT = 0.95;
+export { TEETH, WHEEL_R, FORK_D, BAL_D };
+
+// Numbers about the MODEL, not about the escapement: how thick a part reads, how high it
+// sits. The escapement's own figures live in design.js.
 const WHEEL_T = 0.35;
-/** A stick tooth: the width of tip/base and the lean with the travel, as fractions of a pitch; tip — the outer fraction of the tooth's height standing radial. */
-const CLUB_TOOTH = { tw: 0.18, bw: 0.3, lean: 0.5, tip: 0.2 };
-
-/** W→P: the fork's pivot. P→B: the balance's axis (the fork's travel fits between them). */
-export const FORK_D = 2.35;
-export const BAL_D = 2.0;
-
-/**
- * The stones stand as a column ABOVE the wheel and reach into the tooth band with the
- * locking corner only: the earlier seating (centre inside the band) hid a tip inside the
- * body (−0.46 at lock) — no rotation of the whole stone cured that, because the body is
- * 0.34×0.62 across the teeth's path. Contact is by corner A, with a micro-clearance EPS.
- *
- * The zone (an angle) says WHICH tip to catch: the one nearest the zone at the moment of
- * lock. The exact position and rotation come from seatPallet() solving for them rather
- * than from numbers: the corner seats on the tip, the face gets its DRAW.
- */
-const PALLET_ANG = (26 * Math.PI) / 180;
-const EXIT_ANG = (30.65 * Math.PI) / 180;
-// Seating the drop (why the exit one is not a mirrored ±26°): the exit lock's zero minus
-// the entry lock's zero must equal half a tooth — otherwise one phase does not seat both.
-// Measured: 30.65° (zeros 22.45°/10.75°, a difference of 11.7° against the required 12° —
-// the remaining 0.3° is split evenly by minimax). The anticlockwise direction of travel
-// breaks the pair's mirror symmetry.
-const JEWEL_W = 0.28;
-const JEWEL_H = 0.62;
-const JEWEL_T = 0.5;
-/** The nominal draw angle of the locking face from the radius. */
-const LOCK_DRAW = (10 * Math.PI) / 180;
-/** The length of the locking bevel from the corner; beyond it, the impulse face. */
-const LOCK_LEN = 0.07;
-/** The impulse face's length: the tip slides down it for the whole unlocking. */
-const IMP_LEN = 0.35;
-/** The contact micro-clearance: the face touches, the bodies do not intersect. */
-const SEAT_EPS = 0.004;
-/**
- * The measured rotations of a stone in the fork's frame and the angles of the impulse
- * faces (local, from the outline's +x). Method: the scan .openchamber/seat10.mjs —
- * seating the corner on the lock's tip, minimax of the intersection over a FULL cycle
- * (the entry and exit halves separately — the optimum keeps the entry engagement).
- * Entry −31°/128° (cycle −0.024, against +0.025), exit −110°/122° (cycle −0.040, against
- * +0.058). What remains is a staged touch at the moment of drop/unlocking, not a pass
- * straight through: the bodies do not hide the teeth. The asymmetry comes from the teeth
- * leaning with the travel: there is no mirror here, just as there was none in the exit zone.
- */
-const SEAT = {
-  entry: { rot: (-31 * Math.PI) / 180, imp: (128 * Math.PI) / 180 },
-  exit: { rot: (-110 * Math.PI) / 180, imp: (122 * Math.PI) / 180 },
-};
-/** The stone's geometry — for the seating tests, so the numbers are not duplicated. */
-export const JEWEL_GEOM = { w: JEWEL_W, h: JEWEL_H, lean: Math.tan(LOCK_DRAW) * JEWEL_H, lockLen: LOCK_LEN };
-
-/** The fork's body above the wheel; the roller's pin hangs down into the slot. */
+/** The fork's body above the wheel; the roller's pin hangs down into its notch. */
 const FORK_Z = 0.85;
 /** The balance wheel's plane: the rim, the roller table as its centre, and the spokes. */
 const RIM_Z = 1.55;
-/** The balance wheel's radius — wider than the classic proportion, on the same axis. */
 const BAL_RIM_R = 1.75;
 /** The rim's rectangular section: half the radial width and half the height. */
 const RIM_HALF = 0.06;
 const RIM_H_HALF = 0.11;
-const ROLLER_R = 0.55;
-/** The impulse pin hangs from the table into the slot, spanning the horns at FORK_Z. */
+/** The stone's thickness across the wheel's plane, and how high it hangs. */
+const STONE_T = 0.5;
+const STONE_Z = 0.1;
+/** The impulse pin hangs from the roller table down into the notch at FORK_Z. */
 const PIN_TOP = RIM_Z - 0.09;
 const PIN_BOTTOM = 0.4;
-const PIN_R = 0.42;   // the impulse pin's orbit about the balance axis
-const STONE_R = 0.09;
 
-const polar = (r, a) => [Math.cos(a) * r, Math.sin(a) * r];
 const rot2 = ([x, y], a) => [x * Math.cos(a) - y * Math.sin(a), x * Math.sin(a) + y * Math.cos(a)];
 
 /**
- * A stone's local outline: A (the locking corner) → K (the end of the bevel carrying the
- * draw) → M (the impulse face, along the tip's retreat — the direction measured by
- * tracing the relative motion, seat8.mjs: 134°/124°) → the outer body. The module's own
- * figure: the guards in the tests compose from it rather than duplicating the outline.
+ * The lever, as ONE outline.
+ *
+ * It used to be a boss with plates bolted to it — a shank, two arms, two prongs — and it
+ * read as exactly that: an assembly of primitives standing in for a part. A real lever is
+ * a single stamping, and the way to make that legible is not to shade it better but to cut
+ * it as one closed curve: the boss, the two pallet arms embracing the wheel, the shank out
+ * to the horns with the notch between them, and the counterpoise behind the pivot.
+ *
+ * Each limb is a tapered blade from the boss to a tip, and between the limbs the boundary
+ * follows the boss itself, so the arms grow out of the body instead of meeting it. The
+ * shank's tip is the exception: it opens into the notch, whose half-width and depth are the
+ * ones the contact is solved with, so what the pin touches on the screen is what the pin
+ * touches in the model.
  */
-export function palletOutline(imp) {
-  const w = JEWEL_W / 2, h = JEWEL_H / 2;
-  const lean = Math.tan(LOCK_DRAW) * JEWEL_H;
-  const A = [-w, -h];
-  const e = norm2([lean, 2 * h]);
-  const K = [A[0] + (lean / e) * LOCK_LEN, A[1] + ((2 * h) / e) * LOCK_LEN];
-  const M = [K[0] + Math.cos(imp) * IMP_LEN, K[1] + Math.sin(imp) * IMP_LEN];
-  return [A, K, M, [-w + lean, h], [w, h - 0.3], [w, -h]];
+function leverOutline(limbs, boss) {
+  const pts = [];
+  const unit = (a) => [Math.cos(a), Math.sin(a)];
+  const arc = (from, to) => {
+    let d = to - from;
+    while (d < 0) d += Math.PI * 2;
+    const n = Math.max(2, Math.ceil((d / (Math.PI * 2)) * 40));
+    for (let i = 0; i <= n; i++) {
+      const [x, y] = unit(from + (d * i) / n);
+      pts.push([x * boss, y * boss]);
+    }
+  };
+  const sorted = [...limbs].sort((a, b) => a.at - b.at);
+  sorted.forEach((limb, i) => {
+    const d = unit(limb.at);
+    const n = [-d[1], d[0]];                       // to the limb's left
+    const at = (along, across) => [d[0] * along + n[0] * across, d[1] * along + n[1] * across];
+    pts.push(at(boss * 0.98, -limb.root));         // the right root, on the boss
+    if (limb.notch) {
+      const { half, depth, tip } = limb.notch;     // the horns and the slot between them
+      pts.push(at(limb.len - depth - 0.05, -limb.tip));
+      pts.push(at(limb.len + tip, -limb.tip));
+      pts.push(at(limb.len + tip, -half));
+      pts.push(at(limb.len - depth, -half));
+      pts.push(at(limb.len - depth, half));
+      pts.push(at(limb.len + tip, half));
+      pts.push(at(limb.len + tip, limb.tip));
+      pts.push(at(limb.len - depth - 0.05, limb.tip));
+    } else {
+      pts.push(at(limb.len - limb.tip * 0.5, -limb.tip));
+      pts.push(at(limb.len, -limb.tip * 0.55));    // a blunt, rounded end
+      pts.push(at(limb.len, limb.tip * 0.55));
+      pts.push(at(limb.len - limb.tip * 0.5, limb.tip));
+    }
+    pts.push(at(boss * 0.98, limb.root));          // the left root, back on the boss
+    // The boss shows between limbs, and only between them: the sweep is half the gap at
+    // most. Taken as a fixed quarter turn it ran the wrong way round the circle whenever
+    // two limbs stood closer than that, and the outline crossed itself.
+    const next = sorted[(i + 1) % sorted.length];
+    let gap = next.at - limb.at;
+    while (gap <= 0) gap += Math.PI * 2;
+    const spread = Math.min(Math.PI / 2 - 0.35, gap / 2 - 0.05);
+    if (spread > 0) arc(limb.at + spread, next.at - spread);
+  });
+  return pts;
 }
-const norm2 = ([x, y]) => Math.hypot(x, y);
-
-/** A wheel tooth in the wheel's frame: the stick leans with the travel, but its outer
- * TIP fraction stands radial — the end straightens while the tip itself does not move, so
- * the middle stays exactly at (WHEEL_R, i·pitch) and the lock seating (measured along that
- * alone) is untouched. One source for the wheel's outline and the guards: the test builds
- * its polygons from this, not from a copy. */
-export function clubToothPoly(i) {
-  const step = (Math.PI * 2) / TEETH;
-  const { tw: TW, bw: BW, lean: LEAN, tip: TIP } = CLUB_TOOTH;
-  const a = i * step;
-  const rS = WHEEL_R - TIP * (WHEEL_R - WHEEL_ROOT); // where the lean ends
-  const d = (TW / 2) * step; // the radial tip's half-width: the tip chord is unchanged
-  return [
-    polar(WHEEL_ROOT, a - (LEAN + BW / 2) * step), // the trailing base
-    polar(rS, a - d), // the bend: radial from here to the tip
-    polar(WHEEL_R, a - d), // the trailing corner of the tip
-    polar(WHEEL_R, a + d), // the leading corner of the tip
-    polar(rS, a + d), // the bend on the leading face
-    polar(WHEEL_ROOT, a - (LEAN - BW / 2) * step), // the leading base
-  ];
-}
-
-/**
- * Seating a stone in the fork's frame by solving: which tip — the one nearest the zone at
- * the moment of lock; corner A seats on it with a micro-clearance along the bevel's outer
- * normal; the rotation and the impulse are measured (SEAT). The fork's arms reach for that
- * same point, so the assembly does not drift away from the seating.
- */
-function seatPallet(face) {
-  // The exit zone is below the line of centres (−EXIT_ANG): the minus is left over from
-  // the old `side`, and without it the seating catches a tooth of the upper half.
-  const zone = face === 'entry' ? PALLET_ANG : -EXIT_ANG;
-  const lockU = face === 'entry' ? 0.5 : 1.5;
-  const { rot, imp } = SEAT[face];
-  const wAng = wheelAngle(lockU), fAng = forkAngle(lockU);
-  const step = (Math.PI * 2) / TEETH;
-  let tip = 0, best = Infinity;
-  for (let i = 0; i < TEETH; i++) {
-    // A full circle, not mod the pitch: (zone − tooth_i) mod pitch does not depend on i.
-    const raw = (zone - (wAng + i * step)) % (Math.PI * 2);
-    const d = Math.abs(raw > Math.PI ? raw - Math.PI * 2 : raw < -Math.PI ? raw + Math.PI * 2 : raw);
-    if (d < best) { best = d; tip = i; }
-  }
-  const T = polar(WHEEL_R, wAng + tip * step);
-  // The outer normal comes from the bevel A→K itself, not from the lean formula: one source.
-  const [A, K] = palletOutline(imp);
-  const ex = K[0] - A[0], ey = K[1] - A[1];
-  const el = Math.hypot(ex, ey);
-  let nl = [ey / el, -ex / el];
-  if (nl[0] * (0 - A[0]) + nl[1] * (-0.075 - A[1]) > 0) nl = [-nl[0], -nl[1]];
-  const nw = rot2(rot2(nl, rot), fAng);
-  const target = [T[0] - SEAT_EPS * nw[0], T[1] - SEAT_EPS * nw[1]];
-  const rel = rot2([target[0] - FORK_D, target[1]], -fAng);
-  const off = rot2(A, rot);
-  return { x: rel[0] - off[0], y: rel[1] - off[1], rot, imp, tip };
-}
-
-/**
- * The lock phase: a constant extra rotation of the wheel, so a tip seats on the locking
- * face. Measured by minimax over both locks (between them the wheel travels exactly half
- * a tooth — the exit one is measured at δ + half a pitch): 22.58°, residual 0.004. At zero
- * the tip stands half a pitch past the stone. Staging of the first frame, not physics.
- */
-export const WHEEL_LOCK_PHASE = 0.3941;
 
 /** A box between two XY points at a given height. */
 function bar(from, to, w, t, z, material) {
@@ -207,25 +142,22 @@ function bar(from, to, w, t, z, material) {
  * along that alone, so re-profiling the faces and valleys does not disturb it.
  */
 function makeClubWheel(material) {
-  const step = (Math.PI * 2) / TEETH;
-  // Fractions of a pitch: TW — the tip's width, BW — the base's width, LEAN — the base's
-  // shift backwards (the stick's lean with the travel), TIP — the outer fraction standing
-  // radial. The numbers live in CLUB_TOOTH and the outline in clubToothPoly(): the wheel's
-  // shape and the polygon for the guards come from one source, otherwise the test
-  // checks a healthy copy.
-  const { lean: LEAN } = CLUB_TOOTH;
+  const step = PITCH;
+  // The outline comes from design.toothPoly(): the wheel's shape, the contact solution and
+  // the tests all read the same polygon, so none of them can check a healthy copy.
+  const LEAN = 0.5;                       // the valley's dip follows the stick's lean
   const VALLEY_R = WHEEL_ROOT * 0.88;
   const shape = new THREE.Shape();
   for (let i = 0; i < TEETH; i++) {
     const a = i * step;
-    const [tbc, tkn, ttc, ltc, lkn, lbc] = clubToothPoly(i);
+    const [tbc, tkn, heel, toeC, lkn, lbc] = toothPoly(i);
     const dip = polar(VALLEY_R, a + (0.5 - LEAN) * step); // the bottom of the valley
     if (i === 0) shape.moveTo(...tbc);
     else shape.lineTo(...tbc); // the trailing face up to the bend
     shape.lineTo(...tkn);
-    shape.lineTo(...ttc); // the radial end up to the tip
-    shape.lineTo(...ltc); // the flat tip, its middle exactly at (WHEEL_R, a)
-    shape.lineTo(...lkn); // the radial end down
+    shape.lineTo(...heel);  // the heel: where the tooth's own impulse plane starts
+    shape.lineTo(...toeC);  // up the impulse plane to the toe, the leading corner
+    shape.lineTo(...lkn);   // the radial end down
     shape.lineTo(...lbc); // the leading face down
     shape.lineTo(...dip); // the valley across to the next tooth
   }
@@ -253,19 +185,18 @@ function makeClubWheel(material) {
 }
 
 /**
- * A pallet stone as a broken outline: the locking bevel with its draw, the impulse face
- * along the tip's retreat, and a blind outer body. Both stones have the same shape (a
- * mirrored one would present a blind back — the exit seating then met at no phase at all);
- * the orientation comes from the seating's rotation, not from the shape.
+ * A pallet stone, extruded from the outline `design.js` traced for it. The outline is
+ * already in the lever's frame, so the stone needs no seating of its own: it is added to
+ * the fork's group where it stands.
  */
-function makePallet(material, imp) {
-  const pts = palletOutline(imp);
+function makeStone(material, face) {
+  const pts = stonePoly(face);
   const s = new THREE.Shape();
   s.moveTo(...pts[0]);
   for (const p of pts.slice(1)) s.lineTo(...p);
   s.closePath();
-  const geo = new THREE.ExtrudeGeometry(s, { depth: JEWEL_T, bevelEnabled: false });
-  geo.translate(0, 0, -JEWEL_T / 2);
+  const geo = new THREE.ExtrudeGeometry(s, { depth: STONE_T, bevelEnabled: false });
+  geo.translate(0, 0, -STONE_T / 2);
   const mesh = new THREE.Mesh(geo, material);
   mesh.castShadow = true;
   return mesh;
@@ -321,13 +252,7 @@ export function buildShowcase() {
   // solved seats; the arms only reach for them.
   const forkPivot = new THREE.Group();
   forkPivot.position.set(FORK_D, 0, 0);
-  const boss = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.4, 16), steel);
-  boss.rotation.x = Math.PI / 2;
-  boss.position.z = FORK_Z;
-  boss.castShadow = true;
-  forkPivot.add(boss);
-
-  // A flat plate from a corner list, at the fork's height.
+  const BOSS_R = 0.3;
   const plate = (pts, t) => {
     const s = new THREE.Shape();
     s.moveTo(...pts[0]);
@@ -340,54 +265,52 @@ export function buildShowcase() {
     m.castShadow = true;
     return m;
   };
-  // The shank: the counterweight lobe behind the pivot, tapering out to the slot.
-  forkPivot.add(plate([[-0.95, 0.3], [1.5, 0.12], [1.5, -0.12], [-0.95, -0.3]], 0.24));
+  // The lever is cut as ONE piece: the arms reach the corners design.js traced, the shank
+  // carries the notch the contact is solved with, and the counterpoise balances the arms.
+  const corners = { entry: faceLocus('entry').corner, exit: faceLocus('exit').corner };
+  const limbs = [
+    {
+      at: 0, len: NOTCH_D, root: 0.2, tip: NOTCH_HALF + 0.12,
+      notch: { half: NOTCH_HALF, depth: NOTCH_DEPTH, tip: 0.13 },
+    },
+    { at: Math.PI, len: 0.52, root: 0.24, tip: 0.3 },   // the counterpoise
+    ...['entry', 'exit'].map((face) => ({
+      at: Math.atan2(corners[face][1], corners[face][0]),
+      len: Math.hypot(corners[face][0], corners[face][1]),
+      root: 0.2, tip: 0.15,
+    })),
+  ];
+  forkPivot.add(plate(leverOutline(limbs, BOSS_R), 0.26));
+  const bossHole = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 1.4, 12), darkSteel);
+  bossHole.rotation.x = Math.PI / 2;
+  bossHole.position.z = FORK_Z - 0.35;
+  forkPivot.add(bossHole);
 
   const jewels = {};
-  const jewelZ = 0.1;
-  // Each stone's seating is a solution of seatPallet(): the corner on the lock's tip.
-  // The arms reach for that same point — the assembly does not drift from the seating.
+  // The stones stand where design.js traced them; the arms are built to reach that same
+  // place, so the assembly cannot drift away from the geometry it is drawn from.
   for (const face of ['entry', 'exit']) {
-    const seat = seatPallet(face);
-    // The stone's material is its own instance: highlighting the active pair dims and
-    // lights the stones separately, which a shared material cannot do.
-    const stone = makePallet(ruby.clone(), seat.imp);
-    stone.position.set(seat.x, seat.y, jewelZ);
-    stone.rotation.z = seat.rot;
-    stone.userData.pallet = { face, imp: seat.imp };
+    // The stone's material is its own instance: highlighting the working stone dims and
+    // lights them separately, which a shared material cannot do.
+    const stone = makeStone(ruby.clone(), face);
+    stone.position.z = STONE_Z;
+    stone.userData.pallet = { face };
     forkPivot.add(stone);
     jewels[face] = stone;
-    // The pallet arm: a tapered plate from inside the shank out to the stone's seat,
-    // and a post down to the stone.
-    const l = Math.hypot(seat.x, seat.y);
-    const nx = -seat.y / l, ny = seat.x / l; // across the arm
-    const bx = (-seat.x / l) * 0.1, by = (-seat.y / l) * 0.1; // rooted behind the pivot
-    forkPivot.add(plate(
-      [[bx + nx * 0.19, by + ny * 0.19],
-       [seat.x + nx * 0.13, seat.y + ny * 0.13],
-       [seat.x - nx * 0.13, seat.y - ny * 0.13],
-       [bx - nx * 0.19, by - ny * 0.19]], 0.26));
-    const post = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.24, FORK_Z - jewelZ), steel);
-    post.position.set(seat.x, seat.y, (FORK_Z + jewelZ) / 2);
+    // The arm is part of the forging; what is left here is the post that carries the stone
+    // down from the lever's plane into the wheel's.
+    const corner = faceLocus(face).corner;
+    const post = new THREE.Mesh(new THREE.BoxGeometry(0.2, 0.2, FORK_Z - STONE_Z), steel);
+    post.position.set(corner[0], corner[1], (FORK_Z + STONE_Z) / 2);
     post.castShadow = true;
     forkPivot.add(post);
   }
-  // The fork slot: two flared prongs embracing the impulse pin (it rides at fork-local
-  // x≈1.58). The throat (±0.10) matches the old horns; the mouth flares to ±0.15, as on
-  // a real fork — and the pin passes it with room to spare.
-  const tailEnd = FORK_D + BAL_D - PIN_R; // the world X of the roller's pin
-  for (const s of [1, -1]) {
-    forkPivot.add(plate([[1.35, s * 0.24], [2.0, s * 0.24], [2.0, s * 0.15], [1.42, s * 0.1]], 0.26));
-  }
-  const guard = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.34, 8), darkSteel);
+  // The guard pin, with its true clearance to the safety roller. It does not act yet — the
+  // safety action is its own piece of work — but it stands where it would.
+  const guard = new THREE.Mesh(new THREE.CylinderGeometry(GUARD_R, GUARD_R, 0.34, 10), darkSteel);
   guard.rotation.x = Math.PI / 2;
-  guard.position.set(tailEnd - FORK_D - 0.35, 0, FORK_Z);
+  guard.position.set(GUARD_D, 0, FORK_Z - 0.2);
   forkPivot.add(guard);
-  const counter = new THREE.Mesh(new THREE.CylinderGeometry(0.35, 0.35, 0.2, 16), steel);
-  counter.rotation.x = Math.PI / 2;
-  counter.position.set(-0.55, 0, FORK_Z);
-  counter.castShadow = true;
-  forkPivot.add(counter);
   group.add(forkPivot);
 
   // ── The banking bridge: the limiting pins stand on it, not in the air. Two slim
@@ -405,10 +328,13 @@ export function buildShowcase() {
   bridgeBar(1.45, 0.12, 3.025, 0.2);
   bridgeBar(1.45, 0.12, 3.025, -0.2);
   bridgeBar(0.18, 0.64, FORK_D, 0); // the cross-piece embracing the fork's post
+  // The pins stand where the shank reaches them at the end of its travel: half the shank's
+  // width plus the arm times the tangent of the swing. Move the swing and they follow.
+  const bankArm = 1.0;
   for (const s of [1, -1]) {
     const pin = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.5, 8), darkSteel);
     pin.rotation.x = Math.PI / 2;
-    pin.position.set(FORK_D + 1.0, s * 0.2, FORK_Z); // the foot on the bridge (0.60)
+    pin.position.set(FORK_D + bankArm, s * (0.12 + bankArm * Math.tan(LEVER_HALF)), FORK_Z);
     group.add(pin);
   }
 
@@ -421,14 +347,21 @@ export function buildShowcase() {
   staff.rotation.x = Math.PI / 2;
   staff.position.z = 0.9;
   balancePivot.add(staff);
-  const roller = new THREE.Mesh(new THREE.CylinderGeometry(ROLLER_R, ROLLER_R, 0.18, 32), steel);
+  // The roller table carries the impulse pin; below it the safety roller, whose radius and
+  // clearance the guard pin is built to (design.js). Both turn with the balance.
+  const roller = new THREE.Mesh(new THREE.CylinderGeometry(PIN_ORBIT + 0.16, PIN_ORBIT + 0.16, 0.18, 32), steel);
   roller.rotation.x = Math.PI / 2;
   roller.position.z = RIM_Z;
   roller.castShadow = true;
   balancePivot.add(roller);
-  const jewel = new THREE.Mesh(new THREE.CylinderGeometry(STONE_R, STONE_R, PIN_TOP - PIN_BOTTOM, 10), ruby);
+  const safety = new THREE.Mesh(new THREE.CylinderGeometry(SAFETY_R, SAFETY_R, 0.16, 32), steel);
+  safety.rotation.x = Math.PI / 2;
+  safety.position.z = FORK_Z;
+  safety.castShadow = true;
+  balancePivot.add(safety);
+  const jewel = new THREE.Mesh(new THREE.CylinderGeometry(PIN_R, PIN_R, PIN_TOP - PIN_BOTTOM, 12), ruby);
   jewel.rotation.x = Math.PI / 2;
-  jewel.position.set(-PIN_R, 0, (PIN_TOP + PIN_BOTTOM) / 2);
+  jewel.position.set(-PIN_ORBIT, 0, (PIN_TOP + PIN_BOTTOM) / 2);
   jewel.castShadow = true;
   balancePivot.add(jewel);
   // The rim is a rectangular band, not a round wire: an extruded annulus, so the
@@ -504,9 +437,10 @@ export function buildShowcase() {
   stud.castShadow = true;
   group.add(stud);
 
-  // The first frame's seating — a lock on the entry pallet (u=0.5: a half-integer is a
-  // locked state, the wheel's phase exactly WHEEL_LOCK_PHASE, the highlight already on it).
-  update(0.5);
+  // The first frame is a lock — a half-integer beat is the middle of one — and 1.5 rather
+  // than 0.5 so the stone holding it is the entry pallet, which is where the exhibit's
+  // description starts the story.
+  update(1.5);
 
   group.visible = false;
 
@@ -521,14 +455,13 @@ export function buildShowcase() {
    * are a stop and a manual advance of `u`, and no state accumulates anywhere.
    */
   function update(u) {
-    const bal = balanceAngle(u);
-    wheelPivot.rotation.z = wheelAngle(u);
-    forkPivot.rotation.z = forkAngle(u);
-    balancePivot.rotation.z = bal;
-    spring.update(bal);
-    const active = activePallet(u);
+    const p = pose(u);
+    wheelPivot.rotation.z = p.wheel;
+    forkPivot.rotation.z = p.lever;
+    balancePivot.rotation.z = p.theta;
+    spring.update(p.theta);
     for (const [face, stone] of Object.entries(jewels))
-      stone.material.emissiveIntensity = face === active ? 0.9 : 0.25;
+      stone.material.emissiveIntensity = face === p.face ? 0.9 : 0.25;
   }
 
   return { group, home, update, wheelPivot, forkPivot, balancePivot, jewels };

@@ -25,6 +25,28 @@ A third mode, one language, one snapshot fewer.
   outside the two dictionaries that are the Ukrainian interface copy, plus the
   language switch's own label. Sabotage-verified.
 
+- **The exhibit's escapement runs on contact.** The balance is the input, its pin
+  drives the lever, and the wheel follows the pallets — which are no longer
+  shapes with chosen angles but the **conjugate profiles of the action**: for
+  every lever angle in a phase, the acting tooth's toe is put where the phase
+  says the wheel stands, and the run of those places is the face. Contact
+  through the phase is then true by construction, and a polygon intersection
+  that knows nothing of the construction checks it.
+
+  What comes out of it, measured rather than set: a beat advances the wheel
+  exactly half a pitch (a result of the pallets spanning two and a half teeth,
+  written down nowhere); the draw is the 12° a watchmaker would specify, with
+  the recoil solved from it per stone; the lift is the 50° the pin's orbit was
+  solved for. The impulse is not a choice at all — a beat moves the wheel half a
+  pitch, so the impulse is what the recoil and the drop leave.
+
+  Two figures are magnified four times, because a real lock and a real drop
+  would be invisible at this size, and the panel tells the viewer so.
+- **The lever is cut as one piece** — boss, both pallet arms, the shank with the
+  notch, the counterpoise — instead of a boss with plates added to it. The arms
+  reach the corners the design traced and the notch is the one the contact is
+  solved with; only the widths are aesthetic.
+
 ### Fixed
 
 - **A step was wider than the stage it existed to show.** The step advanced a

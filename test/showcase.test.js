@@ -1,8 +1,15 @@
 import { describe, it, expect } from 'vitest';
 import * as THREE from 'three';
 import { readFileSync, readdirSync } from 'node:fs';
-import { buildShowcase, TEETH, WHEEL_R, FORK_D, BAL_D, WHEEL_LOCK_PHASE, JEWEL_GEOM, palletOutline, clubToothPoly } from '../src/showcase/leverModel.js';
-import { wheelAngle, forkAngle, balanceAngle, phaseName, activePallet, stepFrom, FORK_MAX, AMPLITUDE } from '../src/showcase/motion.js';
+import { buildShowcase, TEETH, WHEEL_R, FORK_D, BAL_D } from '../src/showcase/leverModel.js';
+import {
+  wheelAngle, forkAngle, balanceAngle, phaseName, activePallet, stepFrom, pose, stages,
+  FORK_MAX, AMPLITUDE,
+} from '../src/showcase/motion.js';
+import {
+  PITCH, LEVER_HALF, LEVER_UNLOCK, DRAW, LIFT, LIFT_MEASURED, action, poseAt, report,
+  stonePoly, toothPoly, toe, toWorld,
+} from '../src/showcase/design.js';
 import { buildSpring, SPRING_N, SPRING_R0, SPRING_R1 } from '../src/showcase/spring.js';
 
 const noNaN = (root) => {
@@ -14,6 +21,28 @@ const noNaN = (root) => {
     }
   });
   return ok;
+};
+
+/** Is a point inside a polygon, and how far from its boundary? The contact check leans on
+ *  these two and on nothing from `design.js`, so it can disagree with the construction. */
+const insidePoly = (pt, poly) => {
+  let hit = false;
+  for (let i = 0, k = poly.length - 1; i < poly.length; k = i++) {
+    const [xi, yi] = poly[i], [xk, yk] = poly[k];
+    if ((yi > pt[1]) !== (yk > pt[1]) && pt[0] < ((xk - xi) * (pt[1] - yi)) / (yk - yi) + xi) hit = !hit;
+  }
+  return hit;
+};
+const distToPoly = (pt, poly) => {
+  let best = Infinity;
+  for (let i = 0, k = poly.length - 1; i < poly.length; k = i++) {
+    const a = poly[k], b = poly[i];
+    const dx = b[0] - a[0], dy = b[1] - a[1];
+    const l2 = dx * dx + dy * dy;
+    const t = l2 ? Math.max(0, Math.min(1, ((pt[0] - a[0]) * dx + (pt[1] - a[1]) * dy) / l2)) : 0;
+    best = Math.min(best, Math.hypot(pt[0] - (a[0] + dx * t), pt[1] - (a[1] + dy * t)));
+  }
+  return best;
 };
 
 const byPallet = (m, face) => {
@@ -44,168 +73,88 @@ describe('lever escapement showcase (geometry)', () => {
     expect(m.balancePivot.position.y).toBeCloseTo(0, 12);
   });
 
-  it('at both locks a tip stands on the active pallet\'s bevel — entry and exit', () => {
-    // The same minimax that produced WHEEL_LOCK_PHASE and the exit seating, now as a
-    // guard: the exit lock is measured at δ + half a tooth, because the wheel advances
-    // between the locks. The contact is the short bevel A→K, not the whole face: the tip
-    // seats on the corner. Sabotage: a zero phase, or a bevel that misses the tip — and
-    // this test goes red.
-    const m = buildShowcase();
-    const l2w = (stone, x, y) => {
-      const v = new THREE.Vector3(x, y, 0).applyMatrix4(stone.matrixWorld);
-      return new THREE.Vector2(v.x, v.y);
-    };
-    const STEP = (Math.PI * 2) / TEETH;
-    const w = JEWEL_GEOM.w / 2, h = JEWEL_GEOM.h / 2;
-    const e = Math.hypot(JEWEL_GEOM.lean, 2 * h);
-    const kx = -w + (JEWEL_GEOM.lean / e) * JEWEL_GEOM.lockLen;
-    const ky = -h + ((2 * h) / e) * JEWEL_GEOM.lockLen;
-    for (const [u, face] of [[0.5, 'entry'], [1.5, 'exit'], [2.5, 'entry']]) {
-      m.update(u);
-      m.group.updateMatrixWorld(true);
-      const stone = byPallet(m, face)[0];
-      const A = l2w(stone, -w, -h), B = l2w(stone, kx, ky);
-      const ab = B.clone().sub(A);
-      const len2 = ab.lengthSq();
-      let best = Infinity;
-      for (let i = 0; i < TEETH; i++) {
-        const a = m.wheelPivot.rotation.z + i * STEP;
-        const p = new THREE.Vector2(1.5 * Math.cos(a), 1.5 * Math.sin(a));
-        const t = Math.max(0, Math.min(1, p.clone().sub(A).dot(ab) / len2));
-        best = Math.min(best, p.clone().sub(A.clone().addScaledVector(ab, t)).length());
+  it('the tooth stays on the acting stone through the whole engagement', () => {
+    // The pallets are traced from the action, so contact through it is true by
+    // construction. This test does not trust the construction: it walks the beat and
+    // measures, with a point-to-polygon distance that knows nothing about how the
+    // outline was arrived at.
+    for (const face of ['entry', 'exit']) {
+      const stone = stonePoly(face);
+      for (let i = 0; i <= 200; i++) {
+        const u = i / 200;
+        const { lever, wheel, phase } = poseAt(face, u);
+        if (phase === 'drop') continue;             // through the drop nothing is touching
+        const world = stone.map((q) => toWorld(q, lever));
+        const gap = distToPoly(toe(wheel), world);
+        // A hundredth of a millimetre at this scale. The face is a traced polyline, so the
+        // only gap that should exist is the sag of its chords: measured at 1e-5, and a
+        // tolerance a thousand times looser than the thing it guards guards nothing.
+        expect(gap, `${face} at u=${u.toFixed(3)} (${phase})`).toBeLessThan(1e-4);
       }
-      expect(best, `lock ${face}@${u}`).toBeLessThan(0.01);
-    }
-    expect(WHEEL_LOCK_PHASE).not.toBe(0);
-  });
-
-  it('the locking tip is OUTSIDE the stone\'s body: no burial', () => {
-    // Closeness to the face's line does not see burial: a tip inside the body is also a
-    // short distance from the face. This guard catches burial specifically.
-    // Sabotage: the old seating with the centre in the band — the tip is inside, red.
-    const m = buildShowcase();
-    const inside = ([x, y], poly) => {
-      let c = false;
-      for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
-        const [xi, yi] = poly[i], [xj, yj] = poly[j];
-        if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) c = !c;
-      }
-      return c;
-    };
-    for (const [u, face, tip] of [[0.5, 'entry', 0], [1.5, 'exit', 12]]) {
-      m.update(u);
-      m.group.updateMatrixWorld(true);
-      const stone = byPallet(m, face)[0];
-      const poly = palletOutline(stone.userData.pallet.imp).map(([x, y]) =>
-        new THREE.Vector3(x, y, 0).applyMatrix4(stone.matrixWorld));
-      const wA = m.wheelPivot.rotation.z;
-      const STEP = (Math.PI * 2) / TEETH;
-      const t = [WHEEL_R * Math.cos(wA + tip * STEP), WHEEL_R * Math.sin(wA + tip * STEP)];
-      expect(inside(t, poly.map((v) => [v.x, v.y])), `tip inside the body ${face}@${u}`).toBe(false);
     }
   });
 
-  it('the stones face the teeth with their locking face, not their back', () => {
-    // The top corner of the locking face is at minus-x locally (that is where the teeth
-    // come from). A mirrored stone puts its blind back there, and the lock guard does not
-    // see it: that one measures a line in space, not a physical edge. Sabotage: mirror the
-    // outline in x — and this test goes red while the lock one does not.
+  it('no tooth ever enters a stone', () => {
+    // The other half of the same claim, and the one that would catch a face drawn where
+    // the tooth cannot go: not a vertex of any tooth may be inside the stone's outline.
+    for (const face of ['entry', 'exit']) {
+      const stone = stonePoly(face);
+      let deepest = 0;
+      for (let i = 0; i <= 200; i++) {
+        const { lever, wheel } = poseAt(face, i / 200);
+        const world = stone.map((q) => toWorld(q, lever));
+        for (let k = -4; k <= 4; k++)
+          for (const v of toothPoly(k, wheel))
+            if (insidePoly(v, world)) deepest = Math.max(deepest, distToPoly(v, world));
+      }
+      expect(deepest, `${face}: a tooth is inside the stone`).toBeLessThan(1e-3);
+    }
+  });
+
+  it('the lock has depth, and it costs the lever the travel it was given', () => {
+    for (const face of ['entry', 'exit']) {
+      const a = action(face);
+      expect(a.uUnlock, face).toBeCloseTo(LEVER_UNLOCK / (2 * LEVER_HALF), 12);
+      // While the lock is pushed off the wheel GIVES BACK: that is the draw, and a lock
+      // that let the wheel forward instead would not be holding anything.
+      expect(a.wheel(a.uUnlock), face).toBeLessThan(a.wheel(0));
+    }
+  });
+
+  it('the draw on the entry stone is the angle it was asked for', () => {
+    // The face is traced, so its angle is a measurement of the result. The entry stone is
+    // held to the figure; the exit stone's comes out steeper on its own, and that is
+    // recorded in design.js rather than forced.
+    expect(Math.abs(report().entry.draw)).toBeCloseTo(DRAW, 4);
+    expect(Math.abs(report().exit.draw)).toBeGreaterThan(DRAW);
+  });
+
+  it('the traced faces are nearly straight — real pallets are a fair approximation', () => {
+    for (const face of ['entry', 'exit']) {
+      const m = report()[face];
+      expect(m.lockBend, `${face} lock`).toBeLessThan(0.002);
+      expect(m.impBend, `${face} impulse`).toBeLessThan(0.02);
+    }
+  });
+
+  it('the stones in the scene are the outlines the design traced', () => {
+    // One source: the mesh is extruded from stonePoly(), so a stone drawn anywhere else
+    // would be a picture of an escapement the contact solution knows nothing about.
     const m = buildShowcase();
     for (const face of ['entry', 'exit']) {
-      const stone = byPallet(m, face)[0];
+      const [stone] = byPallet(m, face);
+      expect(stone, face).toBeTruthy();
+      const want = stonePoly(face);
       const pos = stone.geometry.attributes.position;
-      let topY = -Infinity, topX = 0;
-      for (let i = 0; i < pos.count; i++) {
-        if (pos.getY(i) > topY) { topY = pos.getY(i); topX = pos.getX(i); }
+      let worst = Infinity;
+      for (const [x, y] of want) {
+        let best = Infinity;
+        for (let i = 0; i < pos.count; i++)
+          best = Math.min(best, Math.hypot(pos.getX(i) - x, pos.getY(i) - y));
+        worst = Math.min(worst, -best);
       }
-      expect(topY, `top of the stone ${face}`).toBeCloseTo(JEWEL_GEOM.h / 2, 6);
-      expect(topX, `wedge of the stone ${face}`).toBeLessThan(0);
+      expect(-worst, `${face}: the mesh does not follow the traced outline`).toBeLessThan(1e-6);
     }
-  });
-
-  it('over a cycle — no passing straight through; on the opposite side the wheel runs under the corner', () => {
-    // The −0.05 threshold separates burial (the old seating: −0.46 at lock, −0.6 in
-    // transit; a broken rotation goes red at once) from the staged touch at the moment of
-    // drop/unlocking (measured −0.040/−0.024, see SEAT — a tooth touches where it is meant
-    // to). On the opposite side (+0.01) a tooth passes UNDER the place of engagement with a
-    // visible clearance (measured +0.025/+0.058).
-    // The figures come from the module itself (palletOutline, clubToothPoly), not a copy.
-    const segDist = (p1, p2, p3, p4) => {
-      const s = (a, b) => [a[0] - b[0], a[1] - b[1]];
-      const d = (a, b) => a[0] * b[0] + a[1] * b[1];
-      const n = (a) => Math.hypot(a[0], a[1]);
-      const d1 = s(p2, p1), d2 = s(p4, p3), r = s(p1, p3);
-      const a = d(d1, d1), e = d(d2, d2), f = d(d2, r);
-      let t1, t2;
-      if (a <= 1e-12 && e <= 1e-12) return n(r);
-      if (a <= 1e-12) { t1 = 0; t2 = Math.max(0, Math.min(1, f / e)); }
-      else {
-        const c = d(d1, r);
-        if (e <= 1e-12) { t2 = 0; t1 = Math.max(0, Math.min(1, -c / a)); }
-        else {
-          const b = d(d1, d2), den = a * e - b * b;
-          t1 = den > 1e-12 ? Math.max(0, Math.min(1, (b * f - c * e) / den)) : 0;
-          t2 = (b * t1 + f) / e;
-          if (t2 < 0) { t2 = 0; t1 = Math.max(0, Math.min(1, -c / a)); }
-          else if (t2 > 1) { t2 = 1; t1 = Math.max(0, Math.min(1, (b - c) / a)); }
-        }
-      }
-      return n(s([p1[0] + d1[0] * t1, p1[1] + d1[1] * t1], [p3[0] + d2[0] * t2, p3[1] + d2[1] * t2]));
-    };
-    const inPoly = ([x, y], poly) => {
-      let c = false;
-      for (let i = 0, j = poly.length - 1; i < poly.length; j = i++) {
-        const [xi, yi] = poly[i], [xj, yj] = poly[j];
-        if (yi > y !== yj > y && x < ((xj - xi) * (y - yi)) / (yj - yi) + xi) c = !c;
-      }
-      return c;
-    };
-    const ptSeg = (p, a, b) => {
-      const ab = [b[0] - a[0], b[1] - a[1]];
-      const t = Math.max(0, Math.min(1, ((p[0] - a[0]) * ab[0] + (p[1] - a[1]) * ab[1]) / (ab[0] * ab[0] + ab[1] * ab[1])));
-      return Math.hypot(p[0] - a[0] - ab[0] * t, p[1] - a[1] - ab[1] * t);
-    };
-    const clearance = (tooth, stone) => {
-      let dmin = Infinity, cross = false;
-      for (let i = 0; i < tooth.length; i++) for (let j = 0; j < stone.length; j++) {
-        const dd = segDist(tooth[i], tooth[(i + 1) % tooth.length], stone[j], stone[(j + 1) % stone.length]);
-        if (dd < 1e-9) cross = true;
-        if (dd < dmin) dmin = dd;
-      }
-      if (!cross && !tooth.some((p) => inPoly(p, stone)) && !stone.some((p) => inPoly(p, tooth))) return dmin;
-      let depth = Infinity;
-      for (const p of tooth) if (inPoly(p, stone)) for (let j = 0; j < stone.length; j++) depth = Math.min(depth, ptSeg(p, stone[j], stone[(j + 1) % stone.length]));
-      for (const p of stone) if (inPoly(p, tooth)) for (let i = 0; i < tooth.length; i++) depth = Math.min(depth, ptSeg(p, tooth[i], tooth[(i + 1) % tooth.length]));
-      return -(depth === Infinity ? 0 : depth);
-    };
-    const m = buildShowcase();
-    const toWorld = (mesh, pts) => pts.map(([x, y]) => {
-      const v = new THREE.Vector3(x, y, 0).applyMatrix4(mesh.matrixWorld);
-      return [v.x, v.y];
-    });
-    const rotQ = (q, a) => q.map(([x, y]) => [x * Math.cos(a) - y * Math.sin(a), x * Math.sin(a) + y * Math.cos(a)]);
-    let worst = 0;
-    const opp = {};
-    for (let u = 0.5; u <= 2.5001; u += 0.01) {
-      m.update(u);
-      m.group.updateMatrixWorld(true);
-      const wA = m.wheelPivot.rotation.z;
-      const teeth = [];
-      for (let i = 0; i < TEETH; i++) teeth.push(rotQ(clubToothPoly(i), wA));
-      for (const face of ['entry', 'exit']) {
-        const stone = byPallet(m, face)[0];
-        const poly = toWorld(stone, palletOutline(stone.userData.pallet.imp));
-        let g = Infinity;
-        for (const t of teeth) g = Math.min(g, clearance(t, poly));
-        if (g < worst) worst = g;
-        // The released stone at the moment of the other lock: the wheel runs under the corner.
-        if ((Math.abs(u - 1.5) < 0.005 && face === 'entry') ||
-            (Math.abs(u - 0.5) < 0.005 && face === 'exit') ||
-            (Math.abs(u - 2.5) < 0.005 && face === 'exit')) opp[`${face}@${u.toFixed(1)}`] = g;
-      }
-    }
-    expect(worst, 'the transit minimum').toBeGreaterThan(-0.05);
-    for (const [k, v] of Object.entries(opp)) expect(v, `clearance ${k}`).toBeGreaterThan(0.01);
   });
 
   it('the showcase does not import the movement: isolation by decision', () => {
@@ -221,35 +170,66 @@ describe('lever escapement showcase (geometry)', () => {
   });
 });
 
-describe('showcase motion (phase kinematics)', () => {
-  it('the wheel advances half a tooth per beat', () => {
-    expect(wheelAngle(1.5) - wheelAngle(0.5)).toBeCloseTo(Math.PI / TEETH, 12);
-    expect(wheelAngle(2.5) - wheelAngle(1.5)).toBeCloseTo(Math.PI / TEETH, 12);
+describe('showcase motion (the escapement running)', () => {
+  it('a beat advances the wheel half a pitch — a result, not a setting', () => {
+    // Nowhere is this written down. It falls out of the pallets standing two and a half
+    // teeth apart, and it is the one number that says the exhibit is an escapement.
+    for (let n = 0; n < 4; n++)
+      expect(wheelAngle(n + 1.5) - wheelAngle(n + 0.5), `beat ${n}`).toBeCloseTo(PITCH / 2, 9);
   });
 
-  it('the fork rests on the banking pins at the locks and changes side every beat', () => {
-    expect(Math.abs(forkAngle(0.5))).toBeCloseTo(FORK_MAX, 12);
-    expect(Math.abs(forkAngle(1.5))).toBeCloseTo(FORK_MAX, 12);
+  it('a beat runs lock → unlock → impulse → drop, once each', () => {
+    const seen = [];
+    for (let i = 0; i <= 4000; i++) {
+      const ph = phaseName(-0.5 + i / 4000);
+      if (!seen.length || seen[seen.length - 1] !== ph) seen.push(ph);
+    }
+    expect(seen).toEqual(['lock', 'unlock', 'impulse', 'drop', 'lock']);
+  });
+
+  it('the lever lies on a banking through the lock and crosses once a beat', () => {
+    expect(Math.abs(forkAngle(0.5))).toBeCloseTo(FORK_MAX, 9);
+    expect(Math.abs(forkAngle(1.5))).toBeCloseTo(FORK_MAX, 9);
     expect(Math.sign(forkAngle(0.5))).toBe(-Math.sign(forkAngle(1.5)));
+    expect(Math.abs(forkAngle(1))).toBeLessThan(FORK_MAX); // crossing, mid-travel
   });
 
-  it('the balance is at zero on the unlockings and at full swing between them', () => {
+  it('the balance is at zero when the escaping happens', () => {
     expect(balanceAngle(0)).toBeCloseTo(0, 12);
     expect(balanceAngle(1)).toBeCloseTo(0, 12);
-    expect(Math.abs(balanceAngle(0.5))).toBeCloseTo((AMPLITUDE * Math.PI) / 180, 12);
+    expect(Math.abs(balanceAngle(0.5))).toBeCloseTo(AMPLITUDE, 12);
   });
 
-  it('phase caption: lock outside the window, unlocking → impulse → drop inside it', () => {
-    expect(phaseName(2.5)).toBe('lock');
-    expect(phaseName(3 - 0.1)).toBe('unlock');
-    expect(phaseName(3)).toBe('impulse');
-    expect(phaseName(3 + 0.1)).toBe('drop');
+  it('the escapement takes the lift it was designed for', () => {
+    // The pin's orbit is solved from the lift rather than guessed at: a closed form in the
+    // small-angle limit was out by a seventh, so the engagement is measured instead.
+    expect(LIFT_MEASURED).toBeCloseTo(LIFT, 2);
   });
 
-  it('the lock is held in turn: entry, exit, entry', () => {
-    expect(activePallet(0.5)).toBe('entry');
-    expect(activePallet(1.5)).toBe('exit');
-    expect(activePallet(2.5)).toBe('entry');
+  it('one stone is unlocked and impulsed; the other takes the drop', () => {
+    // The same stone carries the tooth from the unlocking through the impulse. The
+    // handover is the drop: from there the name is the stone that has caught it.
+    let u = 0.6;
+    const seen = [];
+    for (let i = 0; i < 4; i++) { u = stepFrom(u); seen.push(`${phaseName(u)}:${activePallet(u)}`); }
+    expect(seen).toEqual(['unlock:exit', 'impulse:exit', 'drop:exit', 'lock:entry']);
+  });
+
+  it('the lock is held in turn, beat by beat', () => {
+    // Between beats the stone being named is the one HOLDING — which is the stone the next
+    // beat will escape on, because it caught the tooth at the last drop.
+    expect(activePallet(0.5)).toBe('exit');
+    expect(activePallet(1.5)).toBe('entry');
+    expect(activePallet(2.5)).toBe('exit');
+  });
+
+  it('the pose is a pure function of time: the same instant twice, the same scene', () => {
+    const m = buildShowcase();
+    m.update(1.02);
+    const first = [m.wheelPivot.rotation.z, m.forkPivot.rotation.z, m.balancePivot.rotation.z];
+    m.update(7.4);
+    m.update(1.02);
+    expect([m.wheelPivot.rotation.z, m.forkPivot.rotation.z, m.balancePivot.rotation.z]).toEqual(first);
   });
 
   it('update sets poses free of NaN at the locks and mid-unlocking', () => {
@@ -315,33 +295,41 @@ describe('showcase hairspring (breathing)', () => {
     // change hands at the drop, and the impulse's landing is at the beat itself, which is
     // exactly where the old rounding handed over. A step that lands on a discontinuity
     // shows a caption that disagrees with the frame before and the frame after it.
+    // The tolerance is a fraction of the SHORTEST stage, because the stages are of very
+    // different lengths now that they are solved rather than cut into thirds.
     let u = 2.13;
     for (let i = 0; i < 12; i++) {
       u = stepFrom(u);
       const here = `${phaseName(u)} · ${activePallet(u)}`;
       const at = (d) => `${phaseName(u + d)} · ${activePallet(u + d)}`;
-      expect(at(-0.012), `before ${here}`).toBe(here);
-      expect(at(+0.012), `after ${here}`).toBe(here);
+      expect(at(-0.002), `before ${here}`).toBe(here);
+      expect(at(+0.002), `after ${here}`).toBe(here);
     }
   });
 
-  it('one pallet is unlocked and impulsed, and the other receives the drop', () => {
-    // Not two stones per beat: the same one carries the tooth from unlocking through
-    // impulse, and the handover is the drop.
-    let u = 2.5;
-    const seen = [];
-    for (let i = 0; i < 4; i++) { u = stepFrom(u); seen.push(`${phaseName(u)}:${activePallet(u)}`); }
-    expect(seen).toEqual(['unlock:entry', 'impulse:entry', 'drop:exit', 'lock:exit']);
-  });
-
   it('stepping always moves forward, and a beat takes exactly four presses', () => {
-    let u = 2.5;
-    const start = u;
+    // Counted from a landing, not from an arbitrary instant: four presses is a beat only
+    // between the same stage's middles.
+    const start = 2 + stages()[0].at - 0.5;
+    let u = start;
     for (let i = 0; i < 4; i++) {
       const next = stepFrom(u);
       expect(next, `press ${i + 1}`).toBeGreaterThan(u);
       u = next;
     }
-    expect(u - start).toBeCloseTo(1, 12); // back to the lock, one beat on
+    expect(u - start).toBeCloseTo(1, 9);
+  });
+
+  it('every landing is the middle of the stage the panel will name', () => {
+    // What the caption says and where the step stops come from one list: the stages are
+    // found by walking the beat, and both the panel and the step read that.
+    const marks = stages();
+    let u = 4.2;
+    for (let i = 0; i < 8; i++) {
+      u = stepFrom(u);
+      const want = marks.find((m) => Math.abs(((u + 0.5) % 1) - m.at) < 1e-6);
+      expect(want, `no stage has its middle at ${u.toFixed(4)}`).toBeTruthy();
+      expect(phaseName(u)).toBe(want.phase);
+    }
   });
 });
