@@ -42,14 +42,14 @@ describe('i18n', () => {
     expect(bad, 'labels bypassing t(): ' + bad.join(' | ')).toEqual([]);
   });
 
-  it('src/ carries no Cyrillic outside the two dictionaries', () => {
+  it('no file carries Cyrillic outside the two dictionaries', () => {
     // Everything written ABOUT the code is English; the Ukrainian interface copy lives in
     // exactly two files. That rule was prose only, and it broke the commit after the sweep
     // that established it - a comment in lesson.css measuring the width of two Ukrainian
     // words. Prose cannot guard itself, so this walks the tree instead.
     //
-    // src/ only: a test asserting what the ua dictionary renders holds Cyrillic as DATA,
-    // not as prose about the code, and the guards below need the character class itself.
+    // Tests are not scanned: one asserting what the ua dictionary renders holds Cyrillic as
+    // DATA, not as prose about the code, and the guards themselves need the character class.
     const DICTS = ['i18n.js', 'content.js'];   // the interface copy, both languages
     const LABEL = /^УКР$/;   // the language switch names itself in its own script
     const found = [];
@@ -66,6 +66,17 @@ describe('i18n', () => {
       }
     };
     walk(new URL('../src/', import.meta.url));
+    // The tracked files outside src/ that are prose about the code. Named one by one,
+    // because README.md, AGENTS.md and CHANGELOG.md quote Cyrillic on purpose - they
+    // discuss the interface copy - and a blanket walk of the root would forbid that.
+    for (const f of ['.gitignore', 'vite.config.js', 'index.html', 'package.json']) {
+      const src = readFileSync(new URL('../' + f, import.meta.url), 'utf8');
+      src.split(/\r?\n/).forEach((line, i) => {
+        for (const m of line.match(/[\u0400-\u04ff]+/g) ?? []) {
+          if (!LABEL.test(m)) found.push(`${f}:${i + 1}`);
+        }
+      });
+    }
     expect(found, 'Cyrillic outside the dictionaries: ' + found.join(' | ')).toEqual([]);
   });
 

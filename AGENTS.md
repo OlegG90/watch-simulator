@@ -57,6 +57,7 @@ markers name the simplifications rather than hiding them.
 |---|---|
 | `AGENTS.md` (this file) | how to work here: contracts, conventions, invariants, traps |
 | `README.md` | what the mechanism is, in English: every formula, the source map, the assumptions |
+| `CHANGELOG.md` | what changed and why, in prose — `Unreleased` grows as work lands, and becomes a version when one is cut |
 | code comments | why a line is the way it is — never what it does |
 | GitHub issues | **code work only** |
 

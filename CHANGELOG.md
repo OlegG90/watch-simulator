@@ -1,5 +1,53 @@
 # Changelog
 
+## Unreleased
+
+A third mode, one language, one snapshot fewer.
+
+### Added
+
+- **The escapement model** — a third mode, and an exhibit rather than a third
+  view of the movement. Inside the movement the escapement runs at movement
+  scale and movement speed, where lock, unlock, impulse and drop blur into a
+  single flip. Here one lever escapement stands alone and large, with its own
+  play/pause, a manual step of an eighth of a beat, and a readout naming the
+  phase and the pallet holding the lock.
+- **The stones are seated, not drawn.** Each pallet's locking corner is solved
+  onto the tip of the tooth that locks it, and the impulse face follows the
+  tip's retreat. The opening pose sits on a measured lock angle
+  (`WHEEL_LOCK_PHASE`, found by scan), not on an eyeballed one.
+- **The exhibit is isolated by a test, not by agreement.** Nothing under
+  `src/showcase/` may import from `movement`, `escapement`, `lesson`,
+  `settings` or `motionWorks`; a text test fails if it does. The alternative
+  was contact kinematics inside the socket, which every variant would then have
+  had to satisfy — the tourbillon included.
+- **A guard for the repository's one language.** `src/` may hold no Cyrillic
+  outside the two dictionaries that are the Ukrainian interface copy, plus the
+  language switch's own label. Sabotage-verified.
+
+### Changed
+
+- **English is the repository's one language.** Comments, tests and prose were
+  Ukrainian for most of the project's life, which split the record in two: the
+  comment explaining a trap in one language, the file naming it in another, and
+  neither searchable from the other. The Ukrainian interface copy stays exactly
+  where it belongs — `i18n.js` and `lesson/content.js`.
+- **The record caught up with the code.** `AGENTS.md` still described two modes
+  and four suites; `README.md` did not contain the word *showcase* at all. Both
+  now carry the third mode, its isolation and what that isolation costs — one
+  constant deliberately living in two files, so that nobody "fixes" it with an
+  import and breaks the isolation test.
+- The showcase fork is one lever stamping instead of bars bolted to a boss, the
+  banking pins stand on a bridge rather than in mid-air, the balance rim is a
+  machined rectangular section, and the hairspring reaches the rim instead of
+  floating inside an empty wheel.
+
+### Removed
+
+- **`init-version/`** — the early snapshot, its dependencies and its section in
+  the README. It had not been built or tested for months; git history is a
+  better record of where the project started than a directory nobody runs.
+
 ## v3.0.0 — 2026-09-07
 
 The escapement stops being one module and becomes a **socket** holding one of
