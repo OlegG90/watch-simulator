@@ -1,5 +1,5 @@
 import { t, onLangChange } from '../i18n.js';
-import { phaseName, activePallet } from './motion.js';
+import { phaseName, activePallet, stepFrom } from './motion.js';
 
 /**
  * Showcase control panel — it lives inside the scene (`#showcase-bar`), because in
@@ -8,12 +8,16 @@ import { phaseName, activePallet } from './motion.js';
  *
  * The panel does not own time: it writes into the state it was handed
  * (`{ t, playing, speed }`, where `t` counts beats) and the loop in `main.js`
- * advances it. A step is a manual advance of ⅛ of a beat: in the middle of the
- * unlocking window the drop is visible.
+ * advances it. A step asks the phase machine for the middle of the next stage
+ * (`stepFrom`), so the four stages of a beat are visited one press at a time.
+ *
+ * `onHome` flies the camera back to the exhibit's home point. The panel does not
+ * know what a camera is; it only reports the press.
  */
-export function mountShowcaseBar(root, state) {
+export function mountShowcaseBar(root, state, { onHome } = {}) {
   const play = document.createElement('button');
   const step = document.createElement('button');
+  const home = document.createElement('button');
   const speedLabel = document.createElement('label');
   const speed = document.createElement('input');
   speed.type = 'range';
@@ -42,12 +46,14 @@ export function mountShowcaseBar(root, state) {
     state.playing = !state.playing;
     paint();
   });
-  step.addEventListener('click', () => { state.t += 0.125; paint(); });
+  step.addEventListener('click', () => { state.t = stepFrom(state.t); paint(); });
+  home.addEventListener('click', () => onHome?.());
   speed.addEventListener('input', () => { state.speed = Number(speed.value); });
 
   function paint() {
     play.textContent = t(state.playing ? 'show.pause' : 'show.play');
     step.textContent = t('show.step');
+    home.textContent = t('show.home');
     speedLabel.firstChild.nodeValue = `${t('show.speed')} `;
   }
 
@@ -62,7 +68,7 @@ export function mountShowcaseBar(root, state) {
     palletEl.textContent = t(`show.pallet.${pal}`);
   }
 
-  root.append(play, step, speedLabel, phase);
+  root.append(play, step, home, speedLabel, phase);
   paint();
   update();
   onLangChange(() => { paint(); lastPhase = ''; update(); });

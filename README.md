@@ -49,8 +49,9 @@ the header and from the end of the route, and has its own way back.
 **The escapement model** is a separate exhibit rather than a third view of the same
 movement. Inside the movement the escapement runs at movement scale and at movement
 speed, where lock, unlock, impulse and drop blur into one flip; here one lever
-escapement stands alone, large, with its own play/pause, its own step of ⅛ of a beat,
-and a readout naming the current phase and the pallet doing the work. The pallet stones
+escapement stands alone, large, with its own play/pause, a step that advances to the
+middle of the next stage, a way back to the home view, and a readout naming the current
+phase and the pallet doing the work. The pallet stones
 are not drawn by eye: each stone's seat is solved so its locking corner sits on the tip
 of the tooth that locks it, and the first frame is posed on a measured lock angle. It
 shares no code with the movement's escapement — see *Source layout*.
@@ -225,7 +226,8 @@ Polyline of 200 points: $\alpha(f) = \theta_b(1-f) + f\Phi - \Phi + \lambda$, $r
 - **Free mode**: the `lil-gui` panel — run/pause, time mode, speed, beat rate,
   amplitude, wireframe, per-node visibility, cage opacity and top plate, camera
   presets, and "wind the mainspring".
-- **Escapement model**: a bar over the scene — play/pause, one step of ⅛ of a beat,
+- **Escapement model**: a bar over the scene — play/pause, a step to the middle of the
+  next stage (lock → unlock → impulse → drop, four presses to the beat), the home view,
   a speed slider, and the current phase with the working pallet.
 
 ## Run locally
