@@ -120,6 +120,21 @@ body { font-family: var(--ui); color: var(--body); }
   pointer-events: none; user-select: none;
 }
 
+/* The watch has run down. Amber, like every other place where the model says something
+   the viewer would otherwise take for a fault — and over the scene, where they are already
+   looking when they notice nothing is moving. */
+#rundown {
+  position: absolute; left: 50%; bottom: 34px; transform: translateX(-50%);
+  max-width: 30em; text-align: center;
+  padding: 7px 14px; border-radius: 9px;
+  background: rgb(20 22 26 / 0.88); border: 1px solid rgb(202 168 74 / 0.45);
+  font: 400 12.5px/1.45 var(--ui); color: #e2c778;
+  pointer-events: none; user-select: none;
+}
+#ui.mode-showcase #rundown { display: none; }   /* the exhibit has no mainspring */
+/* The reserve readout marks itself at the same moment, so the two agree. */
+#hdr .wind-out { color: #e2c778; }
+
 /* ── Header ────────────────────────────────────────────────────── */
 #hdr {
   display: flex; align-items: center; gap: 20px; padding: 0 20px;

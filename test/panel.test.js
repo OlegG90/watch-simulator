@@ -135,6 +135,46 @@ describe('lesson panel (jsdom)', () => {
     expect($('#card .placeholder').textContent).toBe(t('card.resume'));
   });
 
+  it('a watch that has run down says so, and stops saying it once wound', () => {
+    // Reported as «it runs in real time and not in demo». It does run in demo — until the
+    // mainspring is out, and then it stops, which is the point of the last station. What
+    // was broken was the silence: «завод 0 %» in a corner and a scene that had frozen.
+    const { lesson, statusOut } = mountTestLesson();
+    const notice = () => document.getElementById('rundown');
+    lesson.update();
+    expect(notice().hidden, 'nothing has run down yet').toBe(true);
+
+    statusOut.charge = 0;
+    lesson.update();
+    expect(notice().hidden).toBe(false);
+    expect(notice().textContent).toBe(t('status.rundown'));
+
+    // Winding starts it again, and the notice goes with the reason for it.
+    statusOut.charge = 0.4;
+    lesson.update();
+    expect(notice().hidden).toBe(true);
+  });
+
+  it('the notice appears in free mode too — where a watch is most likely to be left running', () => {
+    // The header and the card are not on screen in free mode, and the status tick returns
+    // early because of it. The notice is over the SCENE, which is on screen there, so it
+    // has to be handled before that return or the one mode that most needs the explanation
+    // is the one that never gives it.
+    const { lesson, statusOut } = mountTestLesson();
+    lesson.setMode('free');
+    statusOut.charge = 0;
+    lesson.update();
+    expect(document.getElementById('rundown').hidden).toBe(false);
+  });
+
+  it('real time never runs down: it does not ask the mainspring anything', () => {
+    const { lesson, statusOut, params } = mountTestLesson();
+    params.timeMode = 'real';
+    statusOut.charge = 0;
+    lesson.update();
+    expect(document.getElementById('rundown').hidden, 'real time claimed to have run down').toBe(true);
+  });
+
   it('the modal shows what a module DOES, not only what it costs', () => {
     // #13 moved the construction-dependent numbers here — but only the cost arrived, and
     // the behaviour stayed prose without a single number.

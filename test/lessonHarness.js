@@ -10,7 +10,7 @@
 import { readFileSync } from 'node:fs';
 import { resolve } from 'node:path';
 import * as THREE from 'three';
-import { buildMovement } from '../src/movement.js';
+import { buildMovement, hasRunDown } from '../src/movement.js';
 import { PLANNED_IDS } from '../src/escapement/index.js';
 import { createHighlighter } from '../src/lesson/highlight.js';
 import { mountLesson } from '../src/lesson/panel.js';
@@ -47,7 +47,7 @@ export function mountTestLesson({ lang = 'ua' } = {}) {
 
   const settings = createSettings();
   const params = settings.values;
-  const statusOut = { real: false, speed: 1, charge: 0.75, time: 0 };
+  const statusOut = { real: false, running: true, speed: 1, charge: 0.75, time: 0, rundown: false };
   const cam = { calls: [], key: null };
 
   const lesson = mountLesson({
@@ -68,6 +68,9 @@ export function mountTestLesson({ lang = 'ua' } = {}) {
     status: () => {
       statusOut.speed = params.speed;
       statusOut.real = params.timeMode === 'real';
+      // THE rule the app uses, not the same rule written out again: a harness with its own
+      // copy grades a copy, and the panel's tests would pass over a broken app.
+      statusOut.rundown = hasRunDown(statusOut);
       return statusOut;
     },
     onMode: () => {},

@@ -2,7 +2,7 @@ import * as THREE from 'three';
 import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
 import { RoomEnvironment } from 'three/addons/environments/RoomEnvironment.js';
 import GUI from 'lil-gui';
-import { buildMovement } from './movement.js';
+import { buildMovement, demoCanRun, hasRunDown } from './movement.js';
 import { PLANNED_IDS } from './escapement/index.js';
 import { buildShowcase } from './showcase/leverModel.js';
 import { mountShowcaseBar } from './showcase/bar.js';
@@ -303,9 +303,14 @@ const lesson = mountLesson({
   // and not stored.
   status: () => {
     statusOut.real = params.timeMode === 'real';
+    statusOut.running = params.running;
     statusOut.speed = params.speed;
     statusOut.charge = movement.winder.charge;
     statusOut.time = simT;
+    // Run down: the demo run needs wind and there is none left. Real time does not ask
+    // the mainspring anything, so it never gets here — which is the difference the viewer
+    // was left to guess at, and the reason a stopped watch read as a broken program.
+    statusOut.rundown = hasRunDown(statusOut);
     return statusOut;
   },
   onMode: (mode) => {
@@ -363,7 +368,7 @@ function tick() {
     if (params.timeMode === 'real') {
       simT += dt; // the balance beats at real tempo (beatHz), independent of «Speed»
       movement.setClockTime(new Date(), simT, params);
-    } else if (movement.winder.charge > 0) {
+    } else if (demoCanRun(movement.winder.charge)) {
       // A demo run is possible only while there is wind; the differential counts the
       // consumption itself (the lower sun is driven by the barrel wheel's rotation).
       simT += dt * params.speed;

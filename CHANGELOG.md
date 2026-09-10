@@ -88,6 +88,14 @@ A third mode, one language, one snapshot fewer.
 
 ### Fixed
 
+- **A watch that has run down says so.** In demo time the movement stops when
+  the mainspring is out — which is correct, and is the point of the last
+  station — but nothing said so: «завод 0 %» in a corner and a scene that had
+  frozen. It was reported as «it runs in real time and not in demo», which is
+  exactly how it looked. The reserve readout now marks itself and a line over
+  the scene says the spring has run down and the crown will start it again;
+  winding clears both. Real time never shows it, because that mode does not ask
+  the mainspring anything — an asymmetry that was never stated and now is.
 - **Leaving the escapement model brings the movement back in frame.** The
   exhibit flies the camera in close and switches off the automatic framing that
   would pull it back; nothing answered either of those on the way out, so the

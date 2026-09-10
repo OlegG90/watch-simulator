@@ -9,6 +9,32 @@ import { buildEscapementSocket } from './escapement/index.js';
 
 /** Radius of the tourbillon cage (checked with a prototype at 170°). The developed section takes it from here. */
 export const CAGE_R = 4.3;
+
+/**
+ * A demo run needs wind — the barrel drives the train and the train drives nothing without
+ * it. The loop asks this before advancing the model's own time.
+ */
+export const demoCanRun = (charge) => charge > 0;
+
+/**
+ * The watch has run down: someone has it running, it is not on real time — which never
+ * asks the mainspring anything — and there is no wind left.
+ *
+ * One rule, in one place, because it is asked in three: the loop decides whether to
+ * advance time, the status line decides whether to say so, and the test harness has to
+ * agree with both. It used to be written out separately in each, and the panel's tests
+ * were quietly grading a copy.
+ */
+export function hasRunDown({ real, running, charge }) {
+  // Every field is required, and a missing one is an error rather than a falsy answer.
+  // This was not caution: the status object had no `running` at all, so the rule quietly
+  // returned undefined and the notice never appeared, while the tests passed because the
+  // harness happened to supply the field. A rule that answers «no» when it was not given
+  // enough to answer is worse than one that stops.
+  if (typeof real !== 'boolean' || typeof running !== 'boolean' || typeof charge !== 'number')
+    throw new Error('hasRunDown: needs { real, running, charge }');
+  return !real && running && !demoCanRun(charge);
+}
 const WIND_RATE = 5;      // winding animation speed, rad/s
 const WIND_CLICK = Math.PI / 2; // one «click» = a quarter turn of the ratchet (+0.375 of charge)
 

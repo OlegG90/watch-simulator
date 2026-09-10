@@ -1,6 +1,6 @@
 import { describe, it, expect, beforeAll } from 'vitest';
 import * as THREE from 'three';
-import { buildMovement, CAGE_R } from '../src/movement.js';
+import { buildMovement, CAGE_R, demoCanRun, hasRunDown } from '../src/movement.js';
 import { buildEscapementSocket } from '../src/escapement/index.js';
 import { buildTourbillon } from '../src/escapement/tourbillon.js';
 import { LAYERS as DA_LAYERS } from '../src/escapement/doubleAxis.js';
@@ -65,6 +65,29 @@ let m;
 beforeAll(() => { m = buildFresh(); });
 
 // ── The going train ───────────────────────────────────────────────
+describe('running down', () => {
+  it('a demo run needs wind; real time never asks the mainspring anything', () => {
+    // The rule is asked in three places — the loop advancing time, the status line, the
+    // test harness — so it is written once and they all read it. It used to be written out
+    // separately in each, and the panel's tests were quietly grading a copy of it.
+    expect(demoCanRun(0.4)).toBe(true);
+    expect(demoCanRun(0)).toBe(false);
+
+    expect(hasRunDown({ real: false, running: true, charge: 0 })).toBe(true);
+    expect(hasRunDown({ real: false, running: true, charge: 0.01 })).toBe(false);
+    // Paused is not run down: nothing is asking it to run.
+    expect(hasRunDown({ real: false, running: false, charge: 0 })).toBe(false);
+    // And real time keeps going on an empty spring, which is the asymmetry the viewer was
+    // left to guess at — measured, not assumed: the loop never consults the charge there.
+    expect(hasRunDown({ real: true, running: true, charge: 0 })).toBe(false);
+    // And it refuses to answer on half a question. The app's status object had no
+    // `running`, the rule returned undefined, and the notice never appeared — while these
+    // tests passed, because the harness happened to pass the field.
+    expect(() => hasRunDown({ real: false, charge: 0 })).toThrow(/needs/);
+    expect(() => hasRunDown({ real: false, running: true })).toThrow(/needs/);
+  });
+});
+
 describe('going train', () => {
   it('gear ratios: ω = [1, −4, +40/3, −40, +320/3]', () => {
     m.update(0); const r0 = m.arbors.map((a) => a.group.rotation.z);

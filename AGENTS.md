@@ -350,6 +350,15 @@ explicit `cache: npm`; adding a `packageManager` field to `package.json` would c
 
 ## Traps that have cost real time
 
+- **A rule that answers «no» when it was not given enough to answer.** `hasRunDown()` took
+  `{ real, running, charge }`, the app's status object had no `running` at all, and the rule
+  quietly returned `undefined` — so the notice it gates never appeared. The tests passed,
+  because the test harness happened to supply the field. It now throws on a missing one.
+  A predicate that shrugs is worse than one that stops.
+- **A harness with its own copy of a rule grades the copy.** The same status object was
+  computed twice — once in `main.js`, once in `lessonHarness.js` — so the panel's tests were
+  checking a rule the app did not run. The harness imports the rule now. This has happened
+  twice: the list of planned escapement variants was the first.
 - **A hidden browser pane freezes `requestAnimationFrame`.** Measuring the camera or the model
   clock through an automated browser whose pane is not painting returns a frozen scene and
   looks exactly like a dead render loop. Force a paint (take a screenshot) between the action

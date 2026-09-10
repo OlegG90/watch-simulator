@@ -619,10 +619,22 @@ export function mountLesson({ highlighter, camera, status, onMode, settings, run
 
   /** The live numbers in the header and footer — refreshed from the render loop. */
   function update() {
+    const s = status();
+    // A watch that stops because it is out of wind is the point of the last station. A
+    // watch that stops and says nothing looks like a program that has crashed, and that is
+    // how this one was reported. The notice sits over the SCENE, which is on screen in
+    // free mode too — so it is handled before the early return below, or the mode where a
+    // viewer is most likely to leave it running would be the one that never explains
+    // itself. It is only ever the model's own doing: it appears when the mechanism has
+    // stopped for a reason, and goes when winding starts it again.
+    const rundown = document.getElementById('rundown');
+    if (rundown) {
+      rundown.hidden = !s.rundown;
+      if (s.rundown) rundown.textContent = t('status.rundown');
+    }
     // In free mode neither the header nor the card is on screen. Free mode is the app as
     // it was before v2.0.0, so it must not pay for the Explore layer.
     if (state.mode !== 'lesson') return;
-    const s = status();
     const r = snap();
     for (const d of dyn) {
       const next = d.fn(r);
@@ -630,7 +642,10 @@ export function mountLesson({ highlighter, camera, status, onMode, settings, run
     }
     if (refs.mode) refs.mode.textContent = t(s.real ? 'status.realTime' : 'status.modelTime');
     if (refs.speed) refs.speed.textContent = `×${s.speed.toFixed(1)}`;
-    if (refs.wind) refs.wind.textContent = `${Math.round(s.charge * 100)} %`;
+    if (refs.wind) {
+      refs.wind.textContent = `${Math.round(s.charge * 100)} %`;
+      refs.wind.classList.toggle('wind-out', !!s.rundown);
+    }
     if (refs.clock) {
       const m = Math.floor(s.time / 60), sec = Math.floor(s.time % 60);
       refs.clock.textContent = `${String(m).padStart(2, '0')}:${String(sec).padStart(2, '0')}`;

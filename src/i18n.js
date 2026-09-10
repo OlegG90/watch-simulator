@@ -142,6 +142,7 @@ const DICT = {
     'status.wind': 'завод',
     'foot.modelTime': 'модельний час',
     'hint.controls': 'ЛКМ — обертання · колесо — зум · ПКМ — панорама',
+    'status.rundown': 'Пружина розкрутилася — механізм став. Заведіть головкою, і хід піде далі.',
   },
   en: {
     // ── units ──
@@ -273,6 +274,7 @@ const DICT = {
     'status.wind': 'wind',
     'foot.modelTime': 'model time',
     'hint.controls': 'LMB — orbit · wheel — zoom · RMB — pan',
+    'status.rundown': 'The mainspring has run down and the movement has stopped. Wind it with the crown and it will run again.',
   },
 };
 
