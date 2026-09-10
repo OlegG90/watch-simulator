@@ -4,7 +4,7 @@ SimWatch: a 3D simulation of a simple mechanical watch movement — going train,
 escapement, motion works, winding, and a power-reserve differential. Three.js + Vite, no
 framework, all geometry generated in code. It opens in **Explore** mode, a guided route of six
 stations along the flow of energy; **free mode** is the same movement with every control at
-once.
+once; **the escapement model** is a separate exhibit that is not the movement at all.
 
 **This repository is the record.** Decisions about the code are made and kept here — in this
 file, in `README.md`, and in the code's own comments. If it is not written down in one of
@@ -79,7 +79,8 @@ finish it.
 | `src/ui.js` | 3D node labels and the camera fly |
 | `src/i18n.js` | every interface string, Ukrainian and English (with `lesson/content.js`, the only Ukrainian in the repo) |
 | `src/lesson/` | the Explore layer: panel, stations, live figures, developed section, modal |
-| `test/` | four suites; `lessonHarness.js` is the rig, not a suite |
+| `src/showcase/` | the escapement exhibit — a mode of its own, deliberately joined to nothing |
+| `test/` | six suites; `lessonHarness.js` is the rig, not a suite |
 | `dist/` | build output. Never edit; `.github/workflows/pages.yml` regenerates it |
 
 ## The module contract — three phases
@@ -155,30 +156,54 @@ Renaming a test therefore breaks the suite; update `lesson/stations.js` with it.
 fills one, the hairspring mesh is built once and its vertices rewritten in place. Both of the
 last two were regressions before they were rules.
 
-## The two modes
+## The three modes
 
 Explore is what opens. Free mode is the same movement with every control at once, and two
 things must hold: it keeps **all** the knobs, and its **kinematics** stay those of the
 pre-lesson app — verify with a scene-graph diff against `v1.1.0`, not only the suite.
 
-What is *not* frozen is how it looks. Both modes show one scene, so visual work lands in free
-mode too, and new node controls belong there.
+What is *not* frozen is how it looks. Explore and free mode show one scene, so visual work
+lands in free mode too, and new node controls belong there.
+
+**The escapement model is the exception, and it is an exhibit, not a mode of the movement.**
+`src/showcase/` is a separate lever escapement at exhibit scale, shown so that lock, unlock,
+impulse and drop can be read one beat at a time. It swaps the scene's contents: the movement
+is hidden while it is open, and it is hidden everywhere else.
+
+It is joined to nothing on purpose — no import from `movement/`, `escapement/`, `lesson/` or
+`settings.js`, and a text test in `showcase.test.js` enforces that. The alternative was
+contact kinematics inside the socket, which would have meant re-deriving the β-identity every
+variant shares and rewriting the tourbillon around it; the price of the exhibit is that some
+numbers exist twice (`FLIP_W = 0.12` is in `escapement/beat.js` and in `showcase/motion.js`).
+**That is a bought duplication, not an oversight** — the rule about two lists still holds
+everywhere the two lists describe one mechanism, and here they describe two. Do not "fix" it
+with an import: the isolation test will go red, and it is right.
+
+The exhibit owns its own time (`{ t, playing, speed }` in `main.js`, counted in beats) and its
+own panel inside the scene, because showcase CSS hides everything but the stage.
 
 ## Commands
 
 ```bash
 npm run dev      # Vite dev server on 5173
-npm test         # all four suites
+npm test         # every suite
 npm run build    # production build into dist/
 npm run serve    # build, then serve dist/ statically on 8642
 ```
 
 ## Testing
 
-Four suites, ~120 tests. `gear.test.js`, `movement.test.js` and `lesson.test.js` run headless
-in Node — three.js builds geometry there quite happily. `panel.test.js` runs under **jsdom**,
-declared per file so the geometry suites keep the faster environment; it mounts the real panel
-over the real movement in the real `index.html` grid, and `lessonHarness.js` is its rig.
+Six suites, ~140 tests. `gear.test.js`, `movement.test.js`, `lesson.test.js` and
+`showcase.test.js` run headless in Node — three.js builds geometry there quite happily.
+`panel.test.js` and `showcaseBar.test.js` run under **jsdom**, declared per file so the
+geometry suites keep the faster environment; `panel.test.js` mounts the real panel over the
+real movement in the real `index.html` grid, and `lessonHarness.js` is its rig.
+
+**Some guards read the source, not the objects.** Three rules here cannot be observed from a
+built scene at all — that no GUI label bypasses `t()`, that `src/` holds no Cyrillic outside
+the two dictionaries, and that the showcase imports nothing from the movement. Each is a test
+that reads files and asserts about their text. A rule with no such guard is a rule that will
+be broken by the next commit; that has now happened once, measured in days.
 
 **A test asserts behaviour, not arrangement.** Prefer one that would fail if the rule were
 broken over one that pins the current shape of the code.
