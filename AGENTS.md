@@ -171,6 +171,28 @@ lands in free mode too, and new node controls belong there.
 impulse and drop can be read one beat at a time. It swaps the scene's contents: the movement
 is hidden while it is open, and it is hidden everywhere else.
 
+### Why there are two models at all
+
+This repository holds **two models of the same escapement, and they answer different
+questions**. Keep them apart; the moment one is asked to do the other's job, both get worse.
+
+**The movement** is the object of study: every part present, in one working assembly, so that
+the interaction of the parts can be seen and followed. To stay that, it does NOT chase exact
+correspondence anywhere — tooth profiles are simplified, the time scale is compressed, contact
+is staged rather than solved. Those are recorded simplifications, not debts, and the amber
+markers name them to the viewer. The escapement inside it is phased, not engaged: it keeps the
+beat honestly and shows the place the escapement occupies in the chain of energy.
+
+**The exhibit** exists because that trade costs something specific. The escapement is not just
+one link in the chain — *how* it works is a subject in its own right, and a staged flip cannot
+teach it. So one lever escapement is modelled separately, at a size and a tempo where the
+lock, the unlocking, the impulse and the drop are things you watch happen, not captions you
+read. It answers for the function; the movement answers for the assembly.
+
+This is why the exhibit is joined to nothing (below), and why «the movement does it this way»
+is never an argument for how the exhibit should behave. Where the exhibit shows contact, the
+contact must be real geometry — it is the only place in this repository that promises it.
+
 It is joined to nothing on purpose — no import from `movement/`, `escapement/`, `lesson/` or
 `settings.js`, and a text test in `showcase.test.js` enforces that. The alternative was
 contact kinematics inside the socket, which would have meant re-deriving the β-identity every
