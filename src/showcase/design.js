@@ -170,8 +170,13 @@ export function stoneFaces(face, impulse = IMPULSE_ANG[face]) {
   const bank = s * LEVER_HALF;
   const A = rot2(sub(polar(WHEEL_R - LOCK_DEPTH, ang), [FORK_D, 0]), -bank);
   const out = rot2(polar(1, ang), -bank);          // away from the wheel's centre
+  const fwd = rot2(out, Math.PI / 2);             // the way the teeth travel past it
   const lockDir = rot2(out, s * DRAW);
-  const impDir = rot2(out, -s * (Math.PI / 2 - impulse));
+  // The impulse face runs FORWARD and slightly INWARD. That slope is the whole mechanism
+  // of the impulse: the tooth pushes forward along the face, the face's normal points
+  // outward, and the pallet is lifted. A face climbing the other way would let the wheel
+  // recoil as the pallet rose, which is the opposite of an impulse.
+  const impDir = rot2(fwd, -impulse);
   return { A, lockDir, impDir, corner: add(A, scale(impDir, STONE.imp)) };
 }
 
@@ -185,11 +190,10 @@ export function stonePoly(face, impulse = IMPULSE_ANG[face]) {
 
 // ── contact ───────────────────────────────────────────────────────
 /**
- * The wheel angle at which a point of the WHEEL at radius `r` lands on a line of the
- * LEVER. Both roots of `cos·nx + sin·ny = c` are returned, wrapped — the caller picks the
- * branch it is standing on.
+ * The wheel angles at which a point of the WHEEL at radius `r` lands on a line of the
+ * LEVER. Both roots of `cos·nx + sin·ny = c`; the caller lifts them to the turn it is on.
  */
-function pointOnFace(r, pointOffset, P0, dir, lever) {
+function toeOnFace(r, offset, P0, dir, lever) {
   const a0 = toWorld(P0, lever);
   const d = rot2(dir, lever);
   const n = [-d[1], d[0]];
@@ -197,65 +201,98 @@ function pointOnFace(r, pointOffset, P0, dir, lever) {
   if (Math.abs(c) > 1) return [];
   const base = Math.atan2(n[1], n[0]);
   const off = Math.acos(c);
-  return [base + off, base - off].map((x) => wrap(x - pointOffset));
+  return [base + off, base - off].map((x) => x - offset);
 }
 
 /**
- * The wheel angle at which a point of the LEVER lands on a line of the WHEEL. Same
- * equation seen from the other side: rotate the lever's point back by the wheel's angle
- * and ask that it sit on the wheel-frame line.
+ * The wheel angles at which a point of the LEVER lands on a line of the WHEEL — the same
+ * equation from the other side. The lever's point is fixed in the world; turning the wheel
+ * by `w` turns the line, which is the same as turning the point by −w, so the unknown sits
+ * inside `γ − w` and comes out as `w = γ − (angle of n ± acos c)`.
  */
-function facePointOnWheel(leverPoint, lever, from, to) {
+function cornerOnPlane(leverPoint, lever, from, to) {
   const q = toWorld(leverPoint, lever);
+  const rho = Math.hypot(q[0], q[1]);
   const d = sub(to, from);
-  const n = [-d[1], d[0]];
-  const len = Math.hypot(n[0], n[1]);
-  const nn = [n[0] / len, n[1] / len];
-  const c = (from[0] * nn[0] + from[1] * nn[1]) / Math.hypot(q[0], q[1]);
+  const len = Math.hypot(d[0], d[1]);
+  const n = [-d[1] / len, d[0] / len];
+  const c = (from[0] * n[0] + from[1] * n[1]) / rho;
   if (Math.abs(c) > 1) return [];
-  const base = Math.atan2(nn[1], nn[0]) - Math.atan2(q[1], q[0]);
+  const gamma = Math.atan2(q[1], q[0]);
+  const base = Math.atan2(n[1], n[0]);
   const off = Math.acos(c);
-  return [base + off, base - off].map(wrap);
+  return [gamma - (base + off), gamma - (base - off)];
 }
 
+/** The same contact one turn of a tooth later: lift an angle to the first one at or past `near`. */
+const lift = (w, near) => w + PITCH * Math.ceil((near - w) / PITCH - 1e-12);
+
 /**
- * Where the wheel stands at this lever angle, and what is holding it.
+ * Where the wheel stands at this lever angle, and what is holding it there.
  *
- * Every candidate contact is solved, those behind the wheel's current place are dropped,
- * and the nearest one ahead wins: the wheel turns until the first surface stops it. The
- * winner's name is the phase. `null` when nothing is in reach — the drop.
+ * Each of the three surfaces is asked for the wheel angle at which it would take the
+ * tooth, the answers are lifted onto the turn the wheel is on, those whose contact would
+ * fall off the end of a face are dropped, and the earliest survivor wins: the wheel turns
+ * until the first surface stops it. The winner's name is the phase — the caption reads
+ * this, it does not keep a schedule of its own. `null` means nothing is in reach, which is
+ * the drop.
  */
 export function contact(face, lever, near, impulse = IMPULSE_ANG[face]) {
   const { A, lockDir, impDir, corner } = stoneFaces(face, impulse);
   const toeOff = (TOOTH.tw / 2) * PITCH;
-  const out = [];
-  const push = (kind, angles, guard) => {
-    for (const a of angles) {
-      const k = Math.round((near - a) / PITCH);
-      for (const w of [a + k * PITCH, a + (k + 1) * PITCH]) {
-        if (w < near - PITCH * 0.02) continue;
-        if (guard && !guard(w)) continue;
-        out.push({ kind, wheel: w });
-      }
-    }
-  };
-  const along = (P0, dir, len) => (w) => {
+  const found = [];
+
+  /** Where along a face of the stone the toe would sit, in that face's own length. */
+  const alongFace = (w, P0, dir) => {
     const toe = polar(WHEEL_R, toeAngle(0, w));
-    const t = (toe[0] - toWorld(P0, lever)[0]) * rot2(dir, lever)[0]
-            + (toe[1] - toWorld(P0, lever)[1]) * rot2(dir, lever)[1];
-    return t >= -1e-9 && t <= len + 1e-9;
+    const o = toWorld(P0, lever), u = rot2(dir, lever);
+    return (toe[0] - o[0]) * u[0] + (toe[1] - o[1]) * u[1];
   };
-  push('lock', pointOnFace(WHEEL_R, toeOff, A, lockDir, lever), along(A, lockDir, STONE.lock));
-  push('impulse', pointOnFace(WHEEL_R, toeOff, A, impDir, lever), along(A, impDir, STONE.imp));
-  const cw = facePointOnWheel(corner, lever, toothImpulse(0).from, toothImpulse(0).to);
-  push('plane', cw, (w) => {
-    const q = toWorld(corner, lever);
-    const local = rot2(q, -w);
+  /** Where along the tooth's plane the stone's corner would sit, as a fraction. */
+  const alongPlane = (w) => {
+    const local = rot2(toWorld(corner, lever), -w);
     const { from, to } = toothImpulse(0);
     const d = sub(to, from);
-    const t = ((local[0] - from[0]) * d[0] + (local[1] - from[1]) * d[1]) / (d[0] * d[0] + d[1] * d[1]);
-    return t >= -1e-9 && t <= 1 + 1e-9;
-  });
-  if (!out.length) return null;
-  return out.reduce((best, c) => (c.wheel < best.wheel ? c : best));
+    return ((local[0] - from[0]) * d[0] + (local[1] - from[1]) * d[1]) / (d[0] * d[0] + d[1] * d[1]);
+  };
+
+  // The guard is asked at the RAW root, not at the lifted one: lifting by a pitch means a
+  // different tooth takes the same contact, and asking tooth zero where it stands at the
+  // lifted angle asks about a point that is nowhere near the face.
+  const take = (kind, roots, at, lo, hi) => {
+    for (const r of roots) {
+      const t = at(r);
+      if (t >= lo - 1e-9 && t <= hi + 1e-9) found.push({ kind, wheel: lift(r, near), t });
+    }
+  };
+
+  take('lock', toeOnFace(WHEEL_R, toeOff, A, lockDir, lever), (w) => alongFace(w, A, lockDir), 0, STONE.lock);
+  take('impulse', toeOnFace(WHEEL_R, toeOff, A, impDir, lever), (w) => alongFace(w, A, impDir), 0, STONE.imp);
+  const { from, to } = toothImpulse(0);
+  take('plane', cornerOnPlane(corner, lever, from, to), alongPlane, 0, 1);
+
+  if (!found.length) return null;
+  return found.reduce((best, c) => (c.wheel < best.wheel ? c : best));
+}
+
+/** Every candidate at this pose — for the tests and for looking at what the solver saw. */
+export function candidates(face, lever, near, impulse = IMPULSE_ANG[face]) {
+  const { A, lockDir, impDir, corner } = stoneFaces(face, impulse);
+  const toeOff = (TOOTH.tw / 2) * PITCH;
+  const { from, to } = toothImpulse(0);
+  const alongFace = (w, P0, dir) => {
+    const toe = polar(WHEEL_R, toeAngle(0, w));
+    const o = toWorld(P0, lever), u = rot2(dir, lever);
+    return (toe[0] - o[0]) * u[0] + (toe[1] - o[1]) * u[1];
+  };
+  const alongPlane = (w) => {
+    const local = rot2(toWorld(corner, lever), -w);
+    const d = sub(to, from);
+    return ((local[0] - from[0]) * d[0] + (local[1] - from[1]) * d[1]) / (d[0] * d[0] + d[1] * d[1]);
+  };
+  return {
+    lock: toeOnFace(WHEEL_R, toeOff, A, lockDir, lever).map((r) => ({ w: lift(r, near), t: alongFace(r, A, lockDir), max: STONE.lock })),
+    impulse: toeOnFace(WHEEL_R, toeOff, A, impDir, lever).map((r) => ({ w: lift(r, near), t: alongFace(r, A, impDir), max: STONE.imp })),
+    plane: cornerOnPlane(corner, lever, from, to).map((r) => ({ w: lift(r, near), t: alongPlane(r), max: 1 })),
+  };
 }
