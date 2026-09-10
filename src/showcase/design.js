@@ -96,6 +96,8 @@ export const STONE_BACK = 0.22;
 export const AMPLITUDE = (270 * Math.PI) / 180;
 /** The notch's half-width and the pin's radius: the pin fills it with working clearance. */
 export const NOTCH_HALF = 0.085;
+/** How deep the slot is cut into the lever's end: the pin is in the notch only inside it. */
+export const NOTCH_DEPTH = 0.26;
 export const PIN_R = 0.075;
 /**
  * The lift: how much of the balance's swing the escapement occupies. Real watches run
@@ -104,8 +106,7 @@ export const PIN_R = 0.075;
  * PIN_ORBIT / NOTCH_D, and the lever has 2·LEVER_HALF to travel.
  */
 export const LIFT = (50 * Math.PI) / 180;
-export const PIN_ORBIT = (BAL_D * 2 * LEVER_HALF) / (LIFT + 2 * LEVER_HALF);
-export const NOTCH_D = BAL_D - PIN_ORBIT;
+
 
 /** The guard pin and the safety roller: true clearances, not yet acting (issue #40). */
 export const SAFETY_R = 0.3;
@@ -267,17 +268,29 @@ export function poseAt(face, u) {
  * pushed. `null` means the pin is not in the notch — the lever stays where it is, which is
  * the lock.
  */
-export function leverFromPin(theta, side) {
-  const pin = [FORK_D + BAL_D - Math.cos(theta) * PIN_ORBIT, -Math.sin(theta) * PIN_ORBIT];
+export function leverFromPin(theta, side, orbit = PIN_ORBIT) {
+  const pin = [FORK_D + BAL_D - Math.cos(theta) * orbit, -Math.sin(theta) * orbit];
   const v = sub(pin, [FORK_D, 0]);
-  const C = side * (NOTCH_HALF + PIN_R);
+  // The clearance is the DIFFERENCE, not the sum: a pin of radius PIN_R inside a slot of
+  // half-width NOTCH_HALF touches a flank when its centre is that much off the centre line.
+  // With the sum, the play came to 11° of lever against 10° of travel — the lever would have
+  // crossed in one jump the moment it was released.
+  const C = side * (NOTCH_HALF - PIN_R);
   const r = len(v);
   if (Math.abs(C) > r) return null;
+  // The pin has to be IN the notch, not merely somewhere on the line the notch lies along.
+  // Without this the equation was solved by the pin on the far side of the balance, and the
+  // lever appeared to be driven three times a beat, once from 218° away.
+  if (r > BAL_D - orbit + NOTCH_DEPTH) return null;
   const base = Math.atan2(-v[0], v[1]);
   const off = Math.acos(C / r);
   const roots = [base + off, base - off].map((x) => Math.atan2(Math.sin(x), Math.cos(x)));
   const home = side * LEVER_HALF;
-  const reachable = roots.filter((x) => Math.abs(x) <= LEVER_HALF + 1e-12);
+  // Chosen from a range wider than the lever's own travel, and NOT clipped to it: an angle
+  // past a banking means the flank has stopped holding the lever, and the caller decides
+  // that by clamping. Clipping here instead dropped the root at that moment and the lever
+  // fell back onto the other flank — a visible stutter one frame before the drop ended.
+  const reachable = roots.filter((x) => Math.abs(x) <= 3 * LEVER_HALF);
   if (!reachable.length) return null;
   return reachable.reduce((best, x) => (Math.abs(x - home) < Math.abs(best - home) ? x : best));
 }
@@ -335,3 +348,40 @@ export function overlap(p, q) {
   };
   return inside(p[0], q) || inside(q[0], p);
 }
+
+/**
+ * The pin's orbit that spends exactly `LIFT` of the balance's swing on the lever's travel.
+ *
+ * Not a formula: a closed form in the small-angle limit was out by a seventh, because the
+ * pin's distance from the pivot changes as it swings and the two ends of the travel are
+ * held by different flanks. So the engagement is MEASURED — sweep the balance, ask the
+ * notch for the lever at each step, and see over how much of the swing an answer exists —
+ * and the orbit is bisected until that measurement lands on the lift asked for.
+ */
+function liftFor(orbit) {
+  let lo = null, hi = null;
+  for (let i = 0; i <= 1440; i++) {
+    const theta = (-Math.PI / 2) + (Math.PI * i) / 1440;
+    const held = [1, -1].some((side) => {
+      const psi = leverFromPin(theta, side, orbit);
+      return psi !== null && Math.abs(psi) <= LEVER_HALF;
+    });
+    if (held) { if (lo === null) lo = theta; hi = theta; }
+  }
+  return lo === null ? 0 : hi - lo;
+}
+
+export const PIN_ORBIT = (() => {
+  let lo = 0.05, hi = BAL_D * 0.9;
+  for (let i = 0; i < 44; i++) {
+    const mid = (lo + hi) / 2;
+    // More orbit is more leverage on the notch, so less of the swing is spent on the travel.
+    if (liftFor(mid) > LIFT) lo = mid; else hi = mid;
+  }
+  return (lo + hi) / 2;
+})();
+
+/** What that orbit actually spends — measured, and the tests hold it to the aim. */
+export const LIFT_MEASURED = liftFor(PIN_ORBIT);
+
+export const NOTCH_D = BAL_D - PIN_ORBIT;

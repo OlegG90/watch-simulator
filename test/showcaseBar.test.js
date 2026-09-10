@@ -10,6 +10,7 @@
  */
 import { describe, it, expect, beforeEach } from 'vitest';
 import { mountShowcaseBar } from '../src/showcase/bar.js';
+import { stages } from '../src/showcase/motion.js';
 import { t, setLang } from '../src/i18n.js';
 
 function mount(state, opts) {
@@ -30,23 +31,27 @@ describe('showcase bar caption (jsdom)', () => {
     const { bar, name, pal } = mount(state);
     bar.update();
     expect(name.textContent).toBe(t('show.phase.lock'));
-    expect(pal.textContent).toBe(t('show.pallet.entry'));
+    // Between beats the stone named is the one HOLDING the lock — the one the next beat
+    // will escape on, because it caught the tooth at the last drop.
+    expect(pal.textContent).toBe(t('show.pallet.exit'));
   });
 
   it('a phase change moves only the phase cell, a pallet change only the pallet cell', () => {
     const state = { t: 2.5, playing: true, speed: 1 };
     const { bar, name, pal } = mount(state);
     bar.update();
-    // 2.9 is inside the unlocking window on the same pallet.
-    state.t = 2.9;
+    // The stages are solved now, not cut out of a window, so the instants come from the
+    // model itself rather than from a number picked to be inside one.
+    const at = (phase) => stages().find((m) => m.phase === phase).at + 2.5;
+    state.t = at('unlock');
     bar.update();
     expect(name.textContent).toBe(t('show.phase.unlock'));
-    expect(pal.textContent).toBe(t('show.pallet.entry'));
-    // 3.5 is a lock on the other pallet: the phase name returns, the pallet flips.
+    expect(pal.textContent).toBe(t('show.pallet.exit'));
+    // A lock on the other pallet: the phase name returns, the pallet flips.
     state.t = 3.5;
     bar.update();
     expect(name.textContent).toBe(t('show.phase.lock'));
-    expect(pal.textContent).toBe(t('show.pallet.exit'));
+    expect(pal.textContent).toBe(t('show.pallet.entry'));
   });
 
   it('the home button reports the press, and is named in both languages', () => {
@@ -63,7 +68,7 @@ describe('showcase bar caption (jsdom)', () => {
   });
 
   it('a press of Step advances the state to the next stage', () => {
-    const state = { t: 2.5, playing: false, speed: 1 };
+    const state = { t: 2.9, playing: false, speed: 1 };
     const { bar, root } = mount(state);
     button(root, 'show.step').click();
     bar.update();
@@ -81,8 +86,8 @@ describe('showcase bar caption (jsdom)', () => {
     const { bar, name, pal } = mount(state);
     bar.update();
     expect(name.textContent).toBe(t('show.phase.impulse'));
-    // The entry pallet, not the exit one: u = 3 is mid-impulse on the stone unlocked at
-    // the 2.5 lock, and the pallets change hands at the drop that follows.
-    expect(pal.textContent).toBe(t('show.pallet.entry'));
+    // The exit stone: u = 3 is mid-impulse on the one unlocked at the 2.5 lock, and the
+    // pallets change hands at the drop that follows, not at the beat.
+    expect(pal.textContent).toBe(t('show.pallet.exit'));
   });
 });

@@ -1,5 +1,6 @@
 import { t, onLangChange } from '../i18n.js';
 import { phaseName, activePallet, stepFrom } from './motion.js';
+import { EXAGGERATION } from './design.js';
 
 /**
  * Showcase control panel — it lives inside the scene (`#showcase-bar`), because in
@@ -39,6 +40,11 @@ export function mountShowcaseBar(root, state, { onHome } = {}) {
   const palletEl = document.createElement('span');
   palletEl.className = 'ph-pal';
   phase.append(phaseNameEl, phaseSep, palletEl);
+  // The exhibit magnifies two things and says so. A real lock and a real drop are
+  // fractions of a degree; at this size they would be nothing at all. The factor is read
+  // from the design, so the note cannot drift away from what the geometry does.
+  const note = document.createElement('span');
+  note.className = 'ph-note';
 
   speedLabel.append(document.createTextNode(''), speed);
 
@@ -55,6 +61,7 @@ export function mountShowcaseBar(root, state, { onHome } = {}) {
     step.textContent = t('show.step');
     home.textContent = t('show.home');
     speedLabel.firstChild.nodeValue = `${t('show.speed')} `;
+    note.textContent = `${t('show.exag')} ×${EXAGGERATION}`;
   }
 
   let lastPhase = '';
@@ -68,7 +75,7 @@ export function mountShowcaseBar(root, state, { onHome } = {}) {
     palletEl.textContent = t(`show.pallet.${pal}`);
   }
 
-  root.append(play, step, home, speedLabel, phase);
+  root.append(play, step, home, speedLabel, phase, note);
   paint();
   update();
   onLangChange(() => { paint(); lastPhase = ''; update(); });
