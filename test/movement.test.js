@@ -297,6 +297,33 @@ describe('escapement socket', () => {
     for (const r of radii) expect(r).toBe(radii[0]);
   });
 
+  it('and the same BALANCE, not merely the same radius', () => {
+    // The rule was «the same balance in every module», the guard compared radii, and the
+    // three drawings drifted underneath it: one had timing screws and another did not, and
+    // the rims were different thicknesses. Nothing went red, and the cost table quietly
+    // called the newest module cheaper than the one it is meant to be more complex than.
+    //
+    // So the wheel is built once (`escapement/balance.js`) and this compares what came
+    // out: every mesh, its geometry's parameters and where it sits. Identity of
+    // construction, not of one number about it.
+    const f = buildFresh();
+    const wheelOf = (id) => {
+      const balance = f.escapement.variant(id).internals.balance;
+      const wheel = balance.children.find((c) => c.type === 'Group');
+      expect(wheel, `${id}: the balance carries no shared wheel`).toBeTruthy();
+      return wheel.children.map((o) => {
+        const g = o.geometry.parameters;
+        const keys = Object.keys(g).sort().map((k) => `${k}=${g[k]}`).join(',');
+        const p = o.position, r = o.rotation;
+        return `${o.geometry.type}[${keys}]@${p.x.toFixed(4)},${p.y.toFixed(4)},${p.z.toFixed(4)}` +
+               `/${r.x.toFixed(4)},${r.y.toFixed(4)},${r.z.toFixed(4)}`;
+      }).sort();
+    };
+    const first = wheelOf(f.escapement.ids[0]);
+    expect(first.length, 'a balance of one mesh is not a balance').toBeGreaterThan(10);
+    for (const id of f.escapement.ids.slice(1)) expect(wheelOf(id), id).toEqual(first);
+  });
+
   it('escape wheel: 12 s in the lever, 6 s in the tourbillon (it rides the cage)', () => {
     // The difference is real and visible — which is why it belongs to the comparison,
     // not to a station card, where only unchanging numbers belong.

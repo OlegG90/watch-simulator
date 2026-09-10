@@ -147,7 +147,7 @@ A module hands the socket `{ rotating, fixed, update() → β, nodes }` and noth
 
 | | parts | of them moving | nested rotations | footprint (r × h) |
 |---|---|---|---|---|
-| Lever escapement | 18 | 16 | 1 | 4.73 × 2.95 |
+| Lever escapement | 26 | 24 | 1 | 4.73 × 2.95 |
 | Tourbillon | 50 | 48 | 2 | 4.32 × 5.20 |
 | Double-axis tourbillon | 47 | 45 | 3 | 4.45 × 6.82 |
 

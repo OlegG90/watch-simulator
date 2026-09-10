@@ -3,6 +3,7 @@ import { makeGear, makeEscapeWheel } from '../gear.js';
 import { tagModule, tagVariant } from '../common.js';
 import { beatPhase } from './beat.js';
 import { buildHairspring } from './hairspring.js';
+import { buildBalanceWheel } from './balance.js';
 
 // ── Escapement constants (the same as in escapement.js) ───────────
 /** Local Z levels of the cage (from its base) — shared with the developed section. */
@@ -164,38 +165,8 @@ export function buildTourbillon(
   const balance = new THREE.Group();
   balance.position.z = zBal;
   const balR = balanceR(cageR);
-  const rim = new THREE.Mesh(new THREE.TorusGeometry(balR, T.balRim, 16, 64), brass);
-  rim.castShadow = true;
-  rim.receiveShadow = true;
-  balance.add(rim);
-  for (const a of [0, Math.PI / 2]) {
-    const spoke = new THREE.Mesh(new THREE.BoxGeometry(balR * 2 - 0.15, 0.16, 0.16), brass);
-    spoke.rotation.z = a;
-    spoke.castShadow = true;
-    balance.add(spoke);
-  }
-  // Timing screws/weights on the rim — 4 of them crosswise, offset so they do not coincide with the spokes.
-  const screwGeo = new THREE.CylinderGeometry(0.09, 0.09, 0.26, 12);
-  for (let i = 0; i < 4; i++) {
-    const a = (i * Math.PI * 2) / 4 + Math.PI / 8;
-    const sx = Math.cos(a) * balR, sy = Math.sin(a) * balR;
-    const screw = new THREE.Mesh(screwGeo, steel);
-    screw.position.set(sx, sy, 0.08);
-    // The screw sticks out radially.
-    screw.rotation.z = a;
-    screw.rotation.x = Math.PI / 2;
-    screw.castShadow = true;
-    balance.add(screw);
-    const head = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 0.06, 12), steel);
-    head.position.set(Math.cos(a) * (balR + 0.07), Math.sin(a) * (balR + 0.07), 0.08);
-    head.rotation.z = a;
-    head.rotation.x = Math.PI / 2;
-    head.castShadow = true;
-    balance.add(head);
-  }
-  const balHub = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, 0.5, 16), steel);
-  balHub.rotation.x = Math.PI / 2;
-  balance.add(balHub);
+  // One builder for every module — see `balance.js` for why this stopped being local.
+  balance.add(buildBalanceWheel({ radius: balR, brass, steel }));
   const balAxle = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 2.4, 12), axleMat);
   balAxle.rotation.x = Math.PI / 2;
   balAxle.position.z = -0.35;

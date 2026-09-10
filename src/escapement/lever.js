@@ -3,6 +3,7 @@ import { makeEscapeWheel } from '../gear.js';
 import { tagModule, tagVariant } from '../common.js';
 import { beatPhase } from './beat.js';
 import { buildHairspring } from './hairspring.js';
+import { buildBalanceWheel } from './balance.js';
 
 /**
  * The Swiss lever escapement — the simplest module in the socket.
@@ -171,19 +172,9 @@ export function buildLever(
   const balance = new THREE.Group();
   balance.position.set(balCenter.x, balCenter.y, LAYERS.balance);
   const balR = BALANCE_R;
-  const rim = new THREE.Mesh(new THREE.TorusGeometry(balR, T.balRim, 16, 64), brass);
-  rim.castShadow = true;
-  rim.receiveShadow = true;
-  balance.add(rim);
-  for (const a of [0, Math.PI / 2]) {
-    const spoke = new THREE.Mesh(new THREE.BoxGeometry(balR * 2 - 0.15, 0.16, 0.16), brass);
-    spoke.rotation.z = a;
-    spoke.castShadow = true;
-    balance.add(spoke);
-  }
-  const balHub = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, 0.5, 16), steel);
-  balHub.rotation.x = Math.PI / 2;
-  balance.add(balHub);
+  // The wheel itself comes from the one builder every module shares: it is the same
+  // balance by decision, and building it here again is how «the same» stops being true.
+  balance.add(buildBalanceWheel({ radius: balR, brass, steel }));
   const balAxle = new THREE.Mesh(new THREE.CylinderGeometry(0.14, 0.14, 2.6, 12), axleMat);
   balAxle.rotation.x = Math.PI / 2;
   balAxle.position.z = -0.5;

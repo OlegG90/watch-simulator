@@ -3,6 +3,7 @@ import { makeGear, makeBevelGear, makeEscapeWheel } from '../gear.js';
 import { tagModule, tagVariant } from '../common.js';
 import { beatPhase } from './beat.js';
 import { buildHairspring } from './hairspring.js';
+import { buildBalanceWheel } from './balance.js';
 
 /**
  * The double-axis tourbillon: a cage inside a cage, the inner one turning about an axis
@@ -250,36 +251,10 @@ export function buildDoubleAxis(
   const balR = Math.min(1.95, rInner - 0.35);   // the same balance as every other module
   const balance = new THREE.Group();
   balance.position.z = 0.72;
-  const rim = new THREE.Mesh(new THREE.TorusGeometry(balR, 0.12, 14, 56), brass);
-  rim.castShadow = true;
-  balance.add(rim);
-  for (const a of [0, Math.PI / 2]) {
-    const spoke = new THREE.Mesh(new THREE.BoxGeometry(balR * 2 - 0.1, 0.11, 0.11), brass);
-    spoke.rotation.z = a;
-    balance.add(spoke);
-  }
-  // The timing screws the other modules' balances carry. The balance is the same balance
-  // in every variant — that is the decided rule — and «the same» has to include what it is
-  // made of, or the comparison would be counting my haste rather than the mechanism.
-  const screwGeo = new THREE.CylinderGeometry(0.09, 0.09, 0.26, 12);
-  for (let i = 0; i < 4; i++) {
-    const a = (i * Math.PI * 2) / 4 + Math.PI / 8;
-    const screw = new THREE.Mesh(screwGeo, steel);
-    screw.position.set(Math.cos(a) * balR, Math.sin(a) * balR, 0.06);
-    screw.rotation.z = a;
-    screw.rotation.x = Math.PI / 2;
-    screw.castShadow = true;
-    balance.add(screw);
-    const head = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.13, 0.06, 12), steel);
-    head.position.set(Math.cos(a) * (balR + 0.07), Math.sin(a) * (balR + 0.07), 0.06);
-    head.rotation.z = a;
-    head.rotation.x = Math.PI / 2;
-    head.castShadow = true;
-    balance.add(head);
-  }
-  const balHub = new THREE.Mesh(new THREE.CylinderGeometry(0.1, 0.1, 0.22, 12), steel);
-  balHub.rotation.x = Math.PI / 2;
-  balance.add(balHub);
+  // The same wheel as every other module: this one was built here by hand first, and it
+  // arrived without the timing screws — which is how the drift this builder exists to
+  // prevent actually looked.
+  balance.add(buildBalanceWheel({ radius: balR, brass, steel }));
   const balAxle = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 1.1, 8), axleMat);
   balAxle.rotation.x = Math.PI / 2;
   balance.add(balAxle);

@@ -148,6 +148,13 @@ Three things are worth carrying forward:
   different picture), an inner cage turning about a horizontal axis has to carry it through
   a full circle, and that circle has to fit between the outer plates. Change the balance and
   the cage's height follows; a test holds the chain.
+- **What every module shares is built once.** The balance is the same balance in every
+  variant — a decision, so that a swap shows a different construction rather than a
+  different picture — and it was written down as a rule and then built three times. The
+  three drifted: one had timing screws and another did not. The guard compared radii, the
+  radii agreed, and nothing went red. `escapement/balance.js` builds it now, and the guard
+  compares construction — every mesh, its parameters and its place. What stays with each
+  module is what is genuinely its own: the staff and the roller, which are mounting.
 - **A measurement that stopped being an angle.** `worldZ()` in the tests summed `rotation.z`
   up the parent chain, which is an angle only while every link turns about Z. It now checks
   that precondition and throws instead of adding angles measured about different axes. The

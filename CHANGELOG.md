@@ -42,6 +42,15 @@ A third mode, one language, one snapshot fewer.
 
   Two figures are magnified four times, because a real lock and a real drop
   would be invisible at this size, and the panel tells the viewer so.
+- **One balance for every module.** It was the same balance by decision and
+  built three times, and the three drifted — the lever's had no timing screws
+  and the double-axis's rim was a different thickness. The guard compared radii,
+  the radii agreed, and nothing went red; what noticed was the cost table, which
+  called the newest module cheaper than the one it is meant to exceed.
+  `escapement/balance.js` builds the wheel now, and the guard compares
+  construction rather than one number about it. The lever's balance therefore
+  gains its timing screws (26 parts, not 18) — verified by a scene-graph diff:
+  the tourbillon is untouched, and nothing else moved.
 - **The double-axis tourbillon** — the third escapement module, and the one the
   socket was built for. A cage inside a cage, the inner turning about an axis at a
   right angle to the outer and twice as fast, driven through a bevel pair because
