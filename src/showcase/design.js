@@ -108,11 +108,28 @@ export const PIN_R = 0.075;
 export const LIFT = (50 * Math.PI) / 180;
 
 
-/** The guard pin and the safety roller: true clearances, not yet acting (issue #40). */
+/**
+ * The safety action: the guard pin, the safety roller and the crescent cut into it.
+ *
+ * What holds the lever between beats is the draw, and the draw is an argument, not a
+ * catch. The catch is this: the guard pin stands beside the safety roller, and if the
+ * lever is knocked off its banking the pin butts the roller and stops — long before the
+ * lock could be pushed off. The one moment it is allowed through is the moment the impulse
+ * pin is in the notch, and that is what the crescent is: a bite taken out of the roller,
+ * facing the lever exactly then.
+ *
+ * The pin's arc is CLOSEST to the balance at the middle of the lever's travel, so a pin
+ * that clears the roller on the banking will foul it a little way in. That is not a defect
+ * to design out — it is the whole mechanism.
+ */
 export const SAFETY_R = 0.3;
 export const GUARD_R = 0.045;
-export const GUARD_CLEAR = 0.03;
-export const GUARD_D = BAL_D - SAFETY_R - GUARD_R - GUARD_CLEAR;
+/**
+ * How far along its travel the lever gets before the guard stops it, as a fraction. It has
+ * to be less than the unlocking's share (`LEVER_UNLOCK / travel`), or the lock would be off
+ * before the catch caught: half of it, so the margin is visible rather than nominal.
+ */
+export const GUARD_RUN = 0.5 * (LEVER_UNLOCK / (2 * LEVER_HALF));
 
 // ── plane geometry ────────────────────────────────────────────────
 export const polar = (r, a) => [Math.cos(a) * r, Math.sin(a) * r];
@@ -385,3 +402,106 @@ export const PIN_ORBIT = (() => {
 export const LIFT_MEASURED = liftFor(PIN_ORBIT);
 
 export const NOTCH_D = BAL_D - PIN_ORBIT;
+
+
+/**
+ * Where the guard pin sits on the lever — solved, not placed. Its distance to the balance
+ * falls as the lever leaves its banking, and the pin must reach the roller exactly when the
+ * lever has used `GUARD_RUN` of its travel. Bisection on that distance.
+ */
+export const GUARD_D = (() => {
+  const reach = (d, lever) => {
+    const g = toWorld([d, 0], lever);
+    return Math.hypot(g[0] - (FORK_D + BAL_D), g[1]) - (SAFETY_R + GUARD_R);
+  };
+  const at = LEVER_HALF - GUARD_RUN * 2 * LEVER_HALF;   // the lever, that far off its banking
+  let lo = BAL_D - SAFETY_R - GUARD_R - 0.4, hi = BAL_D - SAFETY_R - GUARD_R + 0.4;
+  for (let i = 0; i < 60; i++) {
+    const mid = (lo + hi) / 2;
+    if (reach(mid, at) > 0) lo = mid; else hi = mid;    // further out reaches sooner
+  }
+  return (lo + hi) / 2;
+})();
+
+/** The guard's place in the world, and where it stands on the balance's own dial. */
+export const guardAt = (lever) => toWorld([GUARD_D, 0], lever);
+const wrapPi = (a) => Math.atan2(Math.sin(a), Math.cos(a));
+export function guardOnRoller(theta, lever) {
+  const g = guardAt(lever);
+  const v = sub(g, [FORK_D + BAL_D, 0]);
+  return { dist: len(v), angle: wrapPi(Math.atan2(v[1], v[0]) - theta - Math.PI) };
+}
+
+/**
+ * The crescent's half-angle — measured, not cut to taste. It has to be open for every pose
+ * of the engagement, and for the guard's own width on the way in and out; anything wider is
+ * a hole in the safety and anything narrower is a lever that jams on a correct beat.
+ */
+export const CRESCENT_HALF = (() => {
+  // Swept along the ENGAGEMENT itself — the balance's angle, the lever it drives through
+  // the notch, the guard's place on the roller — because the crescent has to be open for
+  // the poses that actually happen. An earlier version tried to match the lever's travel
+  // against the balance's on two sampled grids; the two rarely landed on each other, so it
+  // measured almost nothing and cut a crescent too narrow to let the lever cross at all.
+  let worst = 0;
+  const N = 4000;
+  for (let i = 0; i <= N; i++) {
+    const theta = -LIFT + (2 * LIFT * i) / N;
+    for (const side of [1, -1]) {
+      const psi = leverFromPin(theta, side);
+      if (psi === null) continue;
+      const lever = Math.max(-LEVER_HALF, Math.min(LEVER_HALF, psi));
+      const { dist, angle } = guardOnRoller(theta, lever);
+      if (dist < SAFETY_R + GUARD_R) worst = Math.max(worst, Math.abs(angle));
+    }
+  }
+  return worst + GUARD_R / SAFETY_R;                    // the guard's own width, in radians
+})();
+
+/** How deep the crescent is cut: enough to let the pin through at its deepest reach. */
+export const CRESCENT_DEPTH = (() => {
+  let deepest = SAFETY_R;
+  for (let i = 0; i <= 200; i++) {
+    const lever = -LEVER_HALF + (2 * LEVER_HALF * i) / 200;
+    deepest = Math.min(deepest, guardOnRoller(0, lever).dist - GUARD_R);
+  }
+  return Math.max(0.04, SAFETY_R - deepest + 0.02);
+})();
+
+/**
+ * The clearance between the guard and the roller at a pose: positive is clear, negative
+ * would be the pin inside the roller, which is what never happens.
+ *
+ * Inside the crescent the roller is cut away to `SAFETY_R − CRESCENT_DEPTH`, which is why
+ * the pin passes at all; outside it the full radius is in the way.
+ */
+export function guardGap(theta, lever) {
+  const { dist, angle } = guardOnRoller(theta, lever);
+  const radius = Math.abs(angle) <= CRESCENT_HALF ? SAFETY_R - CRESCENT_DEPTH : SAFETY_R;
+  return dist - (radius + GUARD_R);
+}
+
+/**
+ * How far the lever can travel from a banking before the guard stops it — the answer to
+ * «what holds it». `1` means the guard is not in the way at all, which is the case through
+ * the engagement, and is why a correct beat never feels this constraint.
+ */
+export function guardLimit(theta, bank, dir) {
+  const travel = 2 * LEVER_HALF;
+  const gapAt = (f) => guardGap(theta, bank + dir * travel * f);
+  // The FIRST crossing, not the far end: the guard blocks partway across and clears again
+  // beyond, so asking only where the lever would finish says «nothing in the way» exactly
+  // when something is.
+  const N = 200;
+  let prev = 0;
+  for (let i = 1; i <= N; i++) {
+    const f = i / N;
+    if (gapAt(f) < 0) {
+      let lo = prev, hi = f;
+      for (let j = 0; j < 40; j++) { const m = (lo + hi) / 2; if (gapAt(m) >= 0) lo = m; else hi = m; }
+      return lo;
+    }
+    prev = f;
+  }
+  return 1;
+}

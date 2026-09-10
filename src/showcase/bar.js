@@ -19,6 +19,7 @@ export function mountShowcaseBar(root, state, { onHome } = {}) {
   const play = document.createElement('button');
   const step = document.createElement('button');
   const home = document.createElement('button');
+  const nudge = document.createElement('button');
   const speedLabel = document.createElement('label');
   const speed = document.createElement('input');
   speed.type = 'range';
@@ -54,6 +55,12 @@ export function mountShowcaseBar(root, state, { onHome } = {}) {
   });
   step.addEventListener('click', () => { state.t = stepFrom(state.t); paint(); });
   home.addEventListener('click', () => onHome?.());
+  // Held, not toggled: the lever is pushed for as long as the button is down, and lets go
+  // when it is released. `state.nudge` sits beside the time rather than inside the model,
+  // so the pose stays a pure function — of the pair now, instead of of the time alone.
+  const press = (v) => () => { state.nudge = v; };
+  nudge.addEventListener('pointerdown', press(1));
+  for (const e of ['pointerup', 'pointerleave', 'pointercancel']) nudge.addEventListener(e, press(0));
   speed.addEventListener('input', () => { state.speed = Number(speed.value); });
 
   function paint() {
@@ -62,6 +69,7 @@ export function mountShowcaseBar(root, state, { onHome } = {}) {
     home.textContent = t('show.home');
     speedLabel.firstChild.nodeValue = `${t('show.speed')} `;
     note.textContent = `${t('show.exag')} ×${EXAGGERATION}`;
+    nudge.textContent = t('show.nudge');
   }
 
   let lastPhase = '';
@@ -73,9 +81,17 @@ export function mountShowcaseBar(root, state, { onHome } = {}) {
     const [ph, pal] = key.split('.');
     phaseNameEl.textContent = t(`show.phase.${ph}`);
     palletEl.textContent = t(`show.pallet.${pal}`);
+    // The push is only live where there is something to see: between beats the draw holds
+    // the lever and the guard is what would catch it. Through the engagement the lever is
+    // driven by the pin or by the wheel, so a push would be pushing at something already
+    // held — and a button that sometimes does nothing teaches less than one that says when
+    // it applies.
+    const idle = ph === 'lock';
+    nudge.disabled = !idle;
+    if (!idle) state.nudge = 0;
   }
 
-  root.append(play, step, home, speedLabel, phase, note);
+  root.append(play, step, nudge, home, speedLabel, phase, note);
   paint();
   update();
   onLangChange(() => { paint(); lastPhase = ''; update(); });

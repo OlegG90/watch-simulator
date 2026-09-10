@@ -1,4 +1,6 @@
-import { AMPLITUDE, LEVER_HALF, PITCH, action, leverFromPin, poseAt } from './design.js';
+import {
+  AMPLITUDE, LEVER_HALF, PITCH, action, leverFromPin, poseAt, guardGap, guardLimit,
+} from './design.js';
 
 /**
  * The showcase's motion — the escapement running, not a schedule of it.
@@ -63,7 +65,7 @@ export function balanceAngle(u, ampDeg) {
  * the leading one once it is running ahead. With the pin out of the notch there is nothing
  * to push it, so it stands on a banking and the wheel is locked.
  */
-export function pose(u) {
+export function pose(u, nudge = 0) {
   const n = Math.round(u);
   const beatFace = faceOfBeat(n);
   const a = action(beatFace);
@@ -74,8 +76,18 @@ export function pose(u) {
     .map((psi) => clamp(a.dir * (psi - a.bank), 0, TRAVEL)); // progress, held by the bankings
   const engaged = roots.length > 0;
   let p;
-  if (!engaged) p = u < n ? 0 : TRAVEL;            // before the crossing, or home after it
-  else {
+  if (!engaged) {
+    // On a banking, with nothing driving it. This is where a knock would send the lever
+    // across — and where the guard pin is the only thing that stops it, so the push is
+    // taken as far as the guard allows and no further.
+    const home = u < n ? 0 : TRAVEL;               // before the crossing, or home after it
+    const forward = home === 0 ? 1 : -1;           // which way the progress would go
+    // guardLimit works in LEVER angle, and the two are not the same sign: the exit stone's
+    // progress runs the lever the other way round. Passing the progress' direction asked
+    // the guard about the side it is not on, and it politely answered «nothing in the way».
+    const room = nudge > 0 ? guardLimit(theta, a.lever(home / TRAVEL), forward * a.dir) * TRAVEL : 0;
+    p = home + forward * clamp(nudge, 0, 1) * room;
+  } else {
     const lo = Math.min(...roots), hi = Math.max(...roots);
     p = lo <= a.uUnlock * TRAVEL ? lo : hi;
   }
@@ -91,6 +103,11 @@ export function pose(u) {
     lever: d.lever,
     wheel: d.wheel + turnOf(n) * PITCH,
     phase: !engaged || t <= 0 ? 'lock' : d.phase,
+    // How close the guard pin is to the safety roller. Through a correct beat this is never
+    // near zero — the crescent is open exactly when the lever crosses — and that is the
+    // claim the tests hold it to. Under a push it goes to zero: the guard is the thing
+    // holding, and the exhibit lights it rather than captioning it.
+    guard: guardGap(theta, d.lever),
   };
 }
 

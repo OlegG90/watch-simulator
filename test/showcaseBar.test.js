@@ -75,6 +75,28 @@ describe('showcase bar caption (jsdom)', () => {
     expect(root.querySelector('.ph-name').textContent).toBe(t('show.phase.unlock'));
   });
 
+  it('the push is live at a lock and dimmed while the escapement is driving', () => {
+    // A button that sometimes does nothing teaches less than one that says when it applies:
+    // between beats the draw holds the lever and a push has something to prove, while
+    // through the engagement the lever is already driven.
+    const state = { t: 2.5, playing: false, speed: 1, nudge: 0 };
+    const { bar, root } = mount(state);
+    bar.update();
+    const button = [...root.querySelectorAll('button')].find((b) => b.textContent === t('show.nudge'));
+    expect(button, 'no button carries the push label').toBeTruthy();
+    expect(button.disabled).toBe(false);
+    button.dispatchEvent(new window.Event('pointerdown'));
+    expect(state.nudge).toBe(1);
+    button.dispatchEvent(new window.Event('pointerup'));
+    expect(state.nudge).toBe(0);
+    // Mid-impulse it is dimmed, and a push left held is dropped rather than carried in.
+    state.nudge = 1;
+    state.t = 3;
+    bar.update();
+    expect(button.disabled).toBe(true);
+    expect(state.nudge).toBe(0);
+  });
+
   it('the bar mounts without an onHome and the press is harmless', () => {
     const { root } = mount({ t: 2.5, playing: true, speed: 1 });
     expect(() => button(root, 'show.home').click()).not.toThrow();

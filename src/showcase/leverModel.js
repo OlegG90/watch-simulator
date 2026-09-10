@@ -3,6 +3,7 @@ import { pose } from './motion.js';
 import {
   TEETH, WHEEL_R, WHEEL_ROOT, PITCH, FORK_D, BAL_D, LEVER_HALF,
   NOTCH_D, NOTCH_HALF, NOTCH_DEPTH, PIN_ORBIT, PIN_R, SAFETY_R, GUARD_R, GUARD_D,
+  CRESCENT_HALF, CRESCENT_DEPTH,
   toothPoly, stonePoly, faceLocus, polar,
 } from './design.js';
 import { buildSpring, SPRING_R1 } from './spring.js';
@@ -53,6 +54,8 @@ const RIM_H_HALF = 0.11;
 /** The stone's thickness across the wheel's plane, and how high it hangs. */
 const STONE_T = 0.5;
 const STONE_Z = 0.1;
+/** The safety roller's plane: below the lever's body, where the guard pin reaches down. */
+const SAFETY_Z = 0.45;
 /** The impulse pin hangs from the roller table down into the notch at FORK_Z. */
 const PIN_TOP = RIM_Z - 0.09;
 const PIN_BOTTOM = 0.4;
@@ -305,12 +308,18 @@ export function buildShowcase() {
     post.castShadow = true;
     forkPivot.add(post);
   }
-  // The guard pin, with its true clearance to the safety roller. It does not act yet — the
-  // safety action is its own piece of work — but it stands where it would.
-  const guard = new THREE.Mesh(new THREE.CylinderGeometry(GUARD_R, GUARD_R, 0.34, 10), darkSteel);
+  // The guard pin: the catch that holds the lever between beats. Its own material, because
+  // it lights when it is the thing holding — the same way the working stone does.
+  const guardMat = darkSteel.clone();
+  guardMat.emissive = new THREE.Color(0xffb020);
+  const guard = new THREE.Mesh(new THREE.CylinderGeometry(GUARD_R, GUARD_R, 0.46, 12), guardMat);
   guard.rotation.x = Math.PI / 2;
-  guard.position.set(GUARD_D, 0, FORK_Z - 0.2);
+  guard.position.set(GUARD_D, 0, SAFETY_Z);
+  guard.castShadow = true;
   forkPivot.add(guard);
+  const guardStem = new THREE.Mesh(new THREE.BoxGeometry(0.12, 0.12, FORK_Z - SAFETY_Z), steel);
+  guardStem.position.set(GUARD_D, 0, (FORK_Z + SAFETY_Z) / 2);
+  forkPivot.add(guardStem);
   group.add(forkPivot);
 
   // ── The banking bridge: the limiting pins stand on it, not in the air. Two slim
@@ -354,9 +363,23 @@ export function buildShowcase() {
   roller.position.z = RIM_Z;
   roller.castShadow = true;
   balancePivot.add(roller);
-  const safety = new THREE.Mesh(new THREE.CylinderGeometry(SAFETY_R, SAFETY_R, 0.16, 32), steel);
-  safety.rotation.x = Math.PI / 2;
-  safety.position.z = FORK_Z;
+  // The safety roller, with the crescent cut into it: the one place the guard pin may pass,
+  // facing the lever exactly while the impulse pin is in the notch. Its half-angle and its
+  // depth are measurements of that passage (design.js), not a shape drawn to look right.
+  const safetyShape = new THREE.Shape();
+  safetyShape.absarc(0, 0, SAFETY_R, Math.PI + CRESCENT_HALF, Math.PI * 3 - CRESCENT_HALF, false);
+  safetyShape.absarc(0, 0, SAFETY_R - CRESCENT_DEPTH, Math.PI - CRESCENT_HALF, Math.PI + CRESCENT_HALF, true);
+  const safetyGeo = new THREE.ExtrudeGeometry(safetyShape, { depth: 0.16, bevelEnabled: false, curveSegments: 64 });
+  safetyGeo.translate(0, 0, -0.08);
+  safetyGeo.computeVertexNormals();
+  // Its own material, like the guard's: when the two are what holds the lever, BOTH light.
+  // The pin alone is a few hundredths across and sits under the lever's body — lighting it
+  // is a true statement nobody can see. The roller is the visible half of the same contact.
+  const safetyMat = steel.clone();
+  safetyMat.emissive = new THREE.Color(0xffb020);
+  safetyMat.emissiveIntensity = 0;
+  const safety = new THREE.Mesh(safetyGeo, safetyMat);
+  safety.position.z = SAFETY_Z;
   safety.castShadow = true;
   balancePivot.add(safety);
   const jewel = new THREE.Mesh(new THREE.CylinderGeometry(PIN_R, PIN_R, PIN_TOP - PIN_BOTTOM, 12), ruby);
@@ -454,14 +477,20 @@ export function buildShowcase() {
    * highlight on the active pair. A pure function of time: the panel's pause and stepping
    * are a stop and a manual advance of `u`, and no state accumulates anywhere.
    */
-  function update(u) {
-    const p = pose(u);
+  function update(u, nudge = 0) {
+    const p = pose(u, nudge);
     wheelPivot.rotation.z = p.wheel;
     forkPivot.rotation.z = p.lever;
     balancePivot.rotation.z = p.theta;
     spring.update(p.theta);
     for (const [face, stone] of Object.entries(jewels))
       stone.material.emissiveIntensity = face === p.face ? 0.9 : 0.25;
+    // Lit when it is the guard that is holding the lever, which is a thing to be seen
+    // rather than read: the pin touches the roller and nothing goes any further.
+    const held = p.guard < 0.004 ? 1 : 0;
+    guardMat.emissiveIntensity = held;
+    safetyMat.emissiveIntensity = held * 0.6;
+    return p;
   }
 
   return { group, home, update, wheelPivot, forkPivot, balancePivot, jewels };

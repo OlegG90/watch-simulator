@@ -115,7 +115,7 @@ const showcase = buildShowcase();
 scene.add(showcase.group);
 // The showcase's phase time (in beats) lives here, not in the model: the panel's pause
 // and step are a stop and a manual advance, and the model stays a pure function of time.
-const show = { t: 0.5, playing: true, speed: 0.5 };
+const show = { t: 0.5, playing: true, speed: 0.5, nudge: 0 };
 
 // ── Camera: fit the movement into the frame (allowing for the aspect) ─
 const fitR = Math.hypot(movement.size.w, movement.size.h) / 2;
@@ -365,7 +365,7 @@ function tick() {
   powerUI.power = Math.round(movement.winder.charge * 100);
   if (uiMode === 'showcase') {
     if (show.playing) show.t += dt * BEAT_HZ * show.speed;
-    showcase.update(show.t);
+    showcase.update(show.t, show.nudge);
     showBar.update();
   }
   lesson.update();

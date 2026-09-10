@@ -9,6 +9,7 @@ import {
 import {
   PITCH, LEVER_HALF, LEVER_UNLOCK, DRAW, LIFT, LIFT_MEASURED, action, poseAt, report,
   stonePoly, toothPoly, toe, toWorld,
+  GUARD_RUN, GUARD_R, SAFETY_R, CRESCENT_HALF, guardGap, guardLimit, guardOnRoller,
 } from '../src/showcase/design.js';
 import { buildSpring, SPRING_N, SPRING_R0, SPRING_R1 } from '../src/showcase/spring.js';
 
@@ -230,6 +231,92 @@ describe('showcase motion (the escapement running)', () => {
     m.update(7.4);
     m.update(1.02);
     expect([m.wheelPivot.rotation.z, m.forkPivot.rotation.z, m.balancePivot.rotation.z]).toEqual(first);
+  });
+
+  it('a correct beat never touches the guard pin', () => {
+    // The safety action is what holds the lever when nothing else does, and it must not be
+    // in the way when something else does: through a correct beat the crescent is open at
+    // exactly the moment the lever crosses.
+    // Measured from the geometry, not read off the pose: a pose that reported a comfortable
+    // number while the pin was in the roller would pass its own examination.
+    let worst = Infinity;
+    for (let i = 0; i <= 8000; i++) {
+      const p = pose(i / 2000);
+      worst = Math.min(worst, guardGap(p.theta, p.lever));
+    }
+    expect(worst, 'the guard fouls during a correct beat').toBeGreaterThan(0.002);
+  });
+
+  it('what the pose reports about the guard is what the geometry says', () => {
+    // The exhibit lights the guard pin from this number, so it has to be the same number.
+    for (const u of [0.5, 1.02, 2.5, 3.9]) {
+      const p = pose(u);
+      expect(p.guard, `u=${u}`).toBeCloseTo(guardGap(p.theta, p.lever), 12);
+    }
+  });
+
+  it('a push at a lock is stopped by the guard before the lock could come off', () => {
+    // The point of the catch: the lever gets a fraction of its travel and no more, and that
+    // fraction is smaller than the share the unlocking needs. Nudged or not, the lock holds.
+    for (const u of [0.5, 1.5, 2.5]) {
+      const free = pose(u);
+      const pushed = pose(u, 1);
+      const travelled = Math.abs(pushed.lever - free.lever) / (2 * LEVER_HALF);
+      expect(travelled, `at u=${u}`).toBeGreaterThan(0.001);         // it does move
+      expect(travelled, `at u=${u}`).toBeLessThan(LEVER_UNLOCK / (2 * LEVER_HALF));
+      expect(pushed.phase, `at u=${u}`).toBe('lock');                // and the lock holds
+      // The wheel may give back a little — that is the draw, and pushing the lever pushes
+      // the lock deeper into it — but it may not ESCAPE, which is the whole claim.
+      expect(pushed.wheel, `at u=${u}`).toBeLessThanOrEqual(free.wheel + 1e-9);
+    }
+  });
+
+  it('the crescent is no wider than the passage that justifies it', () => {
+    // A crescent cut generously is a hole in the safety. Its half-angle is measured from
+    // the engagement — the widest the guard ever stands off centre while it is inside the
+    // roller's reach — plus the guard's own width, and nothing else.
+    let widest = 0;
+    for (let i = 0; i <= 8000; i++) {
+      const p = pose(i / 2000);
+      const { dist, angle } = guardOnRoller(p.theta, p.lever);
+      if (dist < SAFETY_R + GUARD_R) widest = Math.max(widest, Math.abs(angle));
+    }
+    expect(CRESCENT_HALF).toBeGreaterThan(widest);
+    expect(CRESCENT_HALF - widest, 'cut wider than the guard needs').toBeLessThan(GUARD_R / SAFETY_R + 0.01);
+  });
+
+  it('the crescent faces the guard at the crossing, not beside it', () => {
+    // Where the opening SITS, checked apart from how wide it is. Both come out of the same
+    // measurement, so a crescent cut a few degrees off centre would widen itself to cover
+    // the passage and every other test would still pass — while the exhibit showed an
+    // opening that has nothing to do with the moment it exists for.
+    expect(Math.abs(guardOnRoller(0, 0).angle), 'the crescent is off centre')
+      .toBeLessThan(CRESCENT_HALF / 8);
+  });
+
+  it('the guard holds the lever whatever the balance is doing, outside the crescent', () => {
+    // Not just at the poses a beat happens to visit: at any balance angle away from the
+    // crossing, a lever pushed off its banking is caught within the same short run.
+    const wrap = (a) => Math.atan2(Math.sin(a), Math.cos(a));
+    for (let deg = 20; deg < 360; deg += 10) {
+      const theta = (deg * Math.PI) / 180;
+      // Away from the crossing: near it the crescent is open on purpose, and a balance
+      // swinging 270° each way comes back past that opening several times a beat.
+      if (Math.abs(wrap(theta)) < LIFT * 1.2) continue;
+      for (const [bank, dir] of [[-LEVER_HALF, 1], [LEVER_HALF, -1]]) {
+        const limit = guardLimit(theta, bank, dir);
+        expect(limit, `theta=${deg}`).toBeCloseTo(GUARD_RUN, 2);
+      }
+    }
+  });
+
+  it('the pose is a pure function of the time AND the push', () => {
+    // The push is a state beside the time, not one inside the model: the same pair gives
+    // the same pose, whatever was asked in between.
+    const first = pose(2.5, 1);
+    pose(9.1, 0);
+    pose(0.2, 0.4);
+    expect(pose(2.5, 1)).toEqual(first);
   });
 
   it('update sets poses free of NaN at the locks and mid-unlocking', () => {

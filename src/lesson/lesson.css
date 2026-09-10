@@ -70,12 +70,13 @@ body { font-family: var(--ui); color: var(--body); }
 #showcase-bar {
   position: absolute; left: 50%; bottom: 14px; transform: translateX(-50%);
   display: flex; align-items: center; gap: 12px;
-  /* Measured, and measured again every time something is added: the phase cells are the
-     only flexible thing in this row, so an overflow is SILENT — they collapse to an
-     ellipsis while every other control still looks right. 620 → 680 when the home view
-     arrived (content 647), 680 → 860 when the honesty note did (content 837). Take the
-     measurement in the longer language. */
-  width: 860px; max-width: calc(100vw - 32px); box-sizing: border-box;
+  /* Three times a control was added and the bar clipped the readout without a word — the
+     phase cells are the only flexible thing in this row, so a shortfall collapses THEM to
+     an ellipsis while every other control still looks right. Measuring again after each
+     addition is not a fix, it is a habit. So: the bar takes the width its content needs,
+     with a floor so that the Play/Pause toggle cannot make it breathe. Too much content now
+     makes the bar wider, which is visible, instead of eating the one thing worth reading. */
+  width: max-content; min-width: 990px; max-width: calc(100vw - 32px); box-sizing: border-box;
   padding: 8px 14px; border-radius: 10px;
   background: rgb(20 22 26 / 0.85); border: 1px solid rgb(255 255 255 / 0.1);
   font: 400 12.5px/1.4 var(--ui); color: var(--body);
@@ -87,7 +88,10 @@ body { font-family: var(--ui); color: var(--body); }
   background: #2a2e36; color: var(--body); border: 1px solid rgb(255 255 255 / 0.12);
   font: inherit; min-width: 5em;
 }
-#showcase-bar button:hover { background: #353b46; }
+#showcase-bar button:hover:not(:disabled) { background: #353b46; }
+/* A push only means something while the draw is what holds the lever: dimmed the rest
+   of the time, which is itself a statement about who is holding it. */
+#showcase-bar button:disabled { opacity: 0.4; cursor: default; }
 #showcase-bar input[type="range"] { width: 110px; accent-color: #caa84a; }
 #showcase-bar .phase {
   flex: 1; display: flex; align-items: baseline; justify-content: center;
