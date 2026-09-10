@@ -88,9 +88,10 @@ body { font-family: var(--ui); color: var(--body); }
   flex: 1; display: flex; align-items: baseline; justify-content: center;
   color: #caa84a; overflow: hidden; white-space: nowrap;
 }
-/* Fixed cells: the longest phase is 7 characters («Impulse», «Падіння»), the
-   longest pallet 14 («вихідна палета») — both widths keep headroom, and the
-   clipping below is a backstop, not a size anyone should reach. */
+/* Fixed cells: the widest phase name runs 7 characters and the widest pallet
+   name 14 (`show.phase.impulse` and `show.pallet.exit`, in the longer of the two
+   languages) - both widths keep headroom, and the clipping below is a backstop,
+   not a size anyone should reach. */
 #showcase-bar .ph-name,
 #showcase-bar .ph-pal {
   flex: none; text-align: left; overflow: hidden; text-overflow: ellipsis;

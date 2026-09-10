@@ -42,6 +42,33 @@ describe('i18n', () => {
     expect(bad, 'labels bypassing t(): ' + bad.join(' | ')).toEqual([]);
   });
 
+  it('src/ carries no Cyrillic outside the two dictionaries', () => {
+    // Everything written ABOUT the code is English; the Ukrainian interface copy lives in
+    // exactly two files. That rule was prose only, and it broke the commit after the sweep
+    // that established it - a comment in lesson.css measuring the width of two Ukrainian
+    // words. Prose cannot guard itself, so this walks the tree instead.
+    //
+    // src/ only: a test asserting what the ua dictionary renders holds Cyrillic as DATA,
+    // not as prose about the code, and the guards below need the character class itself.
+    const DICTS = ['i18n.js', 'content.js'];   // the interface copy, both languages
+    const LABEL = /^УКР$/;   // the language switch names itself in its own script
+    const found = [];
+    const walk = (dir) => {
+      for (const e of readdirSync(dir, { withFileTypes: true })) {
+        if (e.isDirectory()) { walk(new URL(e.name + '/', dir)); continue; }
+        if (!/\.(js|css|html)$/.test(e.name) || DICTS.includes(e.name)) continue;
+        const lines = readFileSync(new URL(e.name, dir), 'utf8').split(/\r?\n/);
+        lines.forEach((line, i) => {
+          for (const m of line.match(/[Ѐ-ӿ]+/g) ?? []) {
+            if (!LABEL.test(m)) found.push(`${e.name}:${i + 1} «${m}»`);
+          }
+        });
+      }
+    };
+    walk(new URL('../src/', import.meta.url));
+    expect(found, 'Cyrillic outside the dictionaries: ' + found.join(' | ')).toEqual([]);
+  });
+
   it('no value is empty', () => {
     for (const l of LANGS) {
       setLang(l);
