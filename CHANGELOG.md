@@ -57,6 +57,11 @@ A third mode, one language, one snapshot fewer.
 
 ### Fixed
 
+- **Leaving the escapement model brings the movement back in frame.** The
+  exhibit flies the camera in close and switches off the automatic framing that
+  would pull it back; nothing answered either of those on the way out, so the
+  movement returned inside a camera framed for a lever escapement no longer on
+  screen. Leaving now flies to the overview.
 - **The showcase bar stopped clipping its own readout.** It was a fixed width,
   and the phase cells are the only flexible thing in the row, so every control
   added collapsed them to an ellipsis while everything else still looked right —

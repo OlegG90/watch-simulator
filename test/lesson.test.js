@@ -16,6 +16,7 @@ import { profile as motionProfile } from '../src/motionWorks.js';
 import { profile as reserveProfile } from '../src/powerReserve.js';
 import { layoutTrain } from '../src/train.js';
 import { createSettings } from '../src/settings.js';
+import { cameraOnMode } from '../src/ui.js';
 
 const mat = () => new THREE.MeshStandardMaterial();
 const build = () => buildMovement({
@@ -102,6 +103,19 @@ describe('i18n', () => {
   it('an unknown key comes back as itself — so a gap is visible', () => {
     expect(t('no.such.key')).toBe('no.such.key');
     expect(getLang()).toBe('ua');
+  });
+});
+
+describe('the camera and the modes', () => {
+  it('leaving the escapement model owes the camera an overview, and nothing else does', () => {
+    // The exhibit flies the camera in close AND switches off the frame fitting that would
+    // pull it back. Both outlive the mode unless leaving answers them, and then the
+    // movement returns inside a camera framed for an escapement that is no longer there.
+    expect(cameraOnMode('showcase', 'lesson')).toBe('overview');
+    expect(cameraOnMode('showcase', 'free')).toBe('overview');
+    for (const [from, to] of [['lesson', 'free'], ['free', 'lesson'], ['lesson', 'showcase'],
+      ['free', 'showcase'], ['showcase', 'showcase'], ['lesson', 'lesson']])
+      expect(cameraOnMode(from, to), `${from} → ${to}`).toBe(null);
   });
 });
 

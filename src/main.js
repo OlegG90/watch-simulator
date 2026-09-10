@@ -7,7 +7,7 @@ import { PLANNED_IDS } from './escapement/index.js';
 import { buildShowcase } from './showcase/leverModel.js';
 import { mountShowcaseBar } from './showcase/bar.js';
 import { BEAT_HZ } from './showcase/motion.js';
-import { buildLabels, createCameraFly } from './ui.js';
+import { buildLabels, cameraOnMode, createCameraFly } from './ui.js';
 import { t, getLang, setLang, onLangChange, LANGS } from './i18n.js';
 import { createHighlighter } from './lesson/highlight.js';
 import { mountLesson } from './lesson/panel.js';
@@ -305,6 +305,7 @@ const lesson = mountLesson({
     return statusOut;
   },
   onMode: (mode) => {
+    const from = uiMode;
     uiMode = mode;
     gui.domElement.style.display = mode === 'free' ? '' : 'none';
     // The showcase swaps the scene's contents with the movement's: the exhibit is
@@ -323,6 +324,10 @@ const lesson = mountLesson({
     } else {
       document.getElementById('showcase-bar').hidden = true;
     }
+    // The exhibit leaves two things behind — a close camera and frame fitting switched off
+    // — and this is where they are answered. `overview()` does both: it flies out and turns
+    // the fitting back on, so the movement comes back in frame on its own.
+    if (cameraOnMode(from, mode) === 'overview') focus.overview();
     // Both panels write into one table, but lil-gui shows what it read at creation time.
     // Without this, a knob moved on a station card would leave the old number in free
     // mode — beside a live movement already running on the new one.

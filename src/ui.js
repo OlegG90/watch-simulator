@@ -46,6 +46,21 @@ export function buildLabels(focusPoints) {
 }
 
 /** Smooth camera flight: create it, then call update() in the loop. */
+/**
+ * What the camera owes a change of mode.
+ *
+ * Only one transition owes anything: LEAVING the escapement model. The exhibit flies the
+ * camera in close and switches off the frame fitting that would otherwise pull it back —
+ * and both of those outlive the mode unless something answers them. Left unanswered, the
+ * movement returns inside a camera framed for a lever escapement that is no longer on
+ * screen, and the fitting stays off for the rest of the session.
+ *
+ * A rule rather than a line inside the mode switch, because this is the kind of thing that
+ * regresses in silence: nothing looks wrong in the code that forgets it.
+ */
+export const cameraOnMode = (from, to) =>
+  (from === 'showcase' && to !== 'showcase' ? 'overview' : null);
+
 export function createCameraFly(camera, controls) {
   let anim = null;
   const smooth = (k) => k * k * (3 - 2 * k);
