@@ -42,6 +42,22 @@ A third mode, one language, one snapshot fewer.
 
   Two figures are magnified four times, because a real lock and a real drop
   would be invisible at this size, and the panel tells the viewer so.
+- **One balance wheel, in the exhibit and in all three modules.** The two
+  models drew the same part twice: the movement had a `TorusGeometry` rim
+  with four timing screws, the exhibit a machined rectangular rim with
+  eighteen timing pins in groups of 2/3/4. The exhibit's is the better
+  drawing, so it is the one that stayed — `parts/balanceWheel.js`, neutral
+  ground both models import, because the exhibit's isolation forbids either
+  of them importing the other. The movement's rim is 1.95 against the
+  exhibit's 1.75, so the sections scale with the radius while the pins'
+  angles stay put: one drawing at two sizes.
+  The developed section's rim thickness is now derived from the same file
+  instead of being typed out in `lever.js` and again in `tourbillon.js`.
+  Verified by two scene-graph diffs: the exhibit is byte-identical over 250
+  rows, and in the movement each of the three balances loses a torus, four
+  screws and four heads and gains an extruded rim and eighteen pins —
+  nothing else moved. The cost table reads 36 / 60 / 57 parts (was
+  26 / 50 / 47) and the modules keep their order.
 - **One fork for every module, in three sizes.** The pallet fork was drawn
   three times, and the three drifted: two modules gave the stones a bevelled
   prism and the third a plain box, and the double-axis fork's bars had been

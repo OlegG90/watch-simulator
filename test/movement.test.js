@@ -5,6 +5,7 @@ import { buildEscapementSocket } from '../src/escapement/index.js';
 import { buildTourbillon } from '../src/escapement/tourbillon.js';
 import { LAYERS as DA_LAYERS } from '../src/escapement/doubleAxis.js';
 import { BALANCE_OFF, BALANCE_R, buildLever } from '../src/escapement/lever.js';
+import { buildShowcase } from '../src/showcase/leverModel.js';
 import { dictKeys } from '../src/i18n.js';
 
 // ── Helpers ───────────────────────────────────────────────────────
@@ -334,13 +335,27 @@ describe('escapement socket', () => {
       const balance = f.escapement.variant(id).internals.balance;
       const wheel = balance.children.find((c) => c.type === 'Group');
       expect(wheel, `${id}: the balance carries no shared wheel`).toBeTruthy();
-      return wheel.children.map((o) => {
-        const g = o.geometry.parameters;
-        const keys = Object.keys(g).sort().map((k) => `${k}=${g[k]}`).join(',');
+      // Walk the whole subtree: the wheel proper comes from `parts/` as its own group,
+      // and the hub is the movement's mounting alongside it. A shape without numeric
+      // parameters (the extruded rim) is described by its bounding box — otherwise
+      // every extrusion would read as the same string and the rim would go unguarded.
+      const rows = [];
+      wheel.traverse((o) => {
+        if (!o.isMesh) return;
+        const g = o.geometry, prm = g.parameters || {};
+        const nums = Object.keys(prm).filter((k) => typeof prm[k] === 'number').sort();
+        let shape;
+        if (nums.length) shape = nums.map((k) => `${k}=${prm[k]}`).join(',');
+        else {
+          g.computeBoundingBox();
+          const b = g.boundingBox.getSize(new THREE.Vector3());
+          shape = `bbox ${b.x.toFixed(5)},${b.y.toFixed(5)},${b.z.toFixed(5)}`;
+        }
         const p = o.position, r = o.rotation;
-        return `${o.geometry.type}[${keys}]@${p.x.toFixed(4)},${p.y.toFixed(4)},${p.z.toFixed(4)}` +
-               `/${r.x.toFixed(4)},${r.y.toFixed(4)},${r.z.toFixed(4)}`;
-      }).sort();
+        rows.push(`${g.type}[${shape}]@${p.x.toFixed(4)},${p.y.toFixed(4)},${p.z.toFixed(4)}` +
+                  `/${r.x.toFixed(4)},${r.y.toFixed(4)},${r.z.toFixed(4)}`);
+      });
+      return rows.sort();
     };
     const first = wheelOf(f.escapement.ids[0]);
     expect(first.length, 'a balance of one mesh is not a balance').toBeGreaterThan(10);
@@ -401,6 +416,65 @@ describe('escapement socket', () => {
     expect(scaleOf('lever')).toBeCloseTo(1, 12);
     expect(scaleOf('tourbillon')).toBeCloseTo(1, 12);
     expect(scaleOf('doubleAxis')).toBeLessThan(0.5);
+  });
+
+  it('and the exhibit draws the SAME balance wheel, at its own size', () => {
+    // The guard above compares the three modules with each other, so it cannot see a
+    // change made in the builder they share — all three move together and stay equal.
+    // That blind spot is exactly how the movement and the exhibit came to draw one part
+    // twice: a bent wire with four screws here, a machined rim with eighteen timing pins
+    // there. Nothing compared the two models, so nothing went red.
+    //
+    // This compares them. Sections normalised by the scale each wheel declares, because
+    // the exhibit's rim is 1.75 and the movement's 1.95; positions and angles as they
+    // are, because the pins' places on the rim are the drawing, not the size.
+    const f = buildFresh();
+    const balance = f.escapement.variant('lever').internals.balance;
+    const mounted = balance.children.find((c) => c.type === 'Group');
+    const inMovement = mounted.children.find((c) => c.userData.balanceScale);
+
+    const show = buildShowcase({
+      brass: mat(), steel: mat(), darkSteel: mat(), ruby: mat(), springSteel: mat(),
+    });
+    let inExhibit = null;
+    show.balancePivot.traverse((o) => { if (o.userData.balanceScale) inExhibit = o; });
+
+    expect(inMovement, 'the movement carries no shared balance wheel').toBeTruthy();
+    expect(inExhibit, 'the exhibit carries no shared balance wheel').toBeTruthy();
+
+    const drawing = (wheel) => {
+      const k = wheel.userData.balanceScale;
+      const rows = [];
+      wheel.traverse((o) => {
+        if (!o.isMesh) return;
+        const g = o.geometry, prm = g.parameters || {};
+        // Only LENGTHS are normalised. Segment counts and sweep angles are not sizes: a
+        // uniform scale leaves them alone, and dividing them by k would hide a rim drawn
+        // with half the segments while flagging one that is merely bigger.
+        const dimensionless = (n) => /segments|theta|teeth|curve/i.test(n);
+        const nums = Object.keys(prm).filter((n) => typeof prm[n] === 'number').sort();
+        let shape;
+        if (nums.length)
+          shape = nums.map((n) => `${n}=${dimensionless(n) ? prm[n] : (prm[n] / k).toFixed(4)}`)
+            .join(',');
+        else {
+          g.computeBoundingBox();
+          const b = g.boundingBox.getSize(new THREE.Vector3());
+          shape = `bbox ${(b.x / k).toFixed(4)},${(b.y / k).toFixed(4)},${(b.z / k).toFixed(4)}`;
+        }
+        const p = o.position, r = o.rotation;
+        rows.push(`${g.type}[${shape}]@${(p.x / k).toFixed(4)},${(p.y / k).toFixed(4)},` +
+                  `${(p.z / k).toFixed(4)}/${r.z.toFixed(4)}`);
+      });
+      return rows.sort();
+    };
+
+    const want = drawing(inExhibit);
+    expect(want.length, 'a balance of one mesh is not a balance').toBeGreaterThan(15);
+    expect(drawing(inMovement), 'the two models draw the balance differently').toEqual(want);
+    // And the sizes really do differ, or the normalisation above proves nothing.
+    expect(inMovement.userData.balanceScale)
+      .not.toBeCloseTo(inExhibit.userData.balanceScale, 3);
   });
 
   it('escape wheel: 12 s in the lever, 6 s in the tourbillon (it rides the cage)', () => {

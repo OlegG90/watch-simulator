@@ -164,6 +164,22 @@ Three things are worth carrying forward:
   wheel; the guard normalises by the scale each fork declares and compares the
   sections that are left against numbers written out in the test, so all three can
   be wrong together and still fail.
+- **`src/parts/` is neutral ground.** The exhibit and the movement drew the balance
+  wheel twice — a bent wire with four screws in the movement, a machined rim with
+  eighteen timing pins in the exhibit — which is the same failure one step further
+  out, across the two models rather than inside one. It cannot be fixed by an import:
+  the exhibit's isolation is a decision, and either direction of import breaks it. A
+  third module that neither owns does not. Sections there are quoted at a reference
+  radius and scale with the caller's; **angles do not scale** — a uniform scale keeps
+  every angle and lets arc lengths follow the radius by themselves.
+- **A deny-list guard lets the next thing through in silence.** The isolation test
+  named five folders the exhibit may not import, so a sixth would have passed without
+  a word. It is an allow-list now: `three`, relative imports, `../parts/`, `../i18n.js`.
+  When a guard has to be widened, widen it as an allow-list or it stops guarding.
+- **A comparison cannot catch what moves both sides.** The three modules are compared
+  with each other and the movement with the exhibit — neither sees a change made in
+  the file they share, because everything moves together and stays equal. That is why
+  a shared part also has its drawing written out in numbers (`test/parts.test.js`).
 - **A measurement that stopped being an angle.** `worldZ()` in the tests summed `rotation.z`
   up the parent chain, which is an angle only while every link turns about Z. It now checks
   that precondition and throws instead of adding angles measured about different axes. The

@@ -3,7 +3,7 @@ import { makeEscapeWheel } from '../gear.js';
 import { tagModule, tagVariant } from '../common.js';
 import { beatPhase } from './beat.js';
 import { buildHairspring } from './hairspring.js';
-import { buildBalanceWheel } from './balance.js';
+import { buildBalanceWheel, rimHalfHeight } from './balance.js';
 import { buildPalletFork } from './fork.js';
 
 /**
@@ -60,7 +60,7 @@ export const FORK_REACH = BALANCE_OFF - FORK_PIVOT - ROLLER_R;
  * now the section had its own eyeballed ±0.18 / ±0.14 / ±0.1, and they had already
  * drifted away from the meshes.
  */
-const T = { escape: 0.35, fork: 0.4, balRim: 0.18 };
+const T = { escape: 0.35, fork: 0.4, balRim: rimHalfHeight(BALANCE_R) };
 
 const dir2 = (a) => new THREE.Vector2(Math.cos(a), Math.sin(a));
 

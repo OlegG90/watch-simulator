@@ -7,6 +7,7 @@ import {
   toothPoly, stonePoly, faceLocus, polar,
 } from './design.js';
 import { buildSpring, SPRING_R1 } from './spring.js';
+import { buildBalanceWheel, REF_R as BAL_REF_R } from '../parts/balanceWheel.js';
 
 /**
  * A self-contained model of the lever escapement — a separate exhibit, not a module of
@@ -47,10 +48,11 @@ const WHEEL_T = 0.35;
 const FORK_Z = 0.85;
 /** The balance wheel's plane: the rim, the roller table as its centre, and the spokes. */
 const RIM_Z = 1.55;
-const BAL_RIM_R = 1.75;
-/** The rim's rectangular section: half the radial width and half the height. */
-const RIM_HALF = 0.06;
-const RIM_H_HALF = 0.11;
+/**
+ * The exhibit's rim IS the reference the shared wheel's sections are quoted at — taken
+ * from there rather than typed again here, so the two cannot drift apart.
+ */
+const BAL_RIM_R = BAL_REF_R;
 /** The stone's thickness across the wheel's plane, and how high it hangs. */
 const STONE_T = 0.5;
 const STONE_Z = 0.1;
@@ -387,51 +389,14 @@ export function buildShowcase() {
   jewel.position.set(-PIN_ORBIT, 0, (PIN_TOP + PIN_BOTTOM) / 2);
   jewel.castShadow = true;
   balancePivot.add(jewel);
-  // The rim is a rectangular band, not a round wire: an extruded annulus, so the
-  // section reads as a machined rim. Outer and inner radii match the old tube's
-  // envelope (BAL_RIM_R ± RIM_HALF), hence the spokes and the timing pins need nothing new.
-  const rimShape = new THREE.Shape();
-  rimShape.absarc(0, 0, BAL_RIM_R + RIM_HALF, 0, Math.PI * 2, false);
-  const rimHole = new THREE.Path();
-  rimHole.absarc(0, 0, BAL_RIM_R - RIM_HALF, 0, Math.PI * 2, true);
-  rimShape.holes.push(rimHole);
-  const rimGeo = new THREE.ExtrudeGeometry(rimShape, { depth: 2 * RIM_H_HALF, bevelEnabled: false, curveSegments: 112 });
-  rimGeo.translate(0, 0, -RIM_H_HALF);
-  rimGeo.computeVertexNormals();
-  const rim = new THREE.Mesh(rimGeo, brass);
-  rim.position.z = RIM_Z;
-  rim.castShadow = true;
-  balancePivot.add(rim);
-  // The rim is two halves of pins: each semicircle carries groups of 2, 3 and 4 pins with
-  // a gap between groups (cf. the demonstration model). Each half is centred in its own
-  // semicircle, so the joint between the halves stays clear.
-  const pinGeo = new THREE.CylinderGeometry(0.1, 0.1, 0.24, 12);
-  const groupSizes = [2, 3, 4];
-  const pitch = 0.16; // the step inside a group
-  const gap = 0.5;    // the gap between groups
-  const totalPins = groupSizes.reduce((s, n) => s + n, 0);
-  const span = (totalPins - 1) * pitch + (groupSizes.length - 1) * gap;
-  for (const start of [0, Math.PI]) {
-    let a = start + (Math.PI - span) / 2;
-    for (const n of groupSizes) {
-      for (let i = 0; i < n; i++) {
-        const pin = new THREE.Mesh(pinGeo, brass);
-        pin.position.set(Math.cos(a) * (BAL_RIM_R + 0.17), Math.sin(a) * (BAL_RIM_R + 0.17), RIM_Z);
-        pin.rotation.z = a - Math.PI / 2; // the axis along the radius
-        pin.castShadow = true;
-        balancePivot.add(pin);
-        a += pitch;
-      }
-      a += gap;
-    }
-  }
-  for (const a of [0, Math.PI / 2]) {
-    const spoke = new THREE.Mesh(new THREE.BoxGeometry(2 * BAL_RIM_R - 0.05, 0.15, 0.15), brass);
-    spoke.rotation.z = a;
-    spoke.position.z = RIM_Z;
-    spoke.castShadow = true;
-    balancePivot.add(spoke);
-  }
+  // The wheel itself — rim, crossings, timing pins — comes from `parts/balanceWheel.js`,
+  // which the movement's three modules draw from too. This is the exhibit's own
+  // drawing, kept; what changed is that it is no longer the only copy of it.
+  // `parts/` is neutral ground: importing the movement here would break the isolation,
+  // and so would the movement importing the exhibit.
+  const balWheel = buildBalanceWheel({ radius: BAL_RIM_R, brass });
+  balWheel.position.z = RIM_Z;
+  balancePivot.add(balWheel);
   group.add(balancePivot);
 
   // ── The hairspring: it breathes with the balance; a bridge holds the outer end ──

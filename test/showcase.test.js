@@ -177,15 +177,26 @@ describe('lever escapement showcase (geometry)', () => {
   });
 
   it('the showcase does not import the movement: isolation by decision', () => {
-    // Self-containment is not an agreement but a structure: not one import from the
-    // movement, the socket or the lesson layer anywhere in the showcase/ folder.
+    // Self-containment is not an agreement but a structure. This used to be a DENY-list
+    // — five folder names the showcase may not import — and a deny-list lets anything
+    // new through in silence. When the balance wheel became a shared drawing there was a
+    // sixth folder to think about, and a guard that would not have noticed it.
+    //
+    // So it is an allow-list: three itself, relative imports inside showcase/, and
+    // ../parts/ — neutral ground that neither the exhibit nor the movement owns — plus
+    // ../i18n.js, which is the app's language, not the movement's mechanics.
+    // Anything else fails, including a folder nobody has invented yet.
+    const ALLOWED = /^(three|\.\/[^'"]+|\.\.\/parts\/[^'"]+|\.\.\/i18n\.js)$/;
     const dir = new URL('../src/showcase/', import.meta.url);
+    let seen = 0;
     for (const f of readdirSync(dir)) {
       const src = readFileSync(new URL(f, dir), 'utf8');
-      for (const mod of ['movement', 'escapement', 'lesson', 'settings', 'motionWorks']) {
-        expect(src, `${f} pulls in ${mod}`).not.toMatch(new RegExp(`from\\s+['"][^'"]*${mod}`));
+      for (const m of src.matchAll(/from\s+['"]([^'"]+)['"]/g)) {
+        seen++;
+        expect(m[1], `${f} imports ${m[1]}`).toMatch(ALLOWED);
       }
     }
+    expect(seen, 'no imports found at all — the guard is reading nothing').toBeGreaterThan(5);
   });
 });
 

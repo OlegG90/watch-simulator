@@ -3,7 +3,7 @@ import { makeGear, makeEscapeWheel } from '../gear.js';
 import { tagModule, tagVariant } from '../common.js';
 import { beatPhase } from './beat.js';
 import { buildHairspring } from './hairspring.js';
-import { buildBalanceWheel } from './balance.js';
+import { buildBalanceWheel, rimHalfHeight } from './balance.js';
 import { buildPalletFork } from './fork.js';
 
 // ── Escapement constants (the same as in escapement.js) ───────────
@@ -14,7 +14,7 @@ export const LAYERS = { bottom: -0.55, pin: 0, escape: 0.55, fork: 0.95, balance
 export const balanceR = (cageR) => Math.min(1.95, cageR - 1.95);
 
 /** Body thicknesses — the same numbers in the meshes and in the section. */
-const T = { balRim: 0.18 };
+const T = { balRim: rimHalfHeight(balanceR(4.3)) };
 
 /**
  * What the variant says about itself in the section — before any mesh exists.
