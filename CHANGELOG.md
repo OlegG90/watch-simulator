@@ -2,7 +2,22 @@
 
 ## Unreleased
 
-A third mode, one language, one snapshot fewer.
+## v4.0.0 — 2026-09-11
+
+A third mode, a third module, and the escapement drawn once instead of
+three or four times.
+
+The exhibit is the headline: the lever escapement standing alone, large
+and slow, running on **solved contact** rather than on a schedule — the
+pallets are the conjugate profiles of the action, and what falls out of
+them (half a pitch per beat, 12° of draw, 50° of lift) is measured, not
+set. Beside it the movement gained its third escapement variant, the
+double-axis tourbillon, and the shared parts the socket was always meant
+to imply: one balance, one fork, one balance wheel across both models.
+
+A major version because the app has three modes where it had two, and
+because almost every part of the escapement is now built somewhere it
+was not before.
 
 ### Added
 
