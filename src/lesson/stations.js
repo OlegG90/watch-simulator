@@ -123,6 +123,7 @@ export const STATIONS = [
     prose: 'st.powerReserve.prose',
     idea: 'st.powerReserve.idea',
     hint: 'st.powerReserve.hint',
+    simplification: 'st.powerReserve.simp',
     formula: (r) => [
       { key: 'st.powerReserve.f1' },
       { key: 'st.powerReserve.f2', vals: [r.sweepDeg] },

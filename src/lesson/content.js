@@ -60,6 +60,7 @@ export const CONTENT = {
     'st.powerReserve.n1': 'заряд ніде не зберігається — він похідний',
     'st.powerReserve.s1': 'заряд зараз',
     'st.powerReserve.s2': 'міжосьова пар',
+    'st.powerReserve.simp': 'У реальному часі пружина не витрачається: модель підкручує барабан рівно на стільки, скільки спожив удар, — щоб стрілка запасу стояла, поки стрілки йдуть за справжнім часом. Тому в цьому режимі годинник не стає ніколи. Витрачається пружина лише в демонстраційному, і там її видно до нуля.',
 
     // ── the sentence a stop leaves behind: same text in rail and summary ──
     'st.winding.line': 'Собачка не пускає храповик назад — тому в енергії лишається єдиний вихід: у передачу.',
@@ -137,6 +138,7 @@ export const CONTENT = {
     'st.powerReserve.n1': 'the charge is stored nowhere — it is derived',
     'st.powerReserve.s1': 'charge now',
     'st.powerReserve.s2': 'pair centre distance',
+    'st.powerReserve.simp': 'In real time the mainspring is never spent: the model tops the barrel up by exactly what each beat consumes, so that the reserve hand stands still while the hands follow the wall clock. The watch therefore never stops in that mode. The spring is only spent in demo time, and there you can watch it reach zero.',
 
     // ── the sentence a stop leaves behind: same text in rail and summary ──
     'st.winding.line': 'The click will not let the ratchet run back — so the energy has one way out: into the train.',

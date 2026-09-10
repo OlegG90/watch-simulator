@@ -88,6 +88,13 @@ A third mode, one language, one snapshot fewer.
 
 ### Fixed
 
+- **The power-reserve station says what real time does to the mainspring.** It
+  does not consume it: the model tops the barrel up by exactly what each beat
+  spends, so the reserve hand can stand still while the hands follow the wall
+  clock — which is why the watch never stops in that mode, and why it does stop
+  in demo. Two modes disagreed about whether the spring exists, and nobody was
+  told; an amber marker on the station now says it, in the same place every
+  other simplification is named.
 - **A watch that has run down says so.** In demo time the movement stops when
   the mainspring is out — which is correct, and is the point of the last
   station — but nothing said so: «завод 0 %» in a corner and a scene that had
