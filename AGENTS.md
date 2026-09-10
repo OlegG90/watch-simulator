@@ -235,6 +235,16 @@ What that buys, and what to protect:
 - **The exit stone's draw comes out at 19° rather than the 12° asked for**: at zero recoil
   its geometry already draws that much. Recorded rather than forced, and the test holds it
   to «steeper than the entry's» instead of pretending otherwise.
+- **The safety action is a constraint, not a decoration.** The guard pin's place is solved
+  so the catch happens after 7.5% of the lever's travel — half the share the unlocking
+  needs — and the crescent's half-angle and depth are measured from the passage the guard
+  actually makes. Through a correct beat the guard never touches (worst clearance 0.010),
+  and the suite holds it to that. The push that demonstrates it (`nudge`) is a state beside
+  the time, so the pose stays a pure function of the pair and stepping still works.
+- **Where a shape and its placement come from one measurement, test them separately.** The
+  crescent's width and its position are both read off the same sweep, so a crescent turned a
+  few degrees off centre simply widens itself to cover the passage — every test still green,
+  and the exhibit showing an opening that has nothing to do with the moment it exists for.
 
 ## Commands
 

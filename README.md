@@ -60,6 +60,13 @@ changes at the release, and so does the flank of the notch in contact — the ba
 drives the lever off the lock, then the wheel drives the lever, which runs ahead and is
 held back by the other flank, and that is how the impulse reaches the balance.
 
+**What holds the lever between beats is the guard pin**, not the draw alone: knocked off
+its banking the lever butts the safety roller and stops, well before the lock could come
+off, and the crescent cut into that roller is the one place it may pass — facing the lever
+exactly while the impulse pin is in the notch. A control in the panel pushes the lever so
+you can watch it be caught; it is live only between beats, because that is the only time
+anything is holding the lever that a push could argue with.
+
 The pallets are the **conjugate profiles** of that action: for every lever angle in a
 phase, the acting tooth's toe is put where the phase says the wheel stands, and the run
 of those places is the face. So a beat advances the wheel by exactly half a pitch — a
@@ -240,8 +247,9 @@ Polyline of 200 points: $\alpha(f) = \theta_b(1-f) + f\Phi - \Phi + \lambda$, $r
   amplitude, wireframe, per-node visibility, cage opacity and top plate, camera
   presets, and "wind the mainspring".
 - **Escapement model**: a bar over the scene — play/pause, a step to the middle of the
-  next stage (lock → unlock → impulse → drop, four presses to the beat), the home view,
-  a speed slider, and the current phase with the working pallet.
+  next stage (lock → unlock → impulse → drop, four presses to the beat), a push that tests
+  the safety catch (live only between beats), the home view, a speed slider, and the
+  current phase with the working pallet.
 
 ## Run locally
 

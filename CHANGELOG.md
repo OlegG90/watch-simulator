@@ -42,6 +42,14 @@ A third mode, one language, one snapshot fewer.
 
   Two figures are magnified four times, because a real lock and a real drop
   would be invisible at this size, and the panel tells the viewer so.
+- **The safety action.** The guard pin catches the lever if it is knocked off
+  its banking, and the crescent in the safety roller is the one place it may
+  pass. Solved rather than placed: the pin's position gives a catch after 7.5%
+  of the lever's travel — half the share the unlocking needs — and the
+  crescent's half-angle and depth are measured from the passage the guard makes.
+  Through a correct beat the guard never touches. A push in the panel
+  demonstrates it, live only between beats, and the pin and roller light when
+  they are what holds the lever.
 - **The lever is cut as one piece** — boss, both pallet arms, the shank with the
   notch, the counterpoise — instead of a boss with plates added to it. The arms
   reach the corners the design traced and the notch is the one the contact is
@@ -49,6 +57,11 @@ A third mode, one language, one snapshot fewer.
 
 ### Fixed
 
+- **The showcase bar stopped clipping its own readout.** It was a fixed width,
+  and the phase cells are the only flexible thing in the row, so every control
+  added collapsed them to an ellipsis while everything else still looked right —
+  three times. The bar now takes the width its content needs, with a floor so the
+  Play/Pause toggle cannot make it breathe.
 - **A step was wider than the stage it existed to show.** The step advanced a
   fixed ⅛ of a beat while the impulse is about 0.054 beat wide, so stepping from
   a lock went unlock → drop and the impulse was never seen. There is no step
