@@ -15,10 +15,10 @@ import * as THREE from 'three';
  */
 
 /** Turns, points, radii (the inner one at the arbor's collet, the outer at the stud). */
-export const TURNS = 5;
-export const SPRING_N = 200;
+export const TURNS = 8;
+export const SPRING_N = 320; // ~40 points per turn, as before: the ribbon stays smooth
 export const SPRING_R0 = 0.18;
-export const SPRING_R1 = 0.95;
+export const SPRING_R1 = 1.5; // the outer end near the rim (inner edge 1.69)
 const WIDTH = 0.045;
 
 export function buildSpring({ cx, cy, z, material }) {

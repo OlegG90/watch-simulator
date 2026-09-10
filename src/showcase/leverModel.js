@@ -90,8 +90,11 @@ export const JEWEL_GEOM = { w: JEWEL_W, h: JEWEL_H, lean: Math.tan(LOCK_DRAW) * 
 const FORK_Z = 0.85;
 /** The balance wheel's plane: the rim, the roller table as its centre, and the spokes. */
 const RIM_Z = 1.55;
-/** The balance wheel's radius — twice the classic proportion, on the same axis. */
-const BAL_RIM_R = 2.1;
+/** The balance wheel's radius — wider than the classic proportion, on the same axis. */
+const BAL_RIM_R = 1.75;
+/** The rim's rectangular section: half the radial width and half the height. */
+const RIM_HALF = 0.06;
+const RIM_H_HALF = 0.11;
 const ROLLER_R = 0.55;
 /** The impulse pin hangs from the table into the slot, spanning the horns at FORK_Z. */
 const PIN_TOP = RIM_Z - 0.09;
@@ -311,7 +314,11 @@ export function buildShowcase() {
   wheelPivot.add(wheelAxle);
   group.add(wheelPivot);
 
-  // ── The fork: pivot, arms out to the stones, tail with the slot for the roller ──
+  // ── The fork: one lever stamping — pivot boss, tapered pallet arms, a tapering
+  // shank with the fork slot, the counterweight lobe. Same steel at the same height
+  // throughout, so the overlapping plates read as one forging (their thicknesses
+  // differ by a hundredth — shared faces are never coplanar). The stones keep their
+  // solved seats; the arms only reach for them.
   const forkPivot = new THREE.Group();
   forkPivot.position.set(FORK_D, 0, 0);
   const boss = new THREE.Mesh(new THREE.CylinderGeometry(0.28, 0.28, 0.4, 16), steel);
@@ -319,6 +326,22 @@ export function buildShowcase() {
   boss.position.z = FORK_Z;
   boss.castShadow = true;
   forkPivot.add(boss);
+
+  // A flat plate from a corner list, at the fork's height.
+  const plate = (pts, t) => {
+    const s = new THREE.Shape();
+    s.moveTo(...pts[0]);
+    for (const p of pts.slice(1)) s.lineTo(...p);
+    s.closePath();
+    const g = new THREE.ExtrudeGeometry(s, { depth: t, bevelEnabled: false });
+    g.translate(0, 0, -t / 2);
+    const m = new THREE.Mesh(g, steel);
+    m.position.z = FORK_Z;
+    m.castShadow = true;
+    return m;
+  };
+  // The shank: the counterweight lobe behind the pivot, tapering out to the slot.
+  forkPivot.add(plate([[-0.95, 0.3], [1.5, 0.12], [1.5, -0.12], [-0.95, -0.3]], 0.24));
 
   const jewels = {};
   const jewelZ = 0.1;
@@ -334,22 +357,27 @@ export function buildShowcase() {
     stone.userData.pallet = { face, imp: seat.imp };
     forkPivot.add(stone);
     jewels[face] = stone;
-    // The arm: a horizontal bar in the fork's plane + a post down to the stone.
-    const top = V2(seat.x, seat.y);
-    forkPivot.add(bar(V2(0, 0), top, 0.24, 0.26, FORK_Z, steel));
+    // The pallet arm: a tapered plate from inside the shank out to the stone's seat,
+    // and a post down to the stone.
+    const l = Math.hypot(seat.x, seat.y);
+    const nx = -seat.y / l, ny = seat.x / l; // across the arm
+    const bx = (-seat.x / l) * 0.1, by = (-seat.y / l) * 0.1; // rooted behind the pivot
+    forkPivot.add(plate(
+      [[bx + nx * 0.19, by + ny * 0.19],
+       [seat.x + nx * 0.13, seat.y + ny * 0.13],
+       [seat.x - nx * 0.13, seat.y - ny * 0.13],
+       [bx - nx * 0.19, by - ny * 0.19]], 0.26));
     const post = new THREE.Mesh(new THREE.BoxGeometry(0.24, 0.24, FORK_Z - jewelZ), steel);
-    post.position.set(top.x, top.y, (FORK_Z + jewelZ) / 2);
+    post.position.set(seat.x, seat.y, (FORK_Z + jewelZ) / 2);
     post.castShadow = true;
     forkPivot.add(post);
   }
-  // The tail out to the roller: the slot embraces the impulse pin.
+  // The fork slot: two flared prongs embracing the impulse pin (it rides at fork-local
+  // x≈1.58). The throat (±0.10) matches the old horns; the mouth flares to ±0.15, as on
+  // a real fork — and the pin passes it with room to spare.
   const tailEnd = FORK_D + BAL_D - PIN_R; // the world X of the roller's pin
-  forkPivot.add(bar(V2(0.3, 0), V2(tailEnd - FORK_D - 0.15, 0), 0.26, 0.26, FORK_Z, steel));
   for (const s of [1, -1]) {
-    const horn = new THREE.Mesh(new THREE.BoxGeometry(0.5, 0.13, 0.26), steel);
-    horn.position.set(tailEnd - FORK_D + 0.1, s * 0.165, FORK_Z);
-    horn.castShadow = true;
-    forkPivot.add(horn);
+    forkPivot.add(plate([[1.35, s * 0.24], [2.0, s * 0.24], [2.0, s * 0.15], [1.42, s * 0.1]], 0.26));
   }
   const guard = new THREE.Mesh(new THREE.CylinderGeometry(0.05, 0.05, 0.34, 8), darkSteel);
   guard.rotation.x = Math.PI / 2;
@@ -362,12 +390,25 @@ export function buildShowcase() {
   forkPivot.add(counter);
   group.add(forkPivot);
 
-  // ── The banking pins for the fork's travel — fixed, the tail strikes them ──
-  // The position follows the swing: half the tail's width + arm·tan(FORK_MAX).
+  // ── The banking bridge: the limiting pins stand on it, not in the air. Two slim
+  // bars under the pins, joined at the fork's post into a U. The fork's side carries
+  // it: the balance side is swept by the impulse pin's orbit (from x≈3.93), so there
+  // is nothing to stand on there. Tops at 0.60 — clear of the rocking fork above (the
+  // boss from 0.65) and ending short of the pin's orbit ahead.
+  // The pins' position follows the swing: half the tail's width + arm·tan(FORK_MAX).
+  const bridgeBar = (w, d, x, y) => {
+    const m = new THREE.Mesh(new THREE.BoxGeometry(w, d, 0.12), steel);
+    m.position.set(x, y, 0.54);
+    m.castShadow = true;
+    group.add(m);
+  };
+  bridgeBar(1.45, 0.12, 3.025, 0.2);
+  bridgeBar(1.45, 0.12, 3.025, -0.2);
+  bridgeBar(0.18, 0.64, FORK_D, 0); // the cross-piece embracing the fork's post
   for (const s of [1, -1]) {
     const pin = new THREE.Mesh(new THREE.CylinderGeometry(0.06, 0.06, 0.5, 8), darkSteel);
     pin.rotation.x = Math.PI / 2;
-    pin.position.set(FORK_D + 1.0, s * 0.2, FORK_Z);
+    pin.position.set(FORK_D + 1.0, s * 0.2, FORK_Z); // the foot on the bridge (0.60)
     group.add(pin);
   }
 
@@ -390,14 +431,25 @@ export function buildShowcase() {
   jewel.position.set(-PIN_R, 0, (PIN_TOP + PIN_BOTTOM) / 2);
   jewel.castShadow = true;
   balancePivot.add(jewel);
-  const rim = new THREE.Mesh(new THREE.TorusGeometry(BAL_RIM_R, 0.11, 14, 112), brass);
+  // The rim is a rectangular band, not a round wire: an extruded annulus, so the
+  // section reads as a machined rim. Outer and inner radii match the old tube's
+  // envelope (BAL_RIM_R ± RIM_HALF), hence the spokes and the timing pins need nothing new.
+  const rimShape = new THREE.Shape();
+  rimShape.absarc(0, 0, BAL_RIM_R + RIM_HALF, 0, Math.PI * 2, false);
+  const rimHole = new THREE.Path();
+  rimHole.absarc(0, 0, BAL_RIM_R - RIM_HALF, 0, Math.PI * 2, true);
+  rimShape.holes.push(rimHole);
+  const rimGeo = new THREE.ExtrudeGeometry(rimShape, { depth: 2 * RIM_H_HALF, bevelEnabled: false, curveSegments: 112 });
+  rimGeo.translate(0, 0, -RIM_H_HALF);
+  rimGeo.computeVertexNormals();
+  const rim = new THREE.Mesh(rimGeo, brass);
   rim.position.z = RIM_Z;
   rim.castShadow = true;
   balancePivot.add(rim);
   // The rim is two halves of pins: each semicircle carries groups of 2, 3 and 4 pins with
   // a gap between groups (cf. the demonstration model). Each half is centred in its own
   // semicircle, so the joint between the halves stays clear.
-  const pinGeo = new THREE.CylinderGeometry(0.055, 0.055, 0.14, 10);
+  const pinGeo = new THREE.CylinderGeometry(0.1, 0.1, 0.24, 12);
   const groupSizes = [2, 3, 4];
   const pitch = 0.16; // the step inside a group
   const gap = 0.5;    // the gap between groups
