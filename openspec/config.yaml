@@ -1,0 +1,38 @@
+schema: spec-driven
+
+# Points at the record rather than restating it: a second copy of AGENTS.md here would be
+# two lists, and the repository has learned what happens to the one nobody checks.
+context: |
+  SimWatch: a 3D mechanical watch movement. Three.js + Vite, no framework,
+  all geometry generated in code; Vitest suites under test/.
+  Read AGENTS.md (how to work) and README.md (the mechanism) before writing
+  any artifact. This file points to them and does not restate them.
+  Every artifact is in English.
+
+rules:
+  proposal:
+    - Name the GitHub issue this change comes from, if there is one.
+    - Name the capabilities touched and any existing requirement put at risk.
+    - If the change adds a simplification, say how the app will name it to the viewer.
+  design:
+    - Record each decision with the rejected alternative and why.
+    - Every new figure the app shows names the module whose profile() owns it.
+    - Kinematics changes plan a scene-graph diff (idle, demo, manual wind, auto-wind).
+    - Explore-layer refactors plan a DOM diff through jsdom states.
+  specs:
+    - 'Every scenario names its test - "Verified by: test/<file> > <it name>".'
+    - A requirement states behaviour or an invariant a test can observe; working advice belongs in AGENTS.md.
+    - If the guard reads source rather than built objects, the scenario says so.
+    - Horological English (pallet fork, escape wheel; never "anchor escapement" for the Swiss lever).
+  tasks:
+    - Every guard-test task includes its sabotage step.
+    - CHANGELOG Unreleased, README and AGENTS.md updates are explicit tasks when affected.
+
+operations:
+  apply:
+    guidance:
+      - Run npm test after each task group.
+      - Commit messages in prose - what was wrong, why this fix, what was verified.
+  archive:
+    guidance:
+      - Before archiving, every test named by a scenario must exist and pass.

@@ -24,3 +24,10 @@ Thumbs.db
 # Scene-graph diff baseline (local)
 .baseline/
 .diffscene.mjs
+
+# Agent workflow skills and commands, installed per machine by `openspec init`.
+# openspec/ itself is tracked: it is the record.
+.claude/commands/
+.claude/skills/
+.omp/
+.opencode/
